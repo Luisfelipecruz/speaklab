@@ -1,0 +1,34 @@
+# The API build context is the repository root, so that infra/api/Dockerfile can COPY
+# api/ into the image and produce something that runs without a bind mount. That makes
+# this file load-bearing rather than tidy: without it every build ships spike/.venv
+# (875 MB) and frontend/node_modules (549 MB) to the daemon.
+
+.git
+.github
+.pr-bodies
+
+# 875 MB of throwaway m0 spike, including its virtualenv and its wav files.
+spike
+
+# Its own build context, with its own .dockerignore.
+frontend
+
+# Graded before the run, mounted read-only into the test service only (invariant I7).
+eval
+
+speaklab-agent
+docs
+*.md
+LICENSE
+Makefile
+docker-compose.yml
+.env
+.env.example
+.gitignore
+
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.venv
+.DS_Store

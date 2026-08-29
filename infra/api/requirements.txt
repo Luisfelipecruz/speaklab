@@ -1,0 +1,51 @@
+# SpeakLab API image.
+#
+# Invariant I5: NO torch and NO model weights in this image. Every model lives in asr,
+# tts or pron. api/tests/test_health.py asserts it rather than trusting this comment —
+# a transitive dependency that quietly pulls torch would add ~2 GB to the image that
+# has to start fastest.
+
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# ── Database ────────────────────────────────────────────────────────────────
+# asyncpg is the request-path driver. psycopg2-binary is here for Alembic (m2), which
+# runs migrations synchronously — `postgresql+asyncpg://` is not a URL psycopg2 can
+# parse, and config.py exposes SYNC_DATABASE_URL for exactly this.
+sqlalchemy[asyncio]==2.0.38
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+alembic==1.14.1
+
+# ── Clients ─────────────────────────────────────────────────────────────────
+# One async HTTP client for all four outbound callers: asr, tts, pron and Ollama. It is
+# also the test client, so it was going to be here regardless.
+httpx==0.28.1
+
+# ── Auth (m3) ───────────────────────────────────────────────────────────────
+# Installed one milestone early, deliberately: they are ~2 MB together and it means the
+# image is rebuilt once rather than twice. bcrypt over argon2 only because passlib's
+# argon2 backend needs a compiled extra for no gain at this scale.
+passlib[bcrypt]==1.7.4
+pyjwt==2.10.1
+
+# ── Tests and lint ──────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.25.3
+ruff==0.9.6
+black==25.1.0
+
+# ── Deliberately absent ─────────────────────────────────────────────────────
+#
+# spacy + en_core_web_sm  arrive with m9, which is the first milestone that parses
+#     anything. ~50 MB of wheel plus a ~12 MB model, carried by eight milestones that
+#     never import it, is the wrong trade — unlike the 2 MB above.
+#
+# torch, transformers, faster-whisper, piper-tts  never. I5. They belong to the model
+#     services and their absence here is what keeps this image at 422 MB rather than
+#     multiple gigabytes. Measured on 2026-08-29 with `docker images`.
+#
+# langchain, llamaindex  never. Orchestration here is a handful of HTTP calls and a
+#     token budget, and a framework would hide the token budget — the part actually
+#     worth reviewing (D7).

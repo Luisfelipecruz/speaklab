@@ -1,0 +1,270 @@
+# SpeakLab — the whole service graph, declared once.
+#
+# Seven services. Three start by default (postgres, api, frontend) and four are behind
+# profiles, because a profiled service is excluded from `up` AND from `build` — which is
+# what lets this file name build contexts that do not exist yet without breaking anything:
+#
+#   speech   asr (m4) + tts (m5)      TEMPORARY — m4 and m5 delete this profile when
+#                                     they create infra/asr and infra/tts, and the two
+#                                     services join the default stack (PRD §10.1)
+#   pron     pron (m8)                torch, ~2 GB. Profiled for that reason alone (D10)
+#   llm      ollama                   NOT the default. See the api service's comment
+#   tools    test                     batch jobs with an exit code, not services
+#
+# So `docker compose up -d` today brings up three containers against build contexts that
+# all exist, and `docker compose --profile speech up -d` will bring up two more the day
+# m4 and m5 create infra/asr and infra/tts. Nothing here needs editing for that to happen.
+#
+# This file is committed whole in m1 and is absent from every later milestone's `git add`
+# (IMPLEMENTATION-PLAN.md §1.1). That is why it is complete rather than minimal.
+
+services:
+
+  # ── Storage ────────────────────────────────────────────────────────────────
+  postgres:
+    # Stock image, pulled not built. No PostGIS: nothing here is spatial. No pgvector:
+    # nothing here is a retrieval problem (D9). An unused extension is a lie about the
+    # system, and a Dockerfile whose only line is `FROM postgres:16` is the same lie in
+    # a different file.
+    #
+    # There is also no docker-entrypoint-initdb.d script. Alembic owns the schema from
+    # m2 onward, and an init.sql that also created tables would be a second source of
+    # truth that runs exactly once, on an empty volume, and silently diverges after that.
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${DB_NAME:-speaklab}
+      POSTGRES_USER: ${DB_USER:-speaklab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-speaklab_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-speaklab} -d ${DB_NAME:-speaklab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - speaklab
+
+  # ── API ────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      # Context is the repository root so the image can COPY api/ and run without a
+      # bind mount. .dockerignore keeps that context small — without it the build
+      # would ship spike/.venv and frontend/node_modules to the daemon.
+      context: .
+      dockerfile: infra/api/Dockerfile
+    # depends_on lists postgres and NOTHING ELSE, deliberately. The API must start and
+    # serve scenarios, sessions, auth and progress while asr/tts/pron are still loading
+    # their weights, and on a machine that never starts them at all (FR-27, invariant I6).
+    # Adding a model service here would turn a degraded stack into a dead one.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
+      SQL_ECHO: ${SQL_ECHO:-0}
+      ASR_URL: ${ASR_URL:-http://asr:8101}
+      TTS_URL: ${TTS_URL:-http://tts:8102}
+      PRON_URL: ${PRON_URL:-http://pron:8103}
+      HEALTH_PROBE_TIMEOUT_S: ${HEALTH_PROBE_TIMEOUT_S:-1.5}
+      # Points at the HOST's Ollama, not the container below. Docker Desktop on macOS
+      # cannot pass the Apple GPU into a Linux container, so the containerised Ollama
+      # runs CPU-only while the host's uses Metal — the same model, several times
+      # slower, for no benefit. Set OLLAMA_BASE_URL=http://ollama:11434 to use the
+      # container instead (Linux with a GPU, or CI).
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
+      LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-120}
+      LLM_MAX_INPUT_TOKENS: ${LLM_MAX_INPUT_TOKENS:-4000}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3003}
+    # Docker Desktop resolves host.docker.internal on its own; Linux does not, and this
+    # line is what makes the host-Ollama default portable rather than a Mac-only trick.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./api:/app
+      # Named volume for audio, not a bind mount. Recordings must survive a rebuild and
+      # must never be able to appear in `git status` (traps §9.6).
+      - audio_data:/audio
+    ports:
+      - "8002:8000"
+    healthcheck:
+      # /health is 200 while every model service is unreachable — that is the normal
+      # state until m4. It is 503 only when the database is gone, which is the one
+      # condition that genuinely makes this container useless.
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - speaklab
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/frontend/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Two URLs because there are two callers. The browser resolves localhost:8002 from
+      # the host; a server component resolves api:8000 inside the compose network. Using
+      # one for both is the classic Next.js container bug.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8002}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000}
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Anonymous volumes so the container's own node_modules and .next survive the
+      # bind mount above rather than being shadowed by the host's (empty, or built for
+      # macOS) copies.
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3003:3000"
+    healthcheck:
+      # busybox wget, because node:22-alpine has no curl and adding one to a dev image
+      # to answer a healthcheck is a poor trade. --spider makes it a HEAD-like request
+      # that downloads nothing.
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # `next dev` compiles the first route on demand, so the first request after start
+      # is seconds rather than milliseconds. Without this window the container reports
+      # unhealthy while it is simply working.
+      start_period: 60s
+    networks:
+      - speaklab
+
+  # ── Model services ─────────────────────────────────────────────────────────
+  #
+  # None of these exist yet. Their build contexts are created by m4, m5 and m8; until
+  # then the profiles keep them inert. All three are the same shape: a small FastAPI app
+  # wrapping one model, weights in the shared model_cache volume, and a /health that
+  # answers 200 before the weights finish loading — a cold start is minutes and must not
+  # read as a crash.
+
+  asr:
+    build: ./infra/asr
+    profiles: ["speech"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-small.en}
+      HF_HOME: /models
+    volumes:
+      - model_cache:/models
+    ports:
+      - "8101:8101"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8101/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    networks:
+      - speaklab
+
+  tts:
+    build: ./infra/tts
+    profiles: ["speech"]
+    environment:
+      PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    volumes:
+      - model_cache:/models
+    ports:
+      - "8102:8102"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8102/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - speaklab
+
+  pron:
+    build: ./infra/pron
+    # Its own profile, not `speech`. This is the only image with torch in it (~2 GB),
+    # and the stack has to be usable by someone who never wants to download that (D10).
+    profiles: ["pron"]
+    environment:
+      PRON_MODEL: ${PRON_MODEL:-facebook/wav2vec2-lv-60-espeak-cv-ft}
+      HF_HOME: /models
+    volumes:
+      - model_cache:/models
+    ports:
+      - "8103:8103"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8103/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # 1.2 GB of weights on a cold cache, and the m0 spike measured 1.77 s to load them
+      # once cached. The generous window is for the download, not the load.
+      start_period: 300s
+    networks:
+      - speaklab
+
+  # ── Generation ─────────────────────────────────────────────────────────────
+  ollama:
+    # Opt-in and NOT the default target on this machine — see the api service above for
+    # why. This definition exists for a Linux host with a GPU, and for CI, where a
+    # self-contained stack matters more than throughput.
+    image: ollama/ollama:0.5.13
+    profiles: ["llm"]
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - speaklab
+
+  # ── Tools ──────────────────────────────────────────────────────────────────
+  test:
+    build:
+      context: .
+      dockerfile: infra/api/Dockerfile
+    profiles: ["tools"]
+    command: python -m pytest /app/tests -v
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
+      # Pointed at hosts that do not resolve, on purpose. The health tests assert that
+      # unreachable model services produce a degraded 200 rather than a 500, and the
+      # cheapest way to have an unreachable service is to name one.
+      ASR_URL: http://asr:8101
+      TTS_URL: http://tts:8102
+      PRON_URL: http://pron:8103
+      HEALTH_PROBE_TIMEOUT_S: "0.5"
+    volumes:
+      - ./api:/app
+      # Read-only, and the flag is the point rather than caution. eval/ holds fixtures
+      # graded BEFORE the run; a container that can rewrite them could turn a failing
+      # eval into a passing one with nobody noticing (invariant I7). Mounted into the
+      # test service and nowhere else. The directory arrives with m11.
+      - ./eval:/app/eval:ro
+    networks:
+      - speaklab
+
+volumes:
+  postgres_data:
+  audio_data:       # user recordings — never in the working tree, never in git
+  model_cache:      # whisper + piper + wav2vec2 weights, shared across the three services
+  ollama_models:    # profile: llm only
+
+networks:
+  speaklab:
+    driver: bridge
