@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+
+# Audio + models — never commit these
+#
+# The golden evaluation fixtures (eval/golden/) are the one exception and need
+# `git add -f`. They are human recordings, they are small, and they are the only
+# audio in the repository. See IMPLEMENTATION-PLAN.md m11.
+audio_data/
+models/
+*.wav
+*.webm
+*.mp3
+*.onnx
+*.bin
+*.pt
+
+# The m0 spike is throwaway; its findings move to docs/decisions/
+spike/
+
+# Agent phase artefacts — regenerated per milestone, never tracked (D18).
+#
+# These describe how the work is produced, not what was produced. PR bodies are written
+# for `gh pr create --body-file`; SESSION-HANDOFF.md is a live state file rewritten every
+# session; GIT-COMMANDS.md is a personal paste sheet; CLAUDE.md binds agents working in
+# this checkout and means nothing to a reader of the repository.
+#
+# PRD.md and speaklab-agent/IMPLEMENTATION-PLAN.md are NOT here. They are the product
+# specification and the build plan, they are what a reviewer actually wants, and README
+# and docs/architecture.md both link to them.
+.pr-bodies/
+CLAUDE.md
+speaklab-agent/SESSION-HANDOFF.md
+speaklab-agent/GIT-COMMANDS.md
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store
