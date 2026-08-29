@@ -19,6 +19,7 @@ suite nobody runs twice.
 
 import os
 import sys
+import uuid
 from collections.abc import AsyncGenerator, Iterator
 
 import pytest
@@ -158,12 +159,27 @@ async def seeded(db_session: AsyncSession) -> AsyncSession:
 
 @pytest_asyncio.fixture
 async def client(db_engine) -> AsyncGenerator[AsyncClient, None]:
-    """The app, with `get_db` pointed at the test database."""
+    """The app, with `get_db` pointed at the test database.
+
+    The override **commits**, exactly as the real `get_db` does. That is not decoration.
+    Written the obvious way — `async with factory() as session: yield session` — the
+    override quietly removes the transaction boundary, and every write made through the
+    client is rolled back when the session closes. Until m3 the suite only read, so it
+    was green and meaningless in the same breath; the first symptom would have been
+    `POST /auth/register` returning 201 and the next request 401ing on a user that never
+    existed. `test_auth.py::test_registration_survives_the_request_that_created_it`
+    exists to fail if this drifts back.
+    """
     factory = async_sessionmaker(db_engine, expire_on_commit=False)
 
     async def _get_test_db() -> AsyncGenerator[AsyncSession, None]:
         async with factory() as session:
-            yield session
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     app.dependency_overrides[get_db] = _get_test_db
     transport = ASGITransport(app=app)
@@ -176,3 +192,67 @@ async def client(db_engine) -> AsyncGenerator[AsyncClient, None]:
     # the connection a request was given would report on the wrong thing. Disposing it
     # here keeps that engine's pool from outliving the loop this test ran in.
     await engine.dispose()
+
+
+# ── Accounts ────────────────────────────────────────────────────────────────
+#
+# The test database is created once per session and never truncated between tests, so
+# two tests that both register `a@example.com` would collide on the unique index — and
+# the second one would fail with a 409 that has nothing to do with what it was testing.
+# Every account therefore gets an address of its own.
+
+
+def unique_email(label: str = "user") -> str:
+    """An address no other test has used."""
+    return f"{label}-{uuid.uuid4().hex[:12]}@example.com"
+
+
+PASSWORD = "practice-makes-permanent"
+
+
+async def register_account(
+    client: AsyncClient, email: str | None = None, password: str = PASSWORD, **fields
+) -> dict:
+    """Register through the API and return the profile body.
+
+    Through the API rather than by inserting a row, because a fixture that writes its
+    own `User` with its own hash is a fixture that can drift from what registration
+    actually produces — and the tests that matter here are about exactly that path.
+    """
+    response = await client.post(
+        "/auth/register",
+        json={"email": email or unique_email(), "password": password, **fields},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+@pytest_asyncio.fixture
+async def account(client: AsyncClient) -> dict:
+    """One registered, logged-in account. The client carries its cookie."""
+    return await register_account(client)
+
+
+@pytest_asyncio.fixture
+async def other_client(db_engine) -> AsyncGenerator[AsyncClient, None]:
+    """A second browser, with its own cookie jar.
+
+    Two `AsyncClient`s rather than one, because a single client shares one jar: logging
+    the second account in would overwrite the first one's cookie, and a cross-user test
+    written that way is really testing one user twice.
+    """
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    async def _get_test_db() -> AsyncGenerator[AsyncSession, None]:
+        async with factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = _get_test_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

@@ -29,10 +29,11 @@ class User(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
 
-    # Argon2id is what the column is named for and what m3 will write into it. The
-    # image ships passlib[bcrypt] rather than argon2 (requirements.txt says why), so
-    # m3 either changes the hash or changes this comment — it must not silently do
-    # neither and leave the column lying about its contents.
+    # Argon2id, in argon2-cffi's encoded form: `$argon2id$v=19$m=...,t=...,p=...$salt$hash`.
+    # The cost parameters travel inside each row, which is what lets them be raised later
+    # without invalidating anything — `services/security.py` rehashes on the next
+    # successful login. m3 resolved this: the requirements file shipped bcrypt and this
+    # comment claimed argon2, and PRD FR-1 settled it in favour of argon2 (handoff Q6/D22).
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Selects the L1 phoneme priors at m8: which English sounds this speaker's first

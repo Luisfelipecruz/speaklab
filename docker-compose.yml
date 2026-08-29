@@ -80,6 +80,13 @@ services:
       LLM_MAX_INPUT_TOKENS: ${LLM_MAX_INPUT_TOKENS:-4000}
       LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3003}
+      # Auth (m3). JWT_SECRET has no default here on purpose: unset, it arrives as an
+      # empty string, config.py treats blank as absent and falls back to the built-in
+      # development key, and the API says so in its startup log on every boot.
+      JWT_SECRET: ${JWT_SECRET:-}
+      ACCESS_TOKEN_TTL_HOURS: ${ACCESS_TOKEN_TTL_HOURS:-168}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
     # Docker Desktop resolves host.docker.internal on its own; Linux does not, and this
     # line is what makes the host-Ollama default portable rather than a Mac-only trick.
     extra_hosts:

@@ -48,12 +48,16 @@ make seed
 `0 inserted, 0 updated`. Running it after a `git pull` is how a content change reaches
 your database.
 
+The API signs sessions with a built-in development key until you set `JWT_SECRET`, and
+says so in its startup log every time. That is fine on a laptop and nowhere else.
+
 Then:
 
 | | |
 |---|---|
 | App | <http://localhost:3003> |
 | API docs | <http://localhost:8002/docs> |
+| Sign up | <http://localhost:3003/register> |
 | Scenarios | <http://localhost:8002/scenarios> |
 | Passages | <http://localhost:8002/passages> |
 | Health | `make health` |
@@ -120,16 +124,25 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 
 ## Measured
 
-Counted against the running system on 2026-08-29, not recalled. Anything not listed here
+Counted against the running system on 2026-08-30, not recalled. Anything not listed here
 has not been measured yet and is not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 3 of 3 |
-| `GET /health`, warm | 13–20 ms over 5 calls |
-| API test suite | 13 passed in 0.21 s |
-| API image | 422 MB, with no torch — asserted by a test, not by a comment |
-| API operations implemented | 2 of the 29 forecast |
+| API test suite | 98 passed in 5.2–8.3 s |
+| API image | 424 MB, with no torch — asserted by a test, not by a comment |
+| API operations implemented | 11 of the 30 forecast |
+| `GET /scenarios`, warm | 24 ms median |
+| `GET /health`, warm | 45 ms median, ~30 ms of it three DNS failures for model services that do not exist yet |
+| `POST /auth/register` | 61 ms median — one Argon2id hash at 64 MiB |
+| Wrong password vs. unknown email | 75.6 vs 78.1 ms — the login endpoint does not reveal who has an account |
+
+Latencies are medians over 12 calls on a laptop running several other stacks, and they
+move by a factor of two or more with what else is busy. At m1 the same `/health` measured
+13–20 ms. Treat them as orders of magnitude, not benchmarks; the ones worth reading are
+the *ratios* — the register/login pair above is a claim about the code, and it holds
+whatever the machine is doing.
 
 ### The pronunciation spike (m0)
 
@@ -152,7 +165,7 @@ Named explicitly so nothing here reads as a claim.
 
 | Milestone | Not yet built |
 |---|---|
-| m3 | Accounts and sessions — the `users` table exists and nothing writes to it |
+| m3 | Password reset, email verification, login rate limiting — accounts themselves work |
 | m4 / m5 | Speech in and speech out |
 | m6 / m7 | The conversation loop, and a UI for it |
 | m8 | Read-aloud and per-phoneme scoring — the spike passed, the service is not written |
@@ -169,6 +182,9 @@ Named explicitly so nothing here reads as a claim.
 api/            FastAPI. No model weights, no torch.
   db_models/    SQLAlchemy — the write path, twelve tables
   models/       Pydantic — the wire shapes
+  routers/      One module per resource
+  services/     Logic that is neither a route nor a row (hashing, tokens)
+  dependencies.py  current_user, and the ownership guard
   alembic/      One revision per milestone that changes schema
   seeds/        The 8 scenarios and 12 passages, as JSON
 frontend/       Next.js 15, React 19, shadcn/ui

@@ -146,6 +146,25 @@ Scenarios and passages are **seeded data, not fixtures**: real rows versioned as
 than at the repository root so that one path resolves identically in the container, in
 CI and in a host shell.
 
+Since m3 there are accounts. Passwords are Argon2id (`argon2-cffi`, library defaults, so
+that raising the cost later is a library upgrade rather than a migration — the parameters
+travel inside each hash and a successful login re-hashes anything behind). The session is
+a JWT in an **httpOnly** cookie, which decides more than it looks like it does: the
+frontend cannot read the token, so it cannot attach it to a header, cannot store it, and
+cannot leak it through an XSS payload — but it also cannot delete it, which is why there
+is a `POST /auth/logout` the plan's API surface did not forecast. Every browser call
+carries `credentials: "include"`; without that flag the cookie is silently dropped
+cross-origin and a login appears to succeed while every following request 401s.
+
+Access control is one dependency and one helper, in `api/dependencies.py`, and the
+interesting part is how it is enforced. `tests/test_ownership.py` walks the registered
+router table and asserts that every route either depends on `current_user` or appears in
+an explicit table of public paths with a written reason. FR-4 is a claim about *all*
+endpoints including the ones nobody has written yet, and the only test that can make
+that claim is one that reads the router table rather than a list somebody maintains.
+Cross-user reads are **404, not 403** — a 403 confirms the row exists and belongs to
+somebody else, which turns an incrementing id into an enumeration of the table.
+
 ---
 
 ## 5. The frontend

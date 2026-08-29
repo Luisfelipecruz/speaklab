@@ -7,6 +7,79 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.3.0] — 2026-08-30 · m3, auth and per-user scoping
+
+Accounts exist, and every route now has to say whether it needs one.
+
+### Added
+
+- **Registration and sign-in.** `POST /auth/register`, `POST /auth/login`,
+  `POST /auth/logout`, `GET /auth/me`, `PATCH /auth/me`. Registration captures native
+  language, which is what selects the L1 phoneme priors at m8 — asked at the one moment
+  somebody will answer it rather than left to a settings page nobody opens.
+- **Argon2id password hashing**, via `argon2-cffi`. Cost parameters travel inside each
+  hash, and a successful login re-hashes any row that is behind the current defaults.
+- **JWT in an httpOnly cookie.** The frontend never sees the token: `document.cookie` is
+  empty in a signed-in browser, and the same request without `credentials: "include"`
+  is a 401.
+- **`api/dependencies.py`** — one `current_user` dependency and one `get_owned_or_404`
+  helper, which fold "does it exist" and "is it yours" into a single `WHERE`.
+- **Frontend.** `/login` and `/register`, and a `useAuth` hook with a three-state
+  `status` so that "checking" and "signed out" are not the same thing.
+
+### Fixed
+
+- **The test client had no transaction boundary.** `conftest`'s `get_db` override
+  yielded a session and never committed, so every write made through the client was
+  rolled back at the end of the request. m2's suite only read, so it was green and
+  meaningless at the same time. Removing the fix now breaks 12 tests.
+- **A blank `JWT_SECRET` was worse than an absent one.** Compose passes an unset
+  `${JWT_SECRET:-}` through as `""`, and `os.environ.get("JWT_SECRET", DEV)` returns
+  that empty string — signing every token with a zero-length key *and* skipping the
+  startup warning, because `""` is not the sentinel it compares against.
+
+### Measured
+
+| | |
+|---|---|
+| Operations in `app.openapi()` | 11 (was 6) |
+| Tests | 98 passing (was 52), 5.2–8.3 s |
+| `POST /auth/register` | 61 ms median — one Argon2 hash at 64 MiB |
+| `POST /auth/login` | 73 ms median |
+| Wrong password vs. unknown email | 75.6 vs 78.1 ms median, n=12 each |
+| The same gap without the dummy-hash equaliser | ~3.6 ms vs ~76 ms, a 21× tell |
+| `GET /auth/me`, no session | 3.6 ms |
+| Stored hash | `$argon2id$v=19$m=65536,t=3,p=4$…` |
+
+### Decided
+
+- **Argon2id, and `argon2-cffi` rather than passlib** (D22). PRD FR-1 required Argon2;
+  m1's requirements file shipped `passlib[bcrypt]` arguing the opposite. Since the hash
+  was changing regardless, the wrapper went too: passlib 1.7.4 is from 2020, is
+  unmaintained, and its bcrypt backend raises on bcrypt ≥ 4.1.
+- **No Alembic revision at m3** (D23). m2 created `users` complete. An empty revision
+  would make `alembic history` claim a change that never happened.
+- **One access token, no refresh token, and a logout endpoint** (D24). The plan's API
+  surface forecast four auth operations; a token in an httpOnly cookie cannot be deleted
+  by the script that cannot read it, so logging out has to be a server operation. Five.
+
+### Known
+
+- **The suite is ~3× slower than at m2** and that is the correct trade: every
+  registration in it performs a real 64 MiB Argon2 hash rather than a stubbed one. Worth
+  revisiting only if it passes ~30 s.
+- **No server-side revocation.** Logout clears the cookie; a copy taken beforehand stays
+  valid until `ACCESS_TOKEN_TTL_HOURS` (168) elapses.
+- **Sessions, attempts and progress do not exist yet**, so `test_ownership.py` currently
+  guards two routes. Its value is that it guards *every* route, including the ones m6
+  and m8 have not written.
+
+### Not in this release
+
+- Password reset, email verification, rate limiting on login. Each needs something this
+  system does not have — an outbound mail path, or a shared counter — and none is on the
+  path to measuring whether somebody's pronunciation improved.
+
 ## [0.2.0] — 2026-08-30 · m2, data model and seeds
 
 The database has a shape, and the first content a user could actually browse.

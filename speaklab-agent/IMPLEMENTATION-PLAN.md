@@ -121,14 +121,15 @@ speaklab/
 │   └── GIT-COMMANDS.md
 ├── api/
 │   ├── main.py  config.py  database.py
+│   ├── dependencies.py             current_user, get_owned_or_404 — m3
 │   ├── alembic/versions/
 │   ├── db_models/                  SQLAlchemy ORM — write path
 │   ├── models/                     Pydantic — request/response
 │   ├── routers/                    auth scenarios sessions turns passages
 │   │                               attempts progress health
-│   ├── services/                   asr_client tts_client pron_client llm
-│   │                               conversation grammar errors fluency
-│   │                               progress recommend audio
+│   ├── services/                   security (m3) · asr_client tts_client
+│   │                               pron_client llm conversation grammar
+│   │                               errors fluency progress recommend audio
 │   ├── scripts/                    seed.py  rollup.py
 │   ├── seeds/                      scenarios.json, passages.json
 │   └── tests/
@@ -346,17 +347,21 @@ tables precisely because they are queried across rows, aggregated by category an
 
 ## 6. API surface
 
-Target: 29 operations. Counted against `app.openapi()` at m12, not recalled — this list is
-the forecast, the running system is the authority.
+Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout` that m3
+found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
+token cannot delete it either, so logging out has to be a server operation. Counted
+against `app.openapi()` at m12, not recalled — this list is the forecast, the running
+system is the authority. **11 exist as of m3.**
 
 ```
 GET    /health                        liveness; reports each model service independently
 GET    /health/models                 which model services are up, which degraded
 
-POST   /auth/register                 FR-1
-POST   /auth/login                    FR-2
-GET    /auth/me                       FR-2
-PATCH  /auth/me                       native language, retention preference
+POST   /auth/register                 FR-1                                    m3
+POST   /auth/login                    FR-2                                    m3
+POST   /auth/logout                   clears the cookie; see D24              m3
+GET    /auth/me                       FR-2                                    m3
+PATCH  /auth/me                       native language, retention preference   m3
 
 GET    /scenarios                     filter: band, category, target_grammar   FR-5
 GET    /scenarios/{slug}
@@ -551,40 +556,77 @@ operations · passages 73–79 words · the 39 ARPAbet symbols match the m0 phon
 
 ---
 
-### m3 — Auth and user session
+### m3 — Auth and user session — **BUILT** (2026-08-30)
 
 **Goal.** Register, log in, and scope every practice row to its owner.
 
 **Why here.** Adding a `user_id` foreign key after four milestones of data-writing code is
 a rewrite. Adding it before is a column.
 
-**Deliverables.**
+**Delivered.**
 ```
-api/db_models/user.py                 (extended)
-api/models/auth.py
-api/routers/auth.py
-api/services/security.py              argon2 hashing, JWT issue/verify
-api/dependencies.py                   current_user, ownership guard
-api/alembic/versions/0002_users.py
-api/tests/{test_auth.py,test_ownership.py}
-frontend/src/app/(auth)/{login,register}/page.tsx
-frontend/src/lib/auth.ts
-frontend/src/hooks/useAuth.ts
+api/models/auth.py                    request and profile shapes; no field for the hash
+api/routers/auth.py                   5 operations, not the 4 forecast — see D24
+api/services/security.py              Argon2id + JWT, importing neither FastAPI nor the ORM
+api/dependencies.py                   current_user, and get_owned_or_404
+api/tests/{test_auth.py,test_ownership.py}    46 tests
+frontend/src/app/(auth)/{layout,login/page,register/page}.tsx
+frontend/src/lib/auth.ts              every call sets credentials: "include"
+frontend/src/hooks/useAuth.ts         three-state status, not a boolean
 ```
+
+No Alembic revision (**D23**) and `db_models/user.py` gained only a corrected comment:
+m2 created `users` complete, and an empty revision would make `alembic history` claim a
+change that never happened. Shared files touched: `config.py`, `main.py`,
+`docker-compose.yml`, `.env.example`, `infra/api/requirements.txt`, `tests/conftest.py`.
 
 **Decisions.**
-- Argon2id, not bcrypt. No reason to ship the weaker default in 2026.
-- JWT in an httpOnly cookie, not `localStorage` — the frontend never touches the token.
-- A single `owned_by_current_user` dependency, applied uniformly. Per-endpoint ownership checks are how one gets forgotten.
+- **D22 — Argon2id, via `argon2-cffi`, and passlib removed.** PRD FR-1 required Argon2
+  and m1's requirements file shipped `passlib[bcrypt]` arguing the opposite; the PRD is
+  the authority over a convenience call made in a requirements comment. Dropping the
+  wrapper as well is a second decision: passlib 1.7.4 is from 2020, is unmaintained, its
+  bcrypt backend raises on bcrypt ≥ 4.1, and a library whose value is switching between
+  schemes buys nothing when there is one scheme and no legacy hashes. **Q6 closed.**
+- **D23 — no Alembic revision at m3.** **Q7 closed.**
+- **D24 — one access token in an httpOnly cookie; no refresh token; a logout endpoint.**
+  The cookie is read by nothing in the browser, which also means nothing in the browser
+  can clear it, so §6's four auth operations became five. The cost is stated rather than
+  hidden: there is no server-side revocation, so a token copied out before logout stays
+  valid for the rest of `ACCESS_TOKEN_TTL_HOURS` (168).
+- **D25 — cross-user reads are 404, not 403**, enforced by one `get_owned_or_404` that
+  folds existence and ownership into a single `WHERE` rather than a fetch-then-compare.
 - Native language captured at registration: it selects the L1 phoneme priors of PRD §7.4.
 
-**Tests.** Register/login/refresh happy paths; wrong password; expired token;
-**cross-user access returns 404 not 403** — a 403 confirms the row exists.
+**Measured.**
 
-**Done when.** Two users register; neither can read the other's sessions; `test_ownership`
-covers every user-scoped route by enumerating the router table rather than by hand.
+| | |
+|---|---|
+| Tests | 98 passing (was 52), 5.2–8.3 s in one container |
+| Operations in `app.openapi()` | 11 of the 30 forecast |
+| `POST /auth/register` | 61 ms median — one Argon2id hash at 64 MiB |
+| Wrong password vs. unknown email | 75.6 vs 78.1 ms median, n=12 each — a 3% gap |
+| The same pair without the dummy-hash equaliser | ~3.6 ms vs ~76 ms, a 21× tell |
+| Stored hash | `$argon2id$v=19$m=65536,t=3,p=4$…` |
+| API image | 424 MB (was 422 MB; argon2-cffi and email-validator cost 2 MB) |
+| Browser check | `document.cookie` empty while signed in; the same fetch without `credentials: "include"` is 401 |
 
-**Branch** `feature/m3-auth` · **PR** `feat: add argon2 auth with JWT cookies and per-user scoping`
+**Tests.** The two that carry the milestone:
+
+- `test_ownership.py::test_every_route_is_either_scoped_to_a_user_or_declared_public`
+  enumerates the registered router table and asserts each route either depends on
+  `current_user` or is listed public **with a written reason**, in both directions. FR-4
+  is a claim about every endpoint including the unwritten ones, and a per-endpoint check
+  can only test the ones somebody remembered. Verified by mutation: adding an unscoped
+  route makes it fail and name the route.
+- `test_auth.py::test_registration_survives_the_request_that_created_it` proves the test
+  client commits. It found a real defect — m2's `get_db` override yielded a session and
+  never committed, so every write through the client was rolled back. m2 only read, so
+  the suite was green and meaningless together. Verified by mutation: 12 failures.
+
+**Done when.** ✅ Two users register and neither can read the other's rows;
+`test_ownership` covers every user-scoped route by enumerating the router table.
+
+**Branch** `feature/m3-auth` · **PR** `feat: add argon2id auth with JWT cookies and per-user scoping`
 
 ---
 
