@@ -134,6 +134,18 @@ Audio lives in a named volume, never in the working tree. `.gitignore` excludes 
 `*.webm`, `*.mp3` and `audio_data/` for the same reason: the one exception is the golden
 evaluation set in m11, which is small, human-recorded, and added with `git add -f`.
 
+Since m2 the schema exists: twelve tables, three enum types, one revision. Two layers
+above it — `api/db_models/` for columns, `api/models/` for wire shapes — because they
+answer different questions, and `scenarios.persona_prompt` is the standing example of a
+column that is loaded on every query and serialised by nothing. The tables, and why five
+columns are JSONB while two adjacent ones are not, are in
+[data-model.md](data-model.md).
+
+Scenarios and passages are **seeded data, not fixtures**: real rows versioned as JSON in
+`api/seeds/`, loaded idempotently by slug with `make seed`. They sit under `api/` rather
+than at the repository root so that one path resolves identically in the container, in
+CI and in a host shell.
+
 ---
 
 ## 5. The frontend
@@ -175,5 +187,6 @@ Offset from the other stacks on this machine so all of them run at once.
 |---|---|
 | What the product is, and the measurement model | `../PRD.md` §5, §7 |
 | The twelve milestones, the schema, the API surface | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |
+| The tables, the enums, the seed contract | [data-model.md](data-model.md) |
 | Why each milestone is shaped the way it is | the **Decisions** block of that milestone in §7 |
 | Does pronunciation scoring actually work | m0 passed — the writeup lands in `decisions/` at m8; the headline numbers are in the README |

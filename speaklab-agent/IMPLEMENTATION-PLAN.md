@@ -130,6 +130,7 @@ speaklab/
 │   │                               conversation grammar errors fluency
 │   │                               progress recommend audio
 │   ├── scripts/                    seed.py  rollup.py
+│   ├── seeds/                      scenarios.json, passages.json
 │   └── tests/
 ├── frontend/
 │   └── src/{app,components,lib,hooks}
@@ -139,11 +140,17 @@ speaklab/
 │   ├── asr/{Dockerfile,app.py,requirements.txt}
 │   ├── tts/{Dockerfile,app.py,requirements.txt}
 │   └── pron/{Dockerfile,app.py,gop.py,g2p.py,requirements.txt}
-├── seeds/{scenarios.json,passages.json}
 ├── eval/golden/
 ├── spike/                          m0 only — never merged
 └── docs/                           architecture, data-model, decisions, changelog
 ```
+
+`seeds/` sits under `api/`, not at the repository root as this plan originally had it.
+One path then resolves identically in all three places the loader runs: the container,
+where `api/` is `/app`; CI, which runs from `api/`; and a host shell. A root-level
+`seeds/` needs a bind mount in one of those and a different relative path in another, and
+the day the two disagree the loader reads an empty directory and reports success.
+Recorded as **D20**.
 
 There is deliberately no `infra/postgres/`. Plain `postgres:16` is pulled, not built
 (D9 — no PostGIS, no pgvector), so a Dockerfile whose only line is `FROM postgres:16`
@@ -486,6 +493,9 @@ are absent from the API image.
 
 ### m2 — Data model and seeds
 
+> **Built and verified on 2026-08-30.** Every number in *Measured* below was counted
+> against the running stack. See `docs/changelog.md` 0.2.0 and `docs/data-model.md`.
+
 **Goal.** The full schema of §5 exists via Alembic, seeded with 8 scenarios and 12 passages.
 
 **Why here.** Everything downstream writes to these tables. Getting the shape right once
@@ -500,21 +510,42 @@ api/db_models/{__init__.py,base.py,user.py,scenario.py,passage.py,
 api/models/{scenario.py,passage.py,common.py}
 api/routers/{scenarios.py,passages.py}
 api/scripts/seed.py
-seeds/{scenarios.json,passages.json}
-api/tests/{test_scenarios.py,test_passages.py,test_migrations.py}
+api/seeds/{scenarios.json,passages.json}          under api/, not the root — D20
+api/tests/{test_scenarios.py,test_passages.py,test_migrations.py,test_seed.py}
 docs/data-model.md
 ```
+
+`api/models/common.py` also carries the closed `CEFRBand` enum and the 39 ARPAbet
+symbols. `api/tests/conftest.py`, `api/main.py`, `Makefile`, `README.md`,
+`docs/architecture.md` and `docs/changelog.md` are edited rather than added — the shared
+files of §1.1, plus the fixtures.
 
 **Decisions.**
 - Scenarios and passages are **seeded data, not fixtures**: real rows, versioned in `seeds/`, loaded idempotently by slug. Re-running the seed inserts 0 rows.
 - Passages are written to be phoneme-dense for their declared focus — a `/θ/` passage is not prose that happens to contain "think", it is engineered to force the sound repeatedly.
-- Enums are Postgres native types, so bad values fail at the database rather than in Python.
+- Enums are Postgres native types, so bad values fail at the database rather than in Python. Three of them — `session_mode`, `session_status`, `attempt_status`. `turns.role`, `language_errors.detector` and `progress_snapshots.period` are CHECK constraints instead: two members, or a vocabulary expected to change. `language_errors.category` is TEXT and enforced in the application at m9, because a closed taxonomy that will be revised after reading real transcripts should be a code change with a test, not an `ALTER TYPE` that cannot run inside a transaction.
+- **The test suite builds its schema with Alembic, never `Base.metadata.create_all`.** `create_all` builds what the ORM says; the migration builds what is applied to a real database. A suite that tests the first is green while the second is broken. Costs about a second per run.
+- **Every constraint and index is named explicitly**, following the convention in `db_models/base.py`. Postgres names a constraint one way and SQLAlchemy names it another, and then the next `--autogenerate` emits a drop-and-recreate for something that never changed.
+- **`persona_prompt` is never serialised to a client.** It is the exercise — a user who reads the persona's instructions is no longer practising against them — and it is the one string in a turn the user is not meant to influence. Asserted by a test against the prompt text, not the field name.
+- **Seeds live at `api/seeds/`** rather than the repository root (**D20**), so the loader has one path in the container, in CI and on a host.
 
-**Tests.** Migration up and down clean; seed idempotency (twice → 0 new rows); both list
-endpoints with filters.
+**Tests.** Migration up, down and up again on a scratch database, enum types included;
+**`compare_metadata` between the ORM and the migrated schema must be empty**, which is
+what catches a column added to a model and never migrated; seed idempotency (twice → 0
+new rows) and an edit reported as an update that keeps the row id; both list endpoints
+with every filter, an unknown band rejected as 422 rather than answered with `[]`, a
+404 that names the slug; and the seed content itself — stored `word_count` matches the
+body, every `phoneme_focus` symbol is one of the 39 the pron service can score, every
+scenario declares the forms it exists to elicit.
 
 **Done when.** `alembic upgrade head` on an empty volume creates all 12 tables. `make seed`
 loads 8 scenarios and 12 passages, and loads 0 on a second run.
+
+**Measured 2026-08-30:** 12 tables created · 3 enum types · `make seed` 8 + 12 inserted,
+then 0 inserted / 0 updated / 20 unchanged · `GET /scenarios` 200 in 2.5–3.8 ms warm over
+5 calls · ORM-vs-migration diff 0 entries · 52 tests passed in 2.1–2.4 s · `make lint`
+clean · 6 of the 29 forecast
+operations · passages 73–79 words · the 39 ARPAbet symbols match the m0 phone map exactly.
 
 **Branch** `feature/m2-data-model` · **PR** `feat: add schema, migrations and scenario/passage seeds`
 

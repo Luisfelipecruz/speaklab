@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import CORS_ORIGINS, VERSION
 from routers.health import router as health_router
+from routers.passages import router as passages_router
+from routers.scenarios import router as scenarios_router
 
 app = FastAPI(
     title="SpeakLab",
@@ -36,9 +38,10 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(scenarios_router)
+app.include_router(passages_router)
 
 # Routers arriving with their milestones:
-#   m2  scenarios, passages
 #   m3  auth
 #   m6  sessions, turns
 #   m8  attempts, audio

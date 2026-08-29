@@ -5,7 +5,7 @@
 # docker-compose.yml declare build contexts that m4, m5 and m8 have not created yet.
 
 .PHONY: help up down restart logs ps health test lint fmt clean \
-        speech-up pron-up llm-up migrate seed eval
+        speech-up pron-up llm-up migrate migrate-down migrate-status seed eval
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -62,13 +62,18 @@ llm-up:                            ## Start the CONTAINERISED LLM. On macOS you 
 
 # ── Data ────────────────────────────────────────────────────────────────────
 
-migrate:                           ## Apply Alembic migrations (lands in m2)
-	@echo "The schema is m2. Until it lands there is nothing to migrate."
-	@exit 1
+migrate:                           ## Apply Alembic migrations to the running stack
+	docker compose exec api alembic upgrade head
 
-seed:                              ## Load the 8 scenarios and 12 passages (lands in m2)
-	@echo "Seeds are m2. Until they land there is nothing to load."
-	@exit 1
+migrate-down:                      ## Roll back one revision. Read the downgrade first.
+	docker compose exec api alembic downgrade -1
+
+migrate-status:                    ## Which revision the database is on, and what exists
+	@docker compose exec api alembic current
+	@docker compose exec api alembic history
+
+seed:                              ## Load the 8 scenarios and 12 passages. Idempotent.
+	docker compose exec api python -m scripts.seed
 
 eval:                              ## Retrieval + scoring evaluation (lands in m11)
 	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."

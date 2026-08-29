@@ -40,7 +40,13 @@ Prerequisites: Docker, and about 2 GB of disk for the images.
 ```bash
 cp .env.example .env
 make up
+make migrate
+make seed
 ```
+
+`make seed` is idempotent — it keys on slug, and the second run reports
+`0 inserted, 0 updated`. Running it after a `git pull` is how a content change reaches
+your database.
 
 Then:
 
@@ -48,6 +54,8 @@ Then:
 |---|---|
 | App | <http://localhost:3003> |
 | API docs | <http://localhost:8002/docs> |
+| Scenarios | <http://localhost:8002/scenarios> |
+| Passages | <http://localhost:8002/passages> |
 | Health | `make health` |
 | Tests | `make test` |
 | Everything else | `make help` |
@@ -144,8 +152,7 @@ Named explicitly so nothing here reads as a claim.
 
 | Milestone | Not yet built |
 |---|---|
-| m2 | Schema, migrations, the 8 scenarios and 12 passages |
-| m3 | Accounts and sessions |
+| m3 | Accounts and sessions — the `users` table exists and nothing writes to it |
 | m4 / m5 | Speech in and speech out |
 | m6 / m7 | The conversation loop, and a UI for it |
 | m8 | Read-aloud and per-phoneme scoring — the spike passed, the service is not written |
@@ -160,12 +167,20 @@ Named explicitly so nothing here reads as a claim.
 
 ```
 api/            FastAPI. No model weights, no torch.
+  db_models/    SQLAlchemy — the write path, twelve tables
+  models/       Pydantic — the wire shapes
+  alembic/      One revision per milestone that changes schema
+  seeds/        The 8 scenarios and 12 passages, as JSON
 frontend/       Next.js 15, React 19, shadcn/ui
 infra/          One directory per image
-docs/           Architecture, decisions, changelog
+docs/           Architecture, data model, decisions, changelog
 speaklab-agent/ The twelve-milestone implementation plan
 spike/          m0, throwaway, gitignored
 ```
+
+The schema is documented in [docs/data-model.md](docs/data-model.md) — what each table
+holds, why five columns are JSONB and two adjacent ones are not, and what the seed
+contract is.
 
 `PRD.md` holds the product requirements and the measurement model.
 `speaklab-agent/IMPLEMENTATION-PLAN.md` holds the twelve milestones, the schema and the
