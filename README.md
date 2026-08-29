@@ -35,7 +35,10 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 
 ## Quick start
 
-Prerequisites: Docker, and about 2 GB of disk for the images.
+Prerequisites: Docker, and about 3 GB of disk for the images. The first `make up` also
+downloads the Whisper weights (~480 MB for `small.en`) onto a shared volume, which takes a
+few minutes once. Nothing waits for it: the API has no `depends_on` for the recogniser, so
+the rest of the stack is usable immediately and `/health` reports `asr` as loading.
 
 ```bash
 cp .env.example .env
@@ -62,13 +65,14 @@ Then:
 | Passages | <http://localhost:8002/passages> |
 | Health | `make health` |
 | Tests | `make test` |
+| Word error rate | `make asr-wer` |
 | Everything else | `make help` |
 
-`make up` starts three containers. It does **not** start `asr`, `tts` or `pron` — those
-are behind profiles, arrive in m4, m5 and m8, and the stack is designed to run without
-them. `asr` and `tts` join the default stack when they are built; `pron` keeps its own
-profile permanently, so nobody downloads two gigabytes of torch to try a conversation. `/health` reporting `degraded` today is the system working correctly, not a
-misconfiguration.
+`make up` starts **four** containers as of m4: postgres, api, frontend and `asr`. It does
+not start `tts` or `pron` — those are behind profiles and arrive in m5 and m8. `pron`
+keeps its profile permanently, so nobody downloads two gigabytes of torch to try a
+conversation. `/health` reporting `degraded` today is the system working correctly: it
+means `asr` is up and the other two are not built yet.
 
 ---
 
@@ -129,14 +133,24 @@ has not been measured yet and is not claimed.
 
 | | |
 |---|---|
-| Containers up and healthy | 3 of 3 |
-| API test suite | 98 passed in 5.2–8.3 s |
+| Containers up and healthy | 4 of 4 |
+| Test suite | **146** — 139 pass with no recogniser running, all 146 with one |
 | API image | 424 MB, with no torch — asserted by a test, not by a comment |
-| API operations implemented | 11 of the 30 forecast |
-| `GET /scenarios`, warm | 24 ms median |
-| `GET /health`, warm | 45 ms median, ~30 ms of it three DNS failures for model services that do not exist yet |
+| `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
+| API operations implemented | 12 of the 30 forecast |
+| **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
+| **ASR latency, ~6 s of audio** | **1231 ms** against a 700 ms budget — **missed, deliberately** |
+| `GET /scenarios`, warm | 3.6 ms median |
+| `GET /health`, warm | 21 ms median — down from 45 ms at m3, because one of the three model probes now answers instead of failing DNS |
 | `POST /auth/register` | 61 ms median — one Argon2id hash at 64 MiB |
 | Wrong password vs. unknown email | 75.6 vs 78.1 ms — the login endpoint does not reveal who has an account |
+
+The ASR budget is missed and the model was not swapped to hide it. `base.en` meets it
+today at 525 ms and costs 2.6× the word error rate, which is the input to every metric
+downstream; the fallback is one environment variable and the whole argument is in
+[docs/decisions/0001-asr-model-choice.md](docs/decisions/0001-asr-model-choice.md).
+The word error rate is a **floor**: LibriSpeech is native, fluent, read-aloud English, and
+learner speech will be worse by an amount that set cannot estimate.
 
 Latencies are medians over 12 calls on a laptop running several other stacks, and they
 move by a factor of two or more with what else is busy. At m1 the same `/health` measured
@@ -166,7 +180,8 @@ Named explicitly so nothing here reads as a claim.
 | Milestone | Not yet built |
 |---|---|
 | m3 | Password reset, email verification, login rate limiting — accounts themselves work |
-| m4 / m5 | Speech in and speech out |
+| m4 | Uploading a recording. Speech recognition works and is measured; audio enters the system attached to a turn (m6) or an attempt (m8), so there is no upload endpoint yet |
+| m5 | Speech out |
 | m6 / m7 | The conversation loop, and a UI for it |
 | m8 | Read-aloud and per-phoneme scoring — the spike passed, the service is not written |
 | m9 | Error taxonomy and grammar analysis |
@@ -183,12 +198,13 @@ api/            FastAPI. No model weights, no torch.
   db_models/    SQLAlchemy — the write path, twelve tables
   models/       Pydantic — the wire shapes
   routers/      One module per resource
-  services/     Logic that is neither a route nor a row (hashing, tokens)
+  services/     Logic that is neither a route nor a row (hashing, tokens, ASR, audio, WER)
   dependencies.py  current_user, and the ownership guard
   alembic/      One revision per milestone that changes schema
   seeds/        The 8 scenarios and 12 passages, as JSON
 frontend/       Next.js 15, React 19, shadcn/ui
-infra/          One directory per image
+infra/          One directory per image — api, frontend, asr
+eval/golden/    Evaluation fixtures. Committed, with a manifest of their hashes
 docs/           Architecture, data model, decisions, changelog
 speaklab-agent/ The twelve-milestone implementation plan
 spike/          m0, throwaway, gitignored

@@ -7,6 +7,91 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — 2026-08-30 · m4, the recogniser and the audio pipeline
+
+Audio in, transcript with per-word timings and logprobs out — and the first stage of the
+product whose latency budget is measured rather than assumed.
+
+### Added
+
+- **`asr` service** (`infra/asr/`): faster-whisper on CTranslate2, `small.en` at int8,
+  word timestamps forced on. No torch, and no ffmpeg binary either — PyAV carries the
+  ffmpeg libraries in-process, which is 200 MB of Debian dependencies and one subprocess
+  saved. It joins the **default** compose stack; the `speech` profile now holds only tts.
+- **`POST /transcribe`** returns `{w, start_ms, end_ms, logprob}` per word, plus the
+  decoder settings and what the source media actually was. `GET /health` answers 200 with
+  `model_loaded: false` while weights load and 503 only when a load has *failed* — the
+  difference between a cold start and a dead container.
+- **The audio pipeline** — `services/audio.py` and `services/asr_client.py`. Recordings
+  are content-addressed by sha256 and unique per user, so a double-tapped send is one row.
+  The insert runs in a savepoint, because from m6 it is called inside a transaction that
+  also writes a turn.
+- **`GET /audio/{asset_id}`**, ownership-checked, 404 for a stranger. The twelfth of
+  thirty forecast operations.
+- **`eval/golden/asr/`** — ten LibriSpeech test-clean utterances, ten speakers, 232
+  reference words, committed with a manifest that carries each file's sha256 and a
+  `fetch.py` that reproduces the set. `make asr-wer` scores against it.
+- **`services/wer.py`** — word error rate with the three edit types counted separately,
+  written out rather than imported, because the normalisation is what moves the number.
+
+### Fixed
+
+- **`make lint` was reaching into a read-only mount.** Inside the container `eval/` is
+  mounted under `/app` read-only (invariant I7), so a formatter pointed at `/app` failed
+  on a file CI never lints. Both now lint the same thing.
+- **The test service was no longer hermetic.** Its `ASR_URL` was `http://asr:8101`,
+  chosen because it did not resolve — and then m4 put `asr` on the same network, so the
+  health tests quietly began asserting against a service that was up. The URLs now name
+  hosts that cannot exist.
+
+### Measured
+
+| | |
+|---|---|
+| Operations in `app.openapi()` | 12 of 30 (was 11) |
+| Tests | **146** — 139 pass with no recogniser, all 146 with one |
+| WER, `small.en` int8 beam 5 | **1.72 %** (4 substitutions in 232 words, 0 del, 0 ins) |
+| Latency, ~6 s of audio | **1231 ms** against PRD §9.1's ≤ 700 ms — **the budget is missed** |
+| `base.en` beam 1, the declared fallback | 525 ms, WER 4.31 % |
+| VAD off | WER 3.45 % and *slower* (1772 vs 1416 ms) — the default is right on both axes |
+| Timestamp repairs across the golden set | 0 |
+| `asr` image | 746 MB, no torch (planned: ~400 MB) |
+| Host load during the latency runs | **21** — see the caveat below |
+
+### Decided
+
+- **`small.en` stays, and the missed budget is reported rather than engineered away**
+  (D26). `base.en` would meet it today for 2.6× the word error rate, and that error rate
+  is the input to the grammar analyser, the fluency metrics and the read-aloud reference.
+  PRD §9.1's own fallback order spends a cheaper lever first — streaming TTS — which m5
+  and m6 have not built. The switch is one environment variable and is already measured.
+- **No Alembic revision at m4** (D27), for the second milestone running: `audio_assets`
+  and `turns` were created complete at m2 and m4 changed no column.
+- **No `POST /audio`** (D28). Audio enters attached to a turn (m6) or an attempt (m8); a
+  bare upload endpoint would create recordings that belong to nothing.
+- **PyAV instead of the ffmpeg binary** (D29), a deviation from the plan's wording.
+
+### Known limits
+
+- **The WER is a floor, not a forecast.** LibriSpeech test-clean is native, fluent,
+  adult, read-aloud English in good conditions. Learner speech will be worse by an amount
+  this set cannot estimate.
+- **232 reference words means one word is 0.43 %.** Enough to separate `small.en` from
+  `base.en`; not enough to rank two configurations four errors apart.
+- **Latency was measured on a machine at load 21**, with three other project stacks
+  running. The ratios between configurations are the claim; the absolutes carry the
+  machine's state with them.
+- **Concurrency is unmeasured.** Inference is serialised on purpose, so a second
+  simultaneous turn waits.
+
+### Not in this release
+
+No upload endpoint, no transcript persistence (`turns` needs a session, which is m6), no
+frontend — m4 adds no UI. Full argument in
+[decisions/0001-asr-model-choice.md](decisions/0001-asr-model-choice.md).
+
+---
+
 ## [0.3.0] — 2026-08-30 · m3, auth and per-user scoping
 
 Accounts exist, and every route now has to say whether it needs one.

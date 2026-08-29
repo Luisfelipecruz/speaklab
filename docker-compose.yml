@@ -4,19 +4,23 @@
 # profiles, because a profiled service is excluded from `up` AND from `build` — which is
 # what lets this file name build contexts that do not exist yet without breaking anything:
 #
-#   speech   asr (m4) + tts (m5)      TEMPORARY — m4 and m5 delete this profile when
-#                                     they create infra/asr and infra/tts, and the two
-#                                     services join the default stack (PRD §10.1)
+#   speech   tts (m5)                 TEMPORARY — half spent. m4 created infra/asr and
+#                                     removed asr from this profile, so asr is now in
+#                                     the default stack (PRD §10.1); m5 does the same
+#                                     for tts and the profile disappears with it
 #   pron     pron (m8)                torch, ~2 GB. Profiled for that reason alone (D10)
 #   llm      ollama                   NOT the default. See the api service's comment
 #   tools    test                     batch jobs with an exit code, not services
 #
-# So `docker compose up -d` today brings up three containers against build contexts that
-# all exist, and `docker compose --profile speech up -d` will bring up two more the day
-# m4 and m5 create infra/asr and infra/tts. Nothing here needs editing for that to happen.
+# So `docker compose up -d` today brings up FOUR containers — postgres, api, frontend and
+# asr — and `docker compose --profile speech up -d` will add tts the day m5 creates
+# infra/tts.
 #
-# This file is committed whole in m1 and is absent from every later milestone's `git add`
-# (IMPLEMENTATION-PLAN.md §1.1). That is why it is complete rather than minimal.
+# This file was written complete at m1 rather than minimal, so that the shape of the
+# system is visible in one place from the start (IMPLEMENTATION-PLAN.md §1.1). Later
+# milestones still amend it — m3 added the auth variables, m4 added the ASR ones and
+# un-profiled the asr service — but they amend a declared graph rather than discovering
+# it a service at a time.
 
 services:
 
@@ -69,6 +73,14 @@ services:
       TTS_URL: ${TTS_URL:-http://tts:8102}
       PRON_URL: ${PRON_URL:-http://pron:8103}
       HEALTH_PROBE_TIMEOUT_S: ${HEALTH_PROBE_TIMEOUT_S:-1.5}
+      # Audio (m4). AUDIO_ROOT is the mount point of the audio_data volume below, and
+      # the API refuses to serve any path that does not resolve inside it.
+      AUDIO_ROOT: ${AUDIO_ROOT:-/audio}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      # Generous, and deliberately so: a cold asr container is loading weights, and the
+      # first transcription after a restart pays for it. The health probe is the short
+      # timeout; this is the working one.
+      ASR_TIMEOUT_S: ${ASR_TIMEOUT_S:-120}
       # Points at the HOST's Ollama, not the container below. Docker Desktop on macOS
       # cannot pass the Apple GPU into a Linux container, so the containerised Ollama
       # runs CPU-only while the host's uses Metal — the same model, several times
@@ -151,17 +163,27 @@ services:
 
   # ── Model services ─────────────────────────────────────────────────────────
   #
-  # None of these exist yet. Their build contexts are created by m4, m5 and m8; until
-  # then the profiles keep them inert. All three are the same shape: a small FastAPI app
-  # wrapping one model, weights in the shared model_cache volume, and a /health that
-  # answers 200 before the weights finish loading — a cold start is minutes and must not
-  # read as a crash.
+  # asr exists as of m4. tts and pron do not; their build contexts are created by m5 and
+  # m8, and until then the profiles keep them inert. All three are the same shape: a
+  # small FastAPI app wrapping one model, weights in the shared model_cache volume, and
+  # a /health that answers 200 before the weights finish loading — a cold start is
+  # minutes and must not read as a crash. asr answers 503 rather than 200 in the one
+  # case that is not a cold start: a load that has actually failed.
 
   asr:
     build: ./infra/asr
-    profiles: ["speech"]
+    # No profile as of m4: infra/asr exists, so the build context is real and this is
+    # part of the default stack (PRD §10.1). `docker compose up -d` therefore builds
+    # this image and downloads the weights on a first run — minutes, once. Nothing
+    # depends_on it, so the rest of the stack comes up while that happens.
     environment:
       WHISPER_MODEL: ${WHISPER_MODEL:-small.en}
+      # The decoder settings that move the numbers in docs/decisions/0001. Overridable
+      # so the measurement in that document can be reproduced without editing a file.
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
+      WHISPER_VAD: ${WHISPER_VAD:-1}
+      WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-0}
       HF_HOME: /models
     volumes:
       - model_cache:/models
@@ -249,12 +271,18 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
-      # Pointed at hosts that do not resolve, on purpose. The health tests assert that
-      # unreachable model services produce a degraded 200 rather than a 500, and the
-      # cheapest way to have an unreachable service is to name one.
-      ASR_URL: http://asr:8101
-      TTS_URL: http://tts:8102
-      PRON_URL: http://pron:8103
+      # Pointed at hosts that do not resolve, on purpose, and note that these are NOT
+      # the real service names. Until m4 `http://asr:8101` was itself unresolvable and
+      # served the same purpose; then asr joined the default stack, started sharing this
+      # network, and the health tests quietly began asserting against a service that was
+      # actually up. Naming hosts that cannot exist restores the property the comment
+      # always claimed: `make test` is hermetic, and the model layer it sees is absent.
+      #
+      # The suite that DOES want a real recogniser is tests/test_asr_golden.py, which
+      # skips unless ASR_URL answers. `make asr-wer` runs it against the live container.
+      ASR_URL: http://asr.invalid:8101
+      TTS_URL: http://tts.invalid:8102
+      PRON_URL: http://pron.invalid:8103
       HEALTH_PROBE_TIMEOUT_S: "0.5"
     volumes:
       - ./api:/app

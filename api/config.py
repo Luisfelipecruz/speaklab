@@ -1,9 +1,11 @@
 """Environment-derived settings.
 
-Plain module-level constants read from `os.environ`, not a settings class. There are
-fourteen of them, they are read once at import, and every one has a working default —
-a `BaseSettings` subclass would add a dependency and a layer of indirection to
-`os.environ.get` with a fallback.
+Plain module-level constants read from `os.environ`, not a settings class. They are
+read once at import and every one has a working default — a `BaseSettings` subclass
+would add a dependency and a layer of indirection to `os.environ.get` with a fallback.
+(An earlier version of this docstring counted them. It was wrong by the end of the next
+milestone, which is a small demonstration of why a number belongs in something that
+runs rather than in prose beside it.)
 
 Every default here is the value that works on a laptop with nothing else running. A
 fresh clone starts with `cp .env.example .env && make up` and no editing.
@@ -17,7 +19,7 @@ import os
 # had already drifted by the end of m2 — the changelog said 0.2.0 while /health said
 # 0.1.0 — which is a small instance of exactly what invariant I9 is about: a number
 # that is written down rather than reported by the thing it describes.
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -110,3 +112,24 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "0") == "1"
 # also works for app.example.com -> api.example.com. It does NOT work across genuinely
 # different domains, which needs `none` and therefore also `secure`.
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "lax")
+
+# ── Audio and ASR (m4) ──────────────────────────────────────────────────────
+
+# Where recordings live. A named Docker volume mounted here, never a bind mount and
+# never a path inside the repository: a recording that can appear in `git status` is a
+# recording that can end up in the history (trap 4). Every path the API serves is
+# resolved and checked to be inside this directory before a byte is read.
+AUDIO_ROOT = os.environ.get("AUDIO_ROOT", "/audio")
+
+# 10 MB. A conversational turn is seconds and a read-aloud passage is under a minute;
+# at 16 kHz mono this is roughly five minutes of uncompressed WAV and far more of
+# anything the browser actually sends. The asr service enforces its own, higher ceiling
+# — two limits because the API's is a product decision and the service's is a bound on
+# damage from anything that reaches it.
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+
+# Long, on purpose, and not the same number as HEALTH_PROBE_TIMEOUT_S. A cold asr
+# container is downloading or loading weights, and the first transcription after a
+# restart waits for that. The health probe is what must stay fast; this is the working
+# call, and failing it early would turn a slow start into a lost recording.
+ASR_TIMEOUT_S = float(os.environ.get("ASR_TIMEOUT_S", "120"))

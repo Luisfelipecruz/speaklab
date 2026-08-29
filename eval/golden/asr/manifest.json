@@ -1,0 +1,100 @@
+{
+  "dataset": "openslr/librispeech_asr",
+  "config": "clean",
+  "split": "test",
+  "licence": "CC BY 4.0",
+  "attribution": "LibriSpeech ASR corpus (Panayotov, Chen, Povey, Khudanpur, ICASSP 2015), test-clean split, http://www.openslr.org/12",
+  "generated_by": "eval/golden/asr/fetch.py",
+  "items": [
+    {
+      "id": "6930-75918-0004",
+      "file": "6930-75918-0004.flac",
+      "row_index": 4,
+      "speaker_id": 6930,
+      "text": "SHE TAUGHT HER DAUGHTER THEN BY HER OWN AFFECTION FOR IT THAT LOVE FOR A COUNTRY WHERE THEY HAD BOTH BEEN HOSPITABLY RECEIVED AND WHERE A BRILLIANT FUTURE OPENED BEFORE THEM",
+      "duration_s": 11.065,
+      "sha256": "e1c4755c2febfc6b77fde418821c57e2e980d84d4c79a73ff60c6e6dfc794eac"
+    },
+    {
+      "id": "7729-102255-0039",
+      "file": "7729-102255-0039.flac",
+      "row_index": 300,
+      "speaker_id": 7729,
+      "text": "THE INMATES BEING REMOVED AT THE APPOINTED HOUR A FEW CANNON BALLS WERE FIRED THROUGH THE STONE WALLS",
+      "duration_s": 6.815,
+      "sha256": "33f5a3ea8ef8e5d58e0a543ae208b21d081b98e4cfe27d7f61a5cae8217dd91b"
+    },
+    {
+      "id": "8463-294828-0023",
+      "file": "8463-294828-0023.flac",
+      "row_index": 601,
+      "speaker_id": 8463,
+      "text": "YOU SEE MY FRIEND IT'S AN ISSUE OF THE MONSTER THE NOTORIOUS NARWHALE",
+      "duration_s": 4.745,
+      "sha256": "37bdaab194ec7ab3a639624c6df75778d24f37c87ec5a64cd74795c8461f6688"
+    },
+    {
+      "id": "5142-33396-0007",
+      "file": "5142-33396-0007.flac",
+      "row_index": 905,
+      "speaker_id": 5142,
+      "text": "AT THE PROW I CARVED THE HEAD WITH OPEN MOUTH AND FORKED TONGUE THRUST OUT",
+      "duration_s": 4.975,
+      "sha256": "eddeb87a8988b490557af3d3f4284e07e83fc09d4de90ec08e2983564bfdae5c"
+    },
+    {
+      "id": "4446-2275-0005",
+      "file": "4446-2275-0005.flac",
+      "row_index": 1200,
+      "speaker_id": 4446,
+      "text": "I FELT IT IN MY BONES WHEN I WOKE THIS MORNING THAT SOMETHING SPLENDID WAS GOING TO TURN UP",
+      "duration_s": 4.445,
+      "sha256": "1a42e9752f8df18ed25054c64be970067491284131a2238a3e8c2682ef932620"
+    },
+    {
+      "id": "4507-16021-0034",
+      "file": "4507-16021-0034.flac",
+      "row_index": 1503,
+      "speaker_id": 4507,
+      "text": "THEY CONSTITUTE TWO DIFFERENT ORDERS OF FACTS WHICH CORRESPOND TO EACH OTHER WHICH ARE ALWAYS INTERLACED AND WHICH OFTEN BRING FORTH RESULTS",
+      "duration_s": 11.27,
+      "sha256": "82d1c6989ed82652706793e5449d59106eb0cd0fcc9fc2d0b53fae601834d832"
+    },
+    {
+      "id": "1188-133604-0032",
+      "file": "1188-133604-0032.flac",
+      "row_index": 1803,
+      "speaker_id": 1188,
+      "text": "IT IS ONLY A PENCIL OUTLINE BY EDWARD BURNE JONES IN ILLUSTRATION OF THE STORY OF PSYCHE IT IS THE INTRODUCTION OF PSYCHE AFTER ALL HER TROUBLES INTO HEAVEN",
+      "duration_s": 10.985,
+      "sha256": "3f0ba99f17ec41ab8a82b60bf2fbc537d7de57eef18142e478876881ed95798f"
+    },
+    {
+      "id": "4970-29093-0012",
+      "file": "4970-29093-0012.flac",
+      "row_index": 2105,
+      "speaker_id": 4970,
+      "text": "BUT PHILIP DID AFFORD IT AND HE WROTE THANKING HIS FRIENDS AND DECLINING BECAUSE HE SAID THE POLITICAL SCHEME WOULD FAIL AND OUGHT TO FAIL",
+      "duration_s": 8.71,
+      "sha256": "05ca5e3bf9170054f7b4c02fcac3788806e1be4b3c22780da8be5bf051edf395"
+    },
+    {
+      "id": "237-134493-0016",
+      "file": "237-134493-0016.flac",
+      "row_index": 2404,
+      "speaker_id": 237,
+      "text": "ON EITHER SIDE OF THE ROAD FOR A MILE BEFORE YOU REACHED THE FOOT OF THE HILL STOOD TALL OSAGE ORANGE HEDGES THEIR GLOSSY GREEN MARKING OFF THE YELLOW FIELDS",
+      "duration_s": 10.085,
+      "sha256": "782b9887c5b1d82b04c07e0ac28e091822520d78511b8fd86f47f7ff3d063e30"
+    },
+    {
+      "id": "5683-32866-0024",
+      "file": "5683-32866-0024.flac",
+      "row_index": 2551,
+      "speaker_id": 5683,
+      "text": "I SHAN'T TROUBLE YOU ABOUT MY TRAIN OF THOUGHTS OR FANCIES BUT I BEGAN TO FEEL VERY LIKE A GENTLEMAN IN A GHOST STORY WATCHING EXPERIMENTALLY IN A HAUNTED CHAMBER",
+      "duration_s": 9.855,
+      "sha256": "ff265b3a488b5f4dfcfb273ae996c73f0dce02a202ae47e68e68d89ccbef637c"
+    }
+  ]
+}

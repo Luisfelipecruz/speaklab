@@ -131,8 +131,12 @@ Two database URLs, derived rather than configured separately so they cannot drif
 which runs migrations synchronously and cannot parse the async dialect suffix.
 
 Audio lives in a named volume, never in the working tree. `.gitignore` excludes `*.wav`,
-`*.webm`, `*.mp3` and `audio_data/` for the same reason: the one exception is the golden
-evaluation set in m11, which is small, human-recorded, and added with `git add -f`.
+`*.webm`, `*.mp3` and `audio_data/` for the same reason. The one exception is the golden
+evaluation set, which arrived at m4 rather than m11: ten LibriSpeech utterances in
+`eval/golden/asr/`, 1.5 MB, human-recorded, committed so that a number measured in CI and
+a number measured on a laptop mean the same thing. They are FLAC, which needs no
+`git add -f` — and which also exercises the format conversion a set already in the target
+format would never test.
 
 Since m2 the schema exists: twelve tables, three enum types, one revision. Two layers
 above it — `api/db_models/` for columns, `api/models/` for wire shapes — because they
@@ -167,7 +171,62 @@ somebody else, which turns an incrementing id into an enumeration of the table.
 
 ---
 
-## 5. The frontend
+## 5. Audio, and what the recogniser is for
+
+`asr` exists because of one line in PRD §7.1: **every fluency metric in the product is
+arithmetic on word-level timings, and every accuracy metric is gated on word-level
+confidence.** Nothing else in the system can produce either. So `word_timestamps=True` is
+not a configuration choice, it is the reason the service is a separate process at all.
+
+It returns `{w, start_ms, end_ms, logprob}` per word, and that shape appears in exactly
+three places: the service emits it, `api/models/audio.py` types it, and the `turns.words`
+JSONB column stores it. Three copies is two chances to drift, so the middle one is the
+authority — the client parses into it, which means a field the service renames fails
+validation at the boundary rather than becoming a fluency metric of zero six months later.
+
+**Decoding happens in the service, not in the API.** The browser sends Opus in WebM on
+Chrome and AAC in MP4 on Safari; neither reaches the model, and the API holds no media
+library at all (invariant I5 is about weights, but the same logic applies to codecs). PyAV
+— the ffmpeg libraries in-process — resamples everything to 16 kHz mono. That is also why
+`audio_assets.format`, `.sample_rate` and `.duration_ms` are reported *back* by the
+recogniser and stored as measured: the row describes what a decoder actually saw, and
+`duration_ms` comes from the decoded sample count rather than the container header,
+because a truncated upload declares the duration the recorder intended.
+
+The service promises `0 <= start <= end <= duration` and **counts the timings it had to
+repair to keep that promise** rather than silently repairing them. A `timestamp_fixups`
+that starts climbing is a fact about the model; the same instinct as invariant I3, which
+rejects out-of-taxonomy labels *and* counts them.
+
+### The latency budget is missed, and that is written down
+
+`small.en` scores **1.72 % WER** on the golden set and takes **1231 ms** on ~6 s of audio,
+against PRD §9.1's **≤ 700 ms**. `base.en` at beam 1 meets the budget at 525 ms and costs
+**4.31 % WER**. The default did not change, because that error rate is the input to the
+grammar analyser, the fluency metrics and the read-aloud reference — and because §9.1's
+own fallback order spends a cheaper lever first, one that m5 and m6 have not built yet.
+The switch is one environment variable, already measured. The full argument, and the
+reproducible case where `base.en` at beam 5 hallucinates a word and takes 4.5 s, is
+[decisions/0001-asr-model-choice.md](decisions/0001-asr-model-choice.md).
+
+### Storing a recording
+
+Content-addressed: the filename is the sha256 of the bytes and `audio_assets` is unique on
+`(user_id, sha256)`, so a double-tapped send or a retry after a timeout is one row rather
+than two attempts. Scoped to the user, not global — two people reading the same passage
+are two attempts, and a shared row would be a deletion request that cannot be honoured.
+
+The insert runs inside a **savepoint**. That is not tidiness: from m6 this pipeline is
+called inside a larger transaction that also writes a turn, and a plain rollback on the
+duplicate path would discard that turn — a data-loss bug that appears only on a retry.
+
+Nothing from a request ever reaches the filesystem. The stored name is a hex digest the
+API computed, so there is no `..` and no separator to smuggle; `resolve_path` checks
+containment *after* `resolve()` anyway, because a prefix comparison passes a symlink
+pointing out of the volume.
+
+
+## 6. The frontend
 
 Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. One page today,
 which renders `/health`.
@@ -184,7 +243,7 @@ the other way round.
 
 ---
 
-## 6. Ports
+## 7. Ports
 
 Offset from the other stacks on this machine so all of them run at once.
 
@@ -200,7 +259,7 @@ Offset from the other stacks on this machine so all of them run at once.
 
 ---
 
-## 7. Where the rest is written down
+## 8. Where the rest is written down
 
 | | |
 |---|---|

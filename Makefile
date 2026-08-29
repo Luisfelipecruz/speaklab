@@ -5,7 +5,7 @@
 # docker-compose.yml declare build contexts that m4, m5 and m8 have not created yet.
 
 .PHONY: help up down restart logs ps health test lint fmt clean \
-        speech-up pron-up llm-up migrate migrate-down migrate-status seed eval
+        speech-up pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -36,13 +36,19 @@ health:                            ## The API's own account of what is degraded
 test:                              ## Run the API suite in a container
 	docker compose --profile tools run --rm test
 
+# `--exclude eval` on both, and the reason is structural rather than stylistic. Inside
+# the container /app is api/, and eval/ is mounted into it READ-ONLY so that the corpus a
+# system is evaluated on cannot be rewritten by the system being evaluated (invariant I7).
+# A formatter pointed at /app therefore tries to write to a read-only mount and fails.
+# CI lints `api` from the repository root, where eval/ is a sibling and never in scope —
+# so this exclusion makes the two agree rather than letting them differ silently.
 lint:                              ## ruff + black, check only
 	docker compose --profile tools run --rm --entrypoint sh test -c \
-		"ruff check /app && black --check /app"
+		"ruff check --exclude eval /app && black --check --exclude eval /app"
 
 fmt:                               ## ruff --fix + black, in place
 	docker compose --profile tools run --rm --entrypoint sh test -c \
-		"ruff check --fix /app && black /app"
+		"ruff check --fix --exclude eval /app && black --exclude eval /app"
 
 # ── Model services ──────────────────────────────────────────────────────────
 
@@ -75,8 +81,15 @@ migrate-status:                    ## Which revision the database is on, and wha
 seed:                              ## Load the 8 scenarios and 12 passages. Idempotent.
 	docker compose exec api python -m scripts.seed
 
+asr-wer:                           ## Measure WER on the golden set against the live asr
+	@echo "Ten LibriSpeech utterances through the running recogniser. Needs \`make up\`."
+	docker compose --profile tools run --rm \
+		-e ASR_URL=http://asr:8101 test \
+		python -m pytest /app/tests/test_asr_golden.py -v -s
+
 eval:                              ## Retrieval + scoring evaluation (lands in m11)
 	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."
+	@echo "The one measurement that exists now is \`make asr-wer\`."
 	@exit 1
 
 # ── Destructive ─────────────────────────────────────────────────────────────

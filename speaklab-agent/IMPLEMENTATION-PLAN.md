@@ -127,9 +127,9 @@ speaklab/
 │   ├── models/                     Pydantic — request/response
 │   ├── routers/                    auth scenarios sessions turns passages
 │   │                               attempts progress health
-│   ├── services/                   security (m3) · asr_client tts_client
-│   │                               pron_client llm conversation grammar
-│   │                               errors fluency progress recommend audio
+│   ├── services/                   security (m3) · asr_client audio wer (m4)
+│   │                               tts_client pron_client llm conversation
+│   │                               grammar errors fluency progress recommend
 │   ├── scripts/                    seed.py  rollup.py
 │   ├── seeds/                      scenarios.json, passages.json
 │   └── tests/
@@ -141,7 +141,7 @@ speaklab/
 │   ├── asr/{Dockerfile,app.py,requirements.txt}
 │   ├── tts/{Dockerfile,app.py,requirements.txt}
 │   └── pron/{Dockerfile,app.py,gop.py,g2p.py,requirements.txt}
-├── eval/golden/
+├── eval/golden/asr/                ten LibriSpeech utterances + manifest — m4
 ├── spike/                          m0 only — never merged
 └── docs/                           architecture, data-model, decisions, changelog
 ```
@@ -351,7 +351,7 @@ Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout`
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
 against `app.openapi()` at m12, not recalled — this list is the forecast, the running
-system is the authority. **11 exist as of m3.**
+system is the authority. **12 exist as of m4** — `GET /audio/{asset_id}`.
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -630,42 +630,93 @@ change that never happened. Shared files touched: `config.py`, `main.py`,
 
 ---
 
-### m4 — ASR service and the audio pipeline
+### m4 — ASR service and the audio pipeline · **BUILT (2026-08-30)**
 
 **Goal.** Audio in, transcript with word timestamps and per-word logprobs out.
 
 **Why here.** Every metric in the product derives from this output. It comes before
 anything that consumes it.
 
-**Deliverables.**
+**Delivered.**
 ```
-infra/asr/{Dockerfile,app.py,requirements.txt}    faster-whisper + ffmpeg
-api/services/{asr_client.py,audio.py}
-api/models/audio.py
-api/routers/audio.py
-api/db_models/audio.py                             (extended)
-api/alembic/versions/0003_audio_assets.py
-api/tests/{test_asr_client.py,test_audio.py}
-eval/golden/asr/                                   reference recordings + transcripts
+infra/asr/{Dockerfile,app.py,requirements.txt}     faster-whisper on CTranslate2, PyAV
+api/services/{asr_client.py,audio.py,wer.py}       client, pipeline, scorer
+api/models/audio.py                                Word, SourceMedia, Transcription
+api/routers/audio.py                               GET /audio/{asset_id}
+api/tests/{test_asr_client.py,test_audio.py,test_asr_golden.py}
+eval/golden/asr/                                   10 utterances + manifest + fetch.py
 docs/decisions/0001-asr-model-choice.md
+Makefile                                           `make asr-wer`
+docker-compose.yml  .env.example  api/config.py  api/main.py
 ```
+
+Three deliverables in the original list were **not** produced, each for a reason:
+
+- **`api/alembic/versions/0003_audio_assets.py` — not written (D27).** `audio_assets` and
+  `turns` were created complete at m2, and m4 changed no column. The second milestone
+  running where the honest answer was "no revision"; see D23.
+- **`api/db_models/audio.py` (extended) — not created.** `AudioAsset` lives in
+  `db_models/user.py` by m2's design: audio has no meaning apart from its owner. Moving
+  it to satisfy a filename in this plan would have been the plan editing the code.
+- **A test file became three**, not two: `test_asr_client.py` (error taxonomy + the WER
+  scorer), `test_audio.py` (storage, path safety, the endpoint) and `test_asr_golden.py`
+  (the measurement, skipped without a live recogniser).
 
 **Decisions.**
-- **faster-whisper on CTranslate2, not `openai-whisper`.** CT2 avoids torch entirely, keeping this image around 400 MB instead of 2.5 GB. `pron` is where torch is allowed to live.
-- **Remove `profiles: ["speech"]` from the `asr` service.** m1 put it there only because a profiled service is excluded from `build`, which is what let `docker-compose.yml` name `./infra/asr` before that directory existed. This milestone creates it, so the profile has done its job. PRD §10.1 has `asr` in the default stack.
-- `small.en` at int8 as the default, overridable by env. English-only variants are meaningfully better than multilingual at the same size for this workload.
-- **`word_timestamps=True` is non-negotiable** — PRD §7.1 has no other source.
-- ffmpeg normalises everything to 16 kHz mono PCM at the service boundary. The browser sends Opus/WebM on Chrome and MP4/AAC on Safari; neither format reaches the model.
-- Audio is content-addressed by sha256, so a retried upload does not duplicate a row.
-- `/health` returns 200 before weights finish loading, with `{"model_loaded": false}`. A cold start is minutes and must not read as a crash.
+- **faster-whisper on CTranslate2, not `openai-whisper`.** Held. No torch in the image.
+- **`profiles: ["speech"]` removed from `asr`.** Held — it is in the default stack, and
+  the profile now holds only `tts`.
+- **`small.en` at int8, overridable by env.** Held, and now measured: 1.72 % WER.
+- **`word_timestamps=True` is non-negotiable.** Held.
+- **ffmpeg normalises at the service boundary.** Deviated: **PyAV, in-process** (D29).
+  It *is* the ffmpeg libraries, is already a faster-whisper dependency, and saves ~200 MB
+  of Debian multimedia packages plus a subprocess. The source metadata comes from the same
+  object that does the decoding, which is why the `audio_assets` row records what a
+  decoder measured rather than what an uploader claimed.
+- **Content-addressed by sha256.** Held, scoped to the user, and the insert runs in a
+  **savepoint** so that m6's surrounding transaction survives a duplicate.
+- **`/health` 200 before weights load.** Held, and sharpened: **503 when a load has
+  failed**, which is permanent and is a different fact from a cold start.
+- **New — `small.en` stays although it misses the latency budget (D26).** See below.
+- **New — no `POST /audio` (D28).** Audio enters attached to a turn (m6) or an attempt
+  (m8). A bare upload endpoint would create recordings that belong to nothing, and
+  something would then have to decide what to do with the orphans.
 
-**Tests.** Transcript matches reference within a WER threshold on the golden set;
-word timestamps are monotonic and within duration; sha256 dedup; malformed audio returns
-422 rather than 500.
+**Measured.** Ten LibriSpeech test-clean utterances, ten speakers, 232 reference words.
+Latency is the minimum of 7 runs after 3 warm-ups, service-side.
 
-**Done when.** A 10-second WAV posted to `/transcribe` returns text plus per-word timings
-in under 700 ms warm, and measured WER on the golden set is recorded in
-`docs/decisions/0001`.
+| Configuration | WER | ~6.8 s | ~10.1 s |
+|---|---:|---:|---:|
+| **`small.en` int8 beam 5 (default)** | **1.72 %** | **1231 ms** | 1416 ms |
+| `small.en` int8 beam 1 | 1.72 % | 1352 ms | 1289 ms |
+| `small.en` beam 5, VAD off | 3.45 % | — | 1772 ms |
+| `base.en` int8 beam 5 | 6.03 % | 4420 ms | 984 ms |
+| `base.en` int8 beam 1 | 4.31 % | 525 ms | 599 ms |
+| `tiny.en` int8 beam 1 | 4.74 % | — | 384 ms |
+
+| | |
+|---|---|
+| Tests | 146 — 139 without a recogniser, all 146 with one |
+| Operations | 12 of 30 |
+| `asr` image | 746 MB, no torch (planned ~400 MB — the estimate was optimistic) |
+| Timestamp repairs on the golden set | 0 |
+| Model load, warm cache | 1.3 s · cold download 139 s |
+| Host load during the latency runs | 21 |
+
+**Tests.** Transcript within a WER ceiling per model; timestamps monotonic, ordered and
+inside the duration; `timestamp_fixups == 0`; sha256 dedup, per user, through a savepoint;
+malformed audio 422 not 500; a truncated file does not claim its intended duration; the
+golden audio matches the manifest's hashes. Two mutations were run to prove the new tests
+are load-bearing: reverting the savepoint to a full rollback fails 2 tests, and replacing
+`resolve()`-then-contain with a string prefix fails the symlink test.
+
+**Done when.** *Partially met, and the gap is the finding.* A 10-second file returns text
+with per-word timings — **but in 1416 ms, not the 700 ms this line asked for**, and ~6 s
+of audio takes 1231 ms against PRD §9.1's ≤ 700 ms. Measured WER **is** recorded in
+`docs/decisions/0001`. The model was not swapped to make the gate pass: `base.en` meets it
+at 525 ms for 2.6× the error rate, that error rate feeds every downstream metric, and
+§9.1's own fallback order spends a cheaper lever — streaming TTS — that m5 and m6 have not
+built. **Carried to m6 as Q8**, where a whole turn can be measured instead of one stage.
 
 **Branch** `feature/m4-asr` · **PR** `feat: add faster-whisper ASR service with word-level timestamps`
 

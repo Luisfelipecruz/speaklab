@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
+from routers.audio import router as audio_router
 from routers.auth import router as auth_router
 from routers.health import router as health_router
 from routers.passages import router as passages_router
@@ -44,10 +45,11 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(scenarios_router)
 app.include_router(passages_router)
+app.include_router(audio_router)
 
 # Routers arriving with their milestones:
 #   m6  sessions, turns
-#   m8  attempts, audio
+#   m8  attempts
 #   m10 progress
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel

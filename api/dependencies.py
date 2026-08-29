@@ -77,10 +77,11 @@ async def get_owned_or_404(
     comparison is a separate statement somebody can forget or write against the wrong
     variable, and where the row has already been loaded by the time it is refused.
 
-    Used by `GET /audio/{id}` (m8), `GET /sessions/{id}` (m6) and `GET /attempts/{id}`
-    (m8). It is exercised now, at m3, against `audio_assets` — the only user-scoped table
-    that exists yet — so that the guard the later milestones depend on is tested by the
-    milestone that wrote it.
+    Used by `GET /audio/{id}` (m4), `GET /sessions/{id}` (m6) and `GET /attempts/{id}`
+    (m8). It was written and tested at m3 against `audio_assets` — the only user-scoped
+    table that existed then — a milestone before the first endpoint that needed it, so
+    that the guard the later milestones depend on was tested by the milestone that wrote
+    it rather than by the first one in a hurry.
     """
     row = await db.scalar(
         select(model).where(model.id == row_id, model.user_id == user.id)
