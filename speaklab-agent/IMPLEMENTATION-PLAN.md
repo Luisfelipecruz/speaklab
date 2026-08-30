@@ -1,9 +1,9 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.1 — **m0 passed, m1 built.** m2 is next. No repository exists yet; the
-working tree is uncommitted, and every git command is prepared in `GIT-COMMANDS.md` for
-the human to run.
-**Date:** 2026-08-29
+**Status:** v1.2 — **m0 passed; m1 through m6 are built, merged into `main` and CI green.**
+m7 is next. The repository exists at `Luisfelipecruz/speaklab`; every git command is still
+prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-08-30 (m6)
 **Companion to:** `../PRD.md`
 
 ---
