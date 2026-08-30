@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from config import AUDIO_ROOT, MAX_UPLOAD_BYTES
-from db_models import AudioAsset, User
+from db_models import Attempt, AudioAsset, Turn, User
 from models.audio import SourceMedia, Transcription
 from services.asr_client import transcribe
 
@@ -188,3 +188,64 @@ async def ingest_recording(
         db, user, data, transcription.source, device_hint=device_hint
     )
     return asset, created, transcription
+
+
+async def delete_unreferenced_assets(
+    db: AsyncSession, asset_ids: set[int]
+) -> list[Path]:
+    """Delete any of `asset_ids` that nothing points at any more. Returns the files to remove.
+
+    Called when a session is deleted. Without it, `DELETE /sessions/{id}` would remove
+    the conversation and leave every recording it contained sitting on the volume and in
+    the table — still fetchable by anyone who had noted the asset id, and still counted
+    against the disk. "Delete" that leaves the audio behind is the kind of promise this
+    project should not make.
+
+    **Unreferenced is checked, not assumed.** An asset is content-addressed and unique
+    per `(user_id, sha256)`, so one row can legitimately be pointed at by more than one
+    turn, and from m8 by an attempt as well. Deleting on the strength of "this session
+    referenced it" would eventually take a recording out from under a read-aloud attempt
+    that was still using it. The two `NOT EXISTS` checks below are what make this safe to
+    call before those other referrers exist, rather than a bug scheduled for m8.
+
+    Files are **not** removed here. The rows are deleted, the caller commits, and only
+    then does it unlink — the mirror of `store_recording`, which writes the file before
+    the row. A crash in that gap leaves an orphaned blob, which wastes space; the other
+    order leaves a row pointing at a file that is gone, which is an endpoint that 404s on
+    a recording the user was told they still had.
+    """
+    if not asset_ids:
+        return []
+
+    still_used_by_turn = (
+        select(Turn.id).where(Turn.audio_asset_id == AudioAsset.id).exists()
+    )
+    still_used_by_attempt = (
+        select(Attempt.id).where(Attempt.audio_asset_id == AudioAsset.id).exists()
+    )
+
+    orphans = list(
+        (
+            await db.scalars(
+                select(AudioAsset).where(
+                    AudioAsset.id.in_(asset_ids),
+                    ~still_used_by_turn,
+                    ~still_used_by_attempt,
+                )
+            )
+        ).all()
+    )
+
+    paths = []
+    for asset in orphans:
+        try:
+            paths.append(resolve_path(asset))
+        except AudioPathError:
+            # The row points outside the audio volume, so this process did not write it
+            # and will not unlink it. The row still goes: it is unreferenced either way,
+            # and refusing to delete it would keep a dangling reference to a file this
+            # code is not allowed to touch.
+            pass
+        await db.delete(asset)
+
+    return paths

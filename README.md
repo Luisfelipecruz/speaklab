@@ -140,24 +140,30 @@ has not been measured yet and is not claimed.
 | | |
 |---|---|
 | Containers up and healthy | 5 of 5 |
-| Test suite | **177** — 161 pass with no model services running, all 177 with `asr` and `tts` up |
+| Test suite | **274** — 255 pass with no model services running; the other 19 need `asr`, `tts` or Ollama |
 | API image | 424 MB, with no torch — asserted by a test, not by a comment |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
-| API operations implemented | 12 of the 30 forecast — m5 added none, deliberately |
+| API operations implemented | 18 of the 30 forecast — m6 added the six session routes |
 | **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
 | **ASR latency, ~6 s of audio** | **1231 ms** against a 700 ms budget — **missed, deliberately** |
 | **TTS latency, ~80-token reply** | **320 ms** whole against a 400 ms budget — **78 ms** to the first sentence |
 | TTS throughput | 50× real time on CPU |
+| **A whole spoken turn, p95 over 20** | **2684 ms** against a 3000 ms budget — **met**, at load 1.7–5.0 |
+| Turn stages, median | ASR 1146 ms · generation 872 ms · synthesis tail 235 ms |
+| The same turn on a busy machine | 7283 ms p95 at load 10–16 — 2.7× on identical code |
+| Streaming synthesis, against its own control | 235 ms of synthesis left to wait for, against 375 ms in series |
+| Token estimator error vs Ollama's own count | −6.4 % to +6.2 % across three prompt shapes |
 | `GET /scenarios`, warm | 3.5 ms median |
 | `GET /health`, warm | 32 ms median — up from 21 ms at m4, because a second model probe now answers rather than failing DNS fast |
 | `POST /auth/register` | 61 ms median — one Argon2id hash at 64 MiB |
 | Wrong password vs. unknown email | 75.6 vs 78.1 ms — the login endpoint does not reveal who has an account |
 
-The ASR budget is missed and the model was not swapped to hide it. `base.en` meets it
-today at 525 ms and costs 2.6× the word error rate, which is the input to every metric
-downstream; the fallback is one environment variable and the whole argument is in
-[docs/decisions/0001-asr-model-choice.md](docs/decisions/0001-asr-model-choice.md).
+The ASR **stage** budget is missed and the model was not swapped to hide it. `base.en`
+meets it today at 525 ms and costs 2.6× the word error rate, which is the input to every
+metric downstream; the whole argument is in
+[docs/decisions/0001-asr-model-choice.md](docs/decisions/0001-asr-model-choice.md). **m6
+settled it: the stage misses and the turn passes**, so nothing is downgraded.
 The word error rate is a **floor**: LibriSpeech is native, fluent, read-aloud English, and
 learner speech will be worse by an amount that set cannot estimate.
 
@@ -167,6 +173,35 @@ between 814 ms and 378 ms — so the number above is a measurement, not a librar
 opinion. On a machine also running an iOS simulator the whole-reply call misses at
 771 ms while first-sentence streaming holds at 135 ms, which is why both endpoints exist:
 [docs/decisions/0002-tts-model-choice.md](docs/decisions/0002-tts-model-choice.md).
+
+**The turn meets its budget and the margin is 316 ms, which is not much.** The one stage
+that misses is ASR — 1146 ms against a 700 ms stage budget — and the turn absorbs it
+because generation and synthesis both come in under. That is exactly the bet m4 made when
+it declined to downgrade the recogniser to buy 620 ms at 2.6× the word error rate, and the
+turn-level measurement it asked for now exists and says the bet was right.
+
+The same twenty turns measured **7283 ms at p95** while the machine was also running a
+second Docker VM, an Android emulator and two other Compose stacks — 2.7× on identical
+code. Both numbers are in the table because the range is what a developer actually meets,
+and because for several hours the contended one was the only measurement available and it
+said the opposite thing.
+
+PRD §9.1's first prescribed fallback — streaming the reply into the voice sentence by
+sentence — is worth about **140 ms** here, measured against its own control on a quiet
+machine: 235 ms of synthesis still to wait for, against 375 ms in series. That is a
+twentieth of a turn, and smaller than this project assumed when it built the streaming
+endpoint at m5. It stays on because it costs nothing and because it pays properly at m7,
+when the browser plays sentence one while sentence two is still being made and the number
+that matters becomes time-to-first-audio:
+[docs/decisions/0003-conversation-context-strategy.md](docs/decisions/0003-conversation-context-strategy.md).
+
+The most expensive thing m6 learned is not a latency at all. **Ollama does not refuse a
+prompt that will not fit** — llama.cpp shifts the context, discards half of it, and answers
+200 with nothing in the response to say so. A 4200-token prompt under `num_ctx: 4096` came
+back having evaluated 2051. The half it drops is the front, which is where a system message
+lives, so the persona disappears from exactly the long conversations that were the reason
+to have a persona. `num_ctx` is now stated on every request and the prompt is sized before
+it is sent, with a measured margin for the estimator being wrong.
 
 Latencies are medians over 12 calls on a laptop running several other stacks, and they
 move by a factor of two or more with what else is busy. At m1 the same `/health` measured

@@ -7,6 +7,118 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — 2026-08-30 · m6, the conversation
+
+The first milestone where the product exists: a spoken turn goes in and the persona
+answers out loud, persisted. And two measurements that contradict things this project
+believed before it took them.
+
+### Added
+
+- **`POST /sessions`** starts a conversation against a seeded scenario and returns the
+  persona's **generated** opening turn as text and audio (FR-6). Nothing is written if
+  generation fails, so a machine with no Ollama does not accumulate empty sessions.
+- **`POST /sessions/{id}/turns`** — the endpoint the product is about (FR-7). Audio in,
+  transcript, persona reply, speech out, both turns stored, in one atomic request. It
+  reports its own stage breakdown on every response, because R3 is that a latency
+  regression is felt long before it is noticed.
+- **`GET /sessions`** (paginated), **`GET /sessions/{id}`** (the full transcript, FR-10),
+  **`POST /sessions/{id}/end`** (the report, FR-9) and **`DELETE /sessions/{id}`**.
+  Six operations; **18 of the forecast 30 now exist**, counted from `app.openapi()`.
+- **`services/llm/`** — a provider interface and an Ollama implementation, with the same
+  three-outcome taxonomy as the ASR and TTS clients. Not LangChain: this is an HTTP call,
+  a token budget and a message list, and a framework would have hidden the token budget,
+  which is the part most worth reviewing.
+- **`services/conversation.py`** — persona anchoring, the token budget, summarisation into
+  a running digest, sentence splitting, and the overlap of generation with synthesis.
+- **Two schema columns per table** (`0002_conversation_context.py`): `sessions.context_digest`
+  and `digest_through_idx` for FR-8's summarisation, and `turns.llm_model`, `tts_voice`,
+  `prompt_tokens`, `completion_tokens` for provenance. Revision **0002**, not the plan's
+  guessed 0004 — m3, m4 and m5 each needed no migration at all.
+- **`make turn-latency`** and **`make turn-latency-noflow`** — the same 20-turn
+  measurement with PRD §9.1's first fallback on and off, which is the only honest way to
+  measure what that fallback buys.
+- **`docs/decisions/0003-conversation-context-strategy.md`** — the context-shift cliff,
+  the Gemma template finding, the estimator's measured error, and the turn breakdown.
+
+### Changed
+
+- **`num_ctx` is now sent on every generation request**, and this is a correctness fix
+  rather than tuning. **Ollama does not refuse an over-long prompt** — llama.cpp shifts
+  the context, discards half of it, and answers 200 with nothing in the response to say
+  so. Measured: a 4200-token prompt under `num_ctx: 4096` came back with
+  `prompt_eval_count: 2051`. The discarded half is the front of the conversation, which
+  is where a system message lives — so the persona vanishes from exactly the long
+  conversations PRD R7 is about, silently.
+- **The persona is anchored twice per turn, not once.** Ollama's template for `gemma3:4b`
+  renders a `system` message as an ordinary `<start_of_turn>user` block: **Gemma 3 has no
+  system role.** "Re-anchor the persona in the system message every turn" therefore means
+  "put it in the first user turn", forty turns from where the reply is written. Whether
+  the second anchor helps is **unresolved** — both deterministic proxies saturate at
+  100 % with and without it (n = 25, 30 turns of history), so m6's instruments cannot
+  tell. It is kept on the template argument and logged as Q12 for m11.
+- **`users.retain_audio` finally does something.** It has been settable since m3 and
+  nothing stored a waveform until now. With it off, a turn is transcribed and the
+  recording is not kept — no file, no row — while the transcript, word timings and
+  confidence remain. That is FR-26 exactly: drop the audio, keep the derived data.
+- **`DELETE /sessions/{id}` deletes the audio too**, but only assets nothing else still
+  references. A session removed from the history while its recordings stay on the volume
+  is not a promise this project should make.
+- **The API opens an audio file for the first time** (`services/wav.py`), and the claim in
+  `services/audio.py` that it never does is now scoped to *uploads*, where it still holds.
+  Joining per-sentence synthesis into one file is not decoding: known format, known
+  parameters, produced by this system's own voice seconds earlier, standard library only.
+
+### Measured
+
+- **A whole spoken turn: 2353 ms median, 2684 ms p95, against a 3000 ms budget — met.**
+  Twenty turns through the real recogniser, model and voice on a quiet target machine
+  (load 1.7 rising to 5.0). ASR 1146 ms, generation 872 ms, synthesis tail 235 ms. The one
+  stage that misses its own budget is ASR, and the turn absorbs it — which is precisely
+  the bet m4 made when it declined to downgrade the recogniser (D26).
+- **The same twenty turns measured 7283 ms at p95 on a busy machine** — load 10–16, with a
+  second Docker VM, an Android emulator and two other Compose stacks running. 2.7× on
+  identical code. Both numbers are recorded, because the range is what a developer
+  actually meets and because for several hours the contended one was the only measurement
+  available and it said the opposite thing.
+- **PRD §9.1's first fallback is worth ~140 ms, not the second it was assumed to be.**
+  Measured against its own control on a quiet machine: 235 ms of synthesis still to wait
+  for when generation ends, against 375 ms in series. A two-to-three-sentence reply is only
+  ~500 ms of synthesis work, so that is close to the arithmetic ceiling. It stays on
+  because it costs nothing and because m7 — where the browser plays sentence one while
+  sentence two is still being made — is where it actually pays.
+- **The token estimator errs by −6.4 % to +6.2 %** across three prompt shapes against
+  Ollama's own count. `LLM_ESTIMATOR_MARGIN` is 1.25 and the context window is sized from
+  it, so the heuristic is a bound rather than a hope.
+- **274 tests, up from 177.** 255 run with no model services at all; the other 19 need
+  a live recogniser, voice or Ollama and skip without one.
+
+### Answered
+
+- **Q8 — does turn latency force ASR down to `base.en`? No.** The turn meets its budget
+  with `small.en` in it: p95 2684 ms against 3000 ms. ASR misses its own 700 ms stage
+  budget at 1146 ms and the turn absorbs the overspend, because generation came in at
+  872 ms against 1500 ms and synthesis at 235 ms against 400 ms. Downgrading would buy
+  ~620 ms and cost 2.6× the word error rate, for a requirement that is already met.
+  **D26 is confirmed, not reopened** — the turn-level measurement it asked for now exists.
+  The margin is 316 ms and the control arm sat at 3043 ms, so this is met, not met
+  comfortably.
+
+### Known gaps
+
+- **§9.1's fallback order looks wrong for this stack, and nothing was changed on it.** The
+  order is stream TTS (~140 ms), drop ASR (~620 ms, costs accuracy), shorten the reply cap
+  (untested, listed last). Reply length drives generation *and* synthesis, so it is
+  plausibly the largest of the three. That is a hypothesis with no measurement behind it.
+- `ASR_CONFIDENCE_FLOOR` is **0.60 and that is a placeholder, not a finding** — nothing
+  has measured where learner speech sits on this scale. Flagged as Q11 for m9, which has
+  the labelled corpus that can answer it.
+- The session report's `measured` block is real and its `pending` block names the four
+  things FR-9 asks for that need m8 and m9. A report that omitted them would read as a
+  session that simply had no errors in it.
+
+---
+
 ## [0.5.0] — 2026-08-30 · m5, the voice
 
 Text in, the persona's speech out, fast enough to sit inside a conversational turn — and

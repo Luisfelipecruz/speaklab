@@ -57,6 +57,31 @@ class Turn(Base):
     # meaningless without it, and "we changed the ASR in March" is exactly the kind of
     # thing that otherwise shows up as the user getting worse.
     asr_model: Mapped[str | None] = mapped_column(Text)
+
+    # ── What produced an assistant turn (m6) ────────────────────────────────
+    #
+    # The same argument as `asr_model`, one row over. A reply written by `gemma3:4b`
+    # and one written by whatever replaces it are different replies to the same
+    # conversation, and a session report that compares this month against last month
+    # needs to be able to see that the writer changed. Null on a user turn.
+    llm_model: Mapped[str | None] = mapped_column(Text)
+
+    # And which voice spoke it. Synthesis is non-deterministic (decision 0002), so the
+    # audio cannot be re-derived from the text to find out after the fact — if this is
+    # not recorded at the moment of synthesis it is not recoverable at all.
+    tts_voice: Mapped[str | None] = mapped_column(Text)
+
+    # Ollama's own count of what it read and what it wrote, taken from the response
+    # rather than estimated. FR-8 bounds the history in tokens, and a bound nothing
+    # ever measures is a bound nobody can show was respected: `services/conversation.py`
+    # estimates the prompt size before the call because it must decide what to send,
+    # and these two columns are what say afterwards how close that estimate was.
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
+
+    # Wall clock for the whole turn — upload to stored reply, not just the model call.
+    # Recorded from the first turn ever served, because R3 is that latency regressions
+    # are felt long before they are noticed.
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

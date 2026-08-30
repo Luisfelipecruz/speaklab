@@ -351,9 +351,10 @@ Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout`
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
 against `app.openapi()` at m12, not recalled — this list is the forecast, the running
-system is the authority. **12 exist as of m5.** m5 added none: its `POST /synthesize` is
-a model-service internal API, and the "internal preview endpoint" the m5 deliverable list
-named was not built (D31, resolving Q9).
+system is the authority. **18 exist as of m6**, counted from the running app rather than
+from this list. m5 added none: its `POST /synthesize` is a model-service internal API, and
+the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
+Q9). m6 added the six session routes below, exactly as forecast.
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -790,7 +791,7 @@ the first page with audio on it, and m7 is also where the Jest/RTL harness lands
 
 ---
 
-### m6 — Scenario engine and the conversation loop
+### m6 — Scenario engine and the conversation loop · **BUILT (2026-08-30)**
 
 **Goal.** A full spoken turn works end to end, API-side: audio in → transcript → persona
 reply → speech out, persisted.
@@ -801,11 +802,14 @@ reply → speech out, persisted.
 ```
 api/services/llm/{__init__.py,ollama.py,base.py}
 api/services/conversation.py           persona anchoring, history budget, summarisation
+api/services/turns.py                  ADDED — shared by both endpoints that generate
+api/services/wav.py                    ADDED — joins per-sentence synthesis into one file
 api/models/{session.py,turn.py}
 api/routers/{sessions.py,turns.py}
-api/db_models/{session.py,turn.py}     (extended)
-api/alembic/versions/0004_sessions_turns.py
-api/tests/{test_conversation.py,test_sessions.py,test_llm_provider.py}
+api/db_models/{session.py,turn.py}     (extended: 2 columns + 4 columns)
+api/alembic/versions/0002_conversation_context.py   NOT 0004 — see the deviation below
+api/tests/{test_conversation.py,test_sessions.py,test_turns.py,test_llm_provider.py,
+           test_wav.py,test_conversation_live.py}
 docs/decisions/0003-conversation-context-strategy.md
 ```
 
@@ -825,6 +829,74 @@ provider down → 503.
 text, and reply audio, p95 under 3 s over 20 turns against `gemma3:4b`.
 
 **Branch** `feature/m6-conversation` · **PR** `feat: add scenario conversation loop over local Gemma`
+
+---
+
+#### What was actually built, and where it differs
+
+**Done, and the gate is met.** Six operations (18 of 30 exist), 274 tests, one migration,
+and `docs/decisions/0003`. The turn works end to end against real models.
+
+**The "done when" is met: p95 2684 ms against a 3000 ms budget**, twenty turns on a quiet
+target machine (load 1.7 → 5.0). ASR 1146 ms, generation 872 ms, synthesis tail 235 ms.
+The one stage over its own budget is ASR, and the turn absorbs it — which is what D26 bet
+on. **The margin is 316 ms**: the same run with §9.1's first fallback off sat at 3043 ms,
+and the same twenty turns on a busy machine measured 7283 ms, 2.7× on identical code.
+
+**D34 — the migration is 0002, not 0004.** The deliverable list guessed 0004 by counting
+milestones. m3, m4 and m5 each needed no schema change (D23, D27), and numbering
+migrations after milestones rather than after migrations would put two gaps in a history
+that never existed.
+
+**D35 — the turn endpoint releases its database connection across the model calls.**
+`database.get_db` warned about this at m1. The request reads, commits, spends ~2 s in
+three services holding nothing, then re-acquires to write. Asserted by a test that has the
+stub provider read `engine.pool.checkedout()` at the moment it is called.
+
+**D36 — a turn is atomic; a silent voice is not a failed turn.** Both turns are written or
+neither. But synthesis failing returns 200 with `speech.status` set, because a reply the
+speaker can read is worth more than a 502 — the same shape `/health` uses for degraded.
+
+**D37 — `POST /sessions/{id}/end` produces a report split by provenance**: `measured`
+(counted from rows), `narrative` (written by the LLM), `pending` (the parts of FR-9 that
+need m8 and m9). Invariant I1 made structural rather than documented.
+
+**D38 — two extra service modules.** `services/turns.py` because the opening turn and a
+mid-conversation turn are the same operation with a different message list, and
+`services/wav.py` because per-sentence synthesis produces N files where a turn stores one.
+The latter is the first place the API opens an audio file; `services/audio.py`'s claim that
+it never does is now scoped to uploads, where it still holds.
+
+**Three findings that changed the code**, all in decision 0003:
+
+1. **Ollama silently discards half an over-long prompt.** No error, no warning; the
+   discarded half is the front, where a system message lives. `num_ctx` is now stated on
+   every request and the prompt is sized before it is sent, with a measured margin.
+2. **Gemma 3 has no system role** — Ollama's template renders `system` as a user turn — so
+   "re-anchor in the system message" does not do what it says. The persona is anchored
+   twice. Whether the second anchor helps is **unresolved**: both deterministic proxies
+   saturate at 100 % with and without it (n = 25). Logged as Q12 for m11.
+3. **PRD §9.1's first fallback is worth ~140 ms**, measured against its own control on a
+   quiet machine — 235 ms of synthesis left to wait for against 375 ms in series — not the
+   second it was assumed to be worth. It stays on; it pays properly at m7.
+
+**A fourth finding is about measurement rather than the system.** Two attempts to quantify
+the overlap from within a single run were both wrong and both plausible (traps 33), and
+the first three turn measurements were taken on a machine at load 10–16 and said the budget
+was missed by a factor of two. Read the load average the suite prints beside its table.
+
+**Q8 is resolved: no.** The turn meets its budget with `small.en` in it. ASR misses its
+own stage budget at 1146 ms against 700 ms and the turn absorbs the overspend; downgrading
+to `base.en` would buy ~620 ms and cost 2.6× the word error rate for a requirement already
+met. **D26 is confirmed rather than reopened** — the turn-level measurement it asked for
+now exists. Carried forward, unmeasured: §9.1's fallback order lists the reply cap last,
+and reply length drives generation *and* synthesis, so it is plausibly the largest lever
+of the three.
+
+**Not built, deliberately:** no concurrent dispatch of grammar analysis (it is m9, so
+there is nothing to run in parallel with; the only genuine concurrency at m6 is synthesis
+overlapping generation, which is built). No `BackgroundTasks` for the digest fold — it is
+awaited, visibly, because m9 is where this project's background-job machinery is designed.
 
 ---
 

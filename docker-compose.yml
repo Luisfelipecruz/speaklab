@@ -315,7 +315,19 @@ services:
       ASR_URL: http://asr.invalid:8101
       TTS_URL: http://tts.invalid:8102
       PRON_URL: http://pron.invalid:8103
+      # And the LLM, for exactly the same reason — added after it bit. `extra_hosts`
+      # below makes host.docker.internal resolve so that `make turn-latency` can reach
+      # the host's Ollama, and the side effect was that the *hermetic* suite could reach
+      # it too. One test started its session against the real model, passed here because
+      # a model happened to be running, and failed on CI where none is. That is trap 25
+      # exactly, one service later: `make test` must see no model at all.
+      OLLAMA_BASE_URL: http://ollama.invalid:11434
       HEALTH_PROBE_TIMEOUT_S: "0.5"
+    # Resolves host.docker.internal, so that a measurement run can be pointed at the
+    # host's Ollama with `-e OLLAMA_BASE_URL=...` — which overrides the deliberately
+    # unreachable default above. Nothing in the hermetic suite uses it.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./api:/app
       # Read-only, and the flag is the point rather than caution. eval/ holds fixtures

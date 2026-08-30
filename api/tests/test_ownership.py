@@ -104,13 +104,22 @@ def test_every_route_is_either_scoped_to_a_user_or_declared_public():
     ), f"declared public but actually scoped; remove them from PUBLIC_ROUTES: {sorted(stale)}"
 
 
-def test_the_user_scoped_routes_are_the_ones_expected_at_m4():
+def test_the_user_scoped_routes_are_the_ones_expected_at_m6():
     """A companion to the test above, which would also pass if *nothing* were scoped and
     everything were listed as public. This one names the routes that must be locked.
 
     It is meant to be edited by each milestone that adds a scoped route — m4 added
-    `GET /audio/{asset_id}` — and the edit is the point. A route arriving in this set
-    without somebody typing it here is a route nobody decided should be private."""
+    `GET /audio/{asset_id}`, m6 added the six session routes — and the edit is the point.
+    A route arriving in this set without somebody typing it here is a route nobody decided
+    should be private.
+
+    m6 is the milestone where this stopped being a formality. Everything scoped before it
+    was one row deep: a profile, or a recording read by id. A session is a tree — turns,
+    word timings, transcripts, and audio of somebody's actual voice — and it is reached
+    through a sequential integer, so `GET /sessions/41` is a guess anybody can make. The
+    other half of that guarantee is `get_owned_or_404` folding existence and ownership
+    into one WHERE, tested below and again in test_sessions.py against a second account.
+    """
     scoped = {
         (method, path)
         for method, path, route in _api_routes()
@@ -120,6 +129,12 @@ def test_the_user_scoped_routes_are_the_ones_expected_at_m4():
         ("GET", "/auth/me"),
         ("PATCH", "/auth/me"),
         ("GET", "/audio/{asset_id}"),
+        ("POST", "/sessions"),
+        ("GET", "/sessions"),
+        ("GET", "/sessions/{session_id}"),
+        ("DELETE", "/sessions/{session_id}"),
+        ("POST", "/sessions/{session_id}/end"),
+        ("POST", "/sessions/{session_id}/turns"),
     }
 
 

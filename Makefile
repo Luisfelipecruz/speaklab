@@ -6,7 +6,8 @@
 # build context that m8 has not created yet.
 
 .PHONY: help up down restart logs ps health test lint fmt clean \
-        pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer tts-latency tts-sample
+        pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer tts-latency \
+        tts-sample turn-latency turn-latency-noflow
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -102,9 +103,29 @@ tts-sample:                        ## Synthesise a WAV you can actually listen t
 		&& echo "wrote spike/tts-sample/reply.wav" \
 		|| echo "no answer from http://localhost:8102 — is the stack up?"
 
+turn-latency:                      ## Measure a whole conversational turn, end to end
+	@echo "Twenty turns through the real recogniser, the real model and the real voice."
+	@echo "Needs \`make up\` and Ollama running on the host. Takes a couple of minutes."
+	docker compose --profile tools run --rm \
+		-e ASR_URL=http://asr:8101 \
+		-e TTS_URL=http://tts:8102 \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		test python -m pytest /app/tests/test_conversation_live.py -v -s
+
+turn-latency-noflow:               ## The same measurement with PRD 9.1's first fallback OFF
+	@echo "Generation and synthesis in series rather than overlapped. This is the control"
+	@echo "arm for the comparison in docs/decisions/0003."
+	docker compose --profile tools run --rm \
+		-e ASR_URL=http://asr:8101 \
+		-e TTS_URL=http://tts:8102 \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		-e LLM_STREAM_TO_TTS=0 \
+		test python -m pytest /app/tests/test_conversation_live.py -v -s -k whole_turn
+
 eval:                              ## Retrieval + scoring evaluation (lands in m11)
 	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."
-	@echo "The measurements that exist now are \`make asr-wer\` and \`make tts-latency\`."
+	@echo "The measurements that exist now are \`make asr-wer\`, \`make tts-latency\`"
+	@echo "and \`make turn-latency\`."
 	@exit 1
 
 # ── Destructive ─────────────────────────────────────────────────────────────
