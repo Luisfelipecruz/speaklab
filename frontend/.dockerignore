@@ -1,0 +1,8 @@
+# Without this, `COPY . .` ships the host's 549 MB node_modules into the image and
+# overwrites the one npm just installed for the container's platform. Native modules
+# built for macOS do not run on linux/arm64, and the failure appears at runtime as a
+# missing binary rather than at build time as an error.
+node_modules
+.next
+npm-debug.log*
+.env.local
