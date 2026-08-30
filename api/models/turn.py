@@ -15,6 +15,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from config import ASR_CONFIDENCE_FLOOR
 from models.common import ORMModel
 
 
@@ -40,11 +41,23 @@ class TurnOut(ORMModel):
     latency_ms: int | None
     created_at: datetime
 
+    # Derived, not stored. The threshold is a placeholder that m9 will set from real
+    # learner speech (Q11), and the day it moves, every turn ever recorded has to move
+    # with it — which a stored boolean would not. It is on the turn rather than only on
+    # the response that created it because a reloaded transcript (FR-10) has to mark the
+    # same turns as the live one did; without this the marker survived a conversation
+    # and vanished on a page refresh.
+    low_confidence: bool = False
+
     @classmethod
     def of(cls, turn) -> "TurnOut":
         out = cls.model_validate(turn)
         if turn.audio_asset_id is not None:
             out.audio_url = f"/audio/{turn.audio_asset_id}"
+        out.low_confidence = (
+            turn.asr_confidence is not None
+            and turn.asr_confidence < ASR_CONFIDENCE_FLOOR
+        )
         return out
 
 
@@ -118,4 +131,10 @@ class TurnResponse(BaseModel):
     # Below the gate in PRD §7.5 this turn is still stored and still replied to, but it
     # must not contribute to an accuracy trend. Surfaced here so m7 can mark it and m9
     # does not have to re-derive the same threshold.
+    #
+    # The same value now appears as `user_turn.low_confidence`, and the duplication is
+    # deliberate rather than left over: this field is part of the turn endpoint's
+    # contract, and a client that reads only the envelope should not have to reach into
+    # a nested object to find out whether the recogniser was sure. Both come from the
+    # one comparison in `TurnOut.of`, so they cannot disagree.
     low_confidence: bool = False

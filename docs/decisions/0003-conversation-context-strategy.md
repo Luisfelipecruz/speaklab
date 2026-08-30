@@ -219,6 +219,13 @@ sentence reply is ~500 ms of synthesis work (measured directly against the voice
 as one call, 472 ms as three concurrent calls, 517 ms as three serial calls, so splitting
 is cost-neutral at the service), and overlapping can hide at most all-but-the-last sentence.
 
+> **Added 2026-08-30, after m7: the paragraph below is wrong about m7 and is left as
+> written.** The turn endpoint returns one concatenated WAV after the whole turn
+> completes, so the browser's first audio arrives at *turn* latency and the 78 ms is a
+> boundary nothing downstream can observe. See
+> [0004 §3](0004-browser-recording-and-playback.md). The rest of this section stands:
+> the overlap shortens the turn, which is what the budget measures.
+
 **It stays on.** It is free, it is bounded-correct, and its real payoff is m7: when the
 browser plays sentence one while sentence two is still being synthesised, the number that
 matters stops being turn latency and becomes time-to-first-audio, where m5 measured 78 ms

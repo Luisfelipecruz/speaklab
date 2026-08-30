@@ -383,6 +383,20 @@ async def test_a_turn_the_recogniser_was_unsure_of_is_flagged_not_hidden(
     assert body["low_confidence"] is True
     assert body["reply_turn"]["transcript"], "a low-confidence turn still gets a reply"
 
+    # The envelope and the turn agree, because they are the same comparison serialised
+    # once. The persona's own turn has no ASR confidence at all and must not inherit the
+    # flag from the exchange it belongs to.
+    assert body["user_turn"]["low_confidence"] is True
+    assert body["reply_turn"]["low_confidence"] is False
+
+    # And it survives a reload. FR-10 reads the transcript back through a different
+    # endpoint, and a marker that exists only on the response that created it is one the
+    # interface can show during a conversation and never again — so a page refresh would
+    # quietly upgrade a turn the recogniser was unsure of into one it was sure of.
+    reloaded = (await client.get(f"/sessions/{session['id']}")).json()
+    spoken = [turn for turn in reloaded["turns"] if turn["role"] == "user"]
+    assert [turn["low_confidence"] for turn in spoken] == [True]
+
 
 # ── Retention (FR-26) ───────────────────────────────────────────────────────
 

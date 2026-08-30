@@ -1,20 +1,20 @@
 /**
  * The browser's half of the session.
  *
- * Every call here sets `credentials: "include"`, and that flag is the whole design. The
- * token is in an httpOnly cookie, so this module cannot read it, cannot attach it to a
- * header, and cannot store it — it can only ask the browser to send it. Omitting the
- * flag is the failure this file exists to prevent: `fetch` drops cross-origin cookies
- * by default, so a login would appear to succeed and every following request would 401,
- * with nothing in the console to say why.
+ * The transport lives in `lib/api.ts` now, and this module is the auth vocabulary on top
+ * of it: the profile shape, the five calls, and the one place that decides a 401 is not
+ * an error. m3 wrote `request` here because auth was the only thing calling the API from
+ * a browser; m7 added scenarios, sessions and turns, and a second copy of "attach the
+ * cookie, normalise the failure" is how the two would eventually disagree about what a
+ * 422 body looks like.
  *
- * These are browser-side calls, so they use PUBLIC_API_URL (`localhost:8002`) rather
- * than the in-network address. A server component that ever needs the session has to
- * forward the incoming cookie header explicitly; there is no shared jar between the
- * browser and the Next.js server.
+ * `ApiError` is re-exported rather than moved-and-forgotten: every m3 caller imports it
+ * from here, and a rename across files is churn that reviews nothing.
  */
 
-import { PUBLIC_API_URL } from "@/lib/api";
+import { ApiError, request } from "@/lib/api";
+
+export { ApiError };
 
 /** Mirrors `api/models/auth.py::UserProfile`. No token, no hash — there is no field for either. */
 export interface UserProfile {
@@ -31,64 +31,6 @@ export interface RegisterInput {
   password: string;
   native_language: string;
   cefr_self_assessed?: string | null;
-}
-
-/** A failed request, carrying the status so a caller can tell 401 from 409. */
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-/**
- * Turn an error body into one sentence a person can act on.
- *
- * FastAPI answers with two different shapes and they have to be told apart. A raised
- * `HTTPException` gives `{detail: "Incorrect email or password"}`; a validation failure
- * gives `{detail: [{loc, msg, type}, ...]}`. Rendering the second one as-is puts
- * `[object Object]` or a JSON array in front of the user, which is the most common way
- * a FastAPI frontend leaks its own internals into the interface.
- */
-function messageFrom(body: unknown, status: number): string {
-  const detail = (body as { detail?: unknown } | null)?.detail;
-
-  if (typeof detail === "string") return detail;
-
-  if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0] as { loc?: unknown[]; msg?: string };
-    // `loc` is ["body", "password"]; the field name is the part worth showing.
-    const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : undefined;
-    const message = first.msg ?? "is not valid";
-    return field ? `${String(field)}: ${message}` : message;
-  }
-
-  return `Request failed (${status})`;
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${PUBLIC_API_URL}${path}`, {
-      ...init,
-      credentials: "include",
-      headers: { "Content-Type": "application/json", ...init.headers },
-    });
-  } catch {
-    // A network-level failure, not an HTTP one: the API container is not running, or
-    // CORS rejected the request before it was made. Status 0 marks it as "never
-    // answered", which is a different thing from a 500.
-    throw new ApiError("Could not reach the API. Is the stack running?", 0);
-  }
-
-  if (response.status === 204) return undefined as T;
-
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(messageFrom(body, response.status), response.status);
-  return body as T;
 }
 
 export function register(input: RegisterInput): Promise<UserProfile> {

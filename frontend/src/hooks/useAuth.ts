@@ -1,22 +1,27 @@
 "use client";
 
 /**
- * Session state for a client component.
+ * Session state, shared by everything that renders inside the application.
  *
- * A hook rather than a context, deliberately. A provider is what you need when several
- * components must agree on one copy of the session; at m3 there are two consumers and
- * they are two separate pages that never render at the same time, so a context would be
- * indirection with one implementation. m6 adds the first authenticated shell — a header
- * that knows who is signed in, wrapped around pages that also need it — and that is the
- * milestone where this gets promoted to a provider. Doing it now would be guessing at
- * the shape of a layout that does not exist.
+ * **This was a plain hook at m3 and is a context at m7, which is what m3 said would
+ * happen.** The note it carried read: a provider is what you need when several
+ * components must agree on one copy of the session; at m3 there were two consumers and
+ * they were two pages that never render at the same time, so a context would have been
+ * indirection with one implementation.
+ *
+ * m7 is the milestone that changes the arithmetic. The header knows who is signed in and
+ * sits *around* pages that also need the profile, so the hook-per-consumer version would
+ * mount two independent copies of the session on every screen — two `GET /auth/me` calls
+ * on load, and a sign-out that empties one of them while the other still renders an
+ * email address. Neither is a bug a test would have caught; both are the reason the
+ * promotion was scheduled rather than done speculatively.
  *
  * `status` is a three-state, not a boolean. "Checking" and "signed out" are genuinely
  * different, and collapsing them is what produces the flash of a login form on every
  * page load for someone who is already signed in.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { ApiError, fetchMe, login as postLogin, logout as postLogout, register as postRegister } from "@/lib/auth";
 import type { RegisterInput, UserProfile } from "@/lib/auth";
@@ -35,7 +40,14 @@ export interface UseAuth {
   signOut: () => Promise<void>;
 }
 
-export function useAuth(): UseAuth {
+export const AuthContext = createContext<UseAuth | null>(null);
+
+/**
+ * The state itself. Exported for `AuthProvider`, which is its only caller — a second
+ * caller would be a second copy of the session, which is the thing this file stopped
+ * doing.
+ */
+export function useAuthState(): UseAuth {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +108,32 @@ export function useAuth(): UseAuth {
   const signUp = useCallback((input: RegisterInput) => attempt(() => postRegister(input)), [attempt]);
 
   const signOut = useCallback(async () => {
-    await postLogout();
-    setUser(null);
-    setStatus("anonymous");
+    // The local state is cleared whatever the request did. A logout that failed
+    // server-side still means this browser should stop showing somebody's email, and
+    // leaving the UI signed in because the network blinked is the worse of the two
+    // wrong answers.
+    try {
+      await postLogout();
+    } finally {
+      setUser(null);
+      setStatus("anonymous");
+    }
   }, []);
 
   return { user, status, error, pending, signIn, signUp, signOut };
+}
+
+/**
+ * The session, from the nearest provider.
+ *
+ * Throws outside one rather than falling back to a private copy. A silent fallback is
+ * how a component ends up with its own session that nothing else updates, which is
+ * precisely the failure the provider was introduced to remove.
+ */
+export function useAuth(): UseAuth {
+  const value = useContext(AuthContext);
+  if (value === null) {
+    throw new Error("useAuth must be used inside <AuthProvider>");
+  }
+  return value;
 }

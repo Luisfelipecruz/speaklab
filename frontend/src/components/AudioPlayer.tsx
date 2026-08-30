@@ -22,10 +22,18 @@
  *   `<audio>` element that cannot fetch its source is to sit there looking idle, which
  *   is indistinguishable from audio that has not been pressed yet.
  *
- * There is no unit test beside this file, and that is a gap with a date on it rather
- * than an oversight: the Jest and React Testing Library harness arrives with m7, which
- * is also the milestone that first mounts this component. It is type-checked, linted
- * and built by CI in the meantime.
+ * m7 mounts it, tests it, and adds two props to it. `autoPlay` is what makes the
+ * persona's reply arrive as speech rather than as a button somebody has to find, and
+ * `onPlayingChange` is how the screen around it knows not to open the microphone while
+ * the speakers are busy — recording over the reply feeds the persona's own voice back
+ * into the recogniser, which is trap 3 arriving through the room instead of through a
+ * codec.
+ *
+ * **An autoplay that the browser refuses is not a failure.** Every browser blocks
+ * audio until the page has been interacted with, and this component's `failed` state
+ * means "this recording could not be loaded", which is a different and much more
+ * alarming claim. A rejected `play()` from the autoplay effect therefore leaves the
+ * player idle and pressable, exactly as though nobody had tried yet.
  */
 
 import * as React from "react";
@@ -49,6 +57,10 @@ export interface AudioPlayerProps {
    * the browser has read enough of the file to know one.
    */
   durationMs?: number;
+  /** Start playing as soon as this source is mounted. Silently ignored if blocked. */
+  autoPlay?: boolean;
+  /** Fires on every transition between playing and not. */
+  onPlayingChange?: (playing: boolean) => void;
   className?: string;
 }
 
@@ -63,6 +75,8 @@ export function AudioPlayer({
   caption,
   label = "audio",
   durationMs,
+  autoPlay = false,
+  onPlayingChange,
   className,
 }: AudioPlayerProps) {
   const audioRef = React.useRef<HTMLAudioElement>(null);
@@ -83,6 +97,27 @@ export function AudioPlayer({
     setPosition(0);
     setDuration((durationMs ?? 0) / 1000);
   }, [src, durationMs]);
+
+  // Deliberately keyed on `src` alone. Keying it on `autoPlay` as well would restart the
+  // reply every time the parent re-rendered with the flag still true, which on a screen
+  // that re-renders on every recorder tick is once every 100 ms.
+  React.useEffect(() => {
+    if (!autoPlay) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    void audio.play().catch(() => {
+      // Autoplay policy, not a broken file. Leave the control idle and pressable.
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  const report = React.useCallback(
+    (value: boolean) => {
+      setPlaying(value);
+      onPlayingChange?.(value);
+    },
+    [onPlayingChange],
+  );
 
   const toggle = React.useCallback(() => {
     const audio = audioRef.current;
@@ -121,17 +156,17 @@ export function AudioPlayer({
           if (Number.isFinite(value) && value > 0) setDuration(value);
         }}
         onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlay={() => report(true)}
+        onPause={() => report(false)}
         onWaiting={() => setWaiting(true)}
         onPlaying={() => setWaiting(false)}
         onEnded={() => {
-          setPlaying(false);
+          report(false);
           setPosition(0);
         }}
         onError={() => {
           setFailed(true);
-          setPlaying(false);
+          report(false);
         }}
       />
 
