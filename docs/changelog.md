@@ -7,6 +7,84 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] — 2026-08-30 · m5, the voice
+
+Text in, the persona's speech out, fast enough to sit inside a conversational turn — and
+a measurement that says the obvious way of doing it is not fast enough.
+
+### Added
+
+- **`tts` service** (`infra/tts/`): Piper 1.7 on onnxruntime, voice
+  `en_US-lessac-medium`. No torch and no `espeak-ng` apt package — `piper-tts` carries
+  the phonemiser as a compiled extension, so the whole dependency closure is 25 packages.
+  The 61 MB voice is baked into the image at build time, which removes the cold first
+  turn entirely; any other voice is cached in the shared `model_cache` volume instead.
+- **`POST /synthesize`** returns one WAV for the whole reply, with `duration_ms`,
+  `sample_rate` and the sentence count in response headers — the service that produced
+  the audio is the authority on those, exactly as `asr` is for a recording.
+- **`POST /synthesize/stream`** returns one PCM chunk **per sentence**, each tagged with
+  how long the caller had been waiting when it arrived. This is PRD §9.1's first
+  prescribed fallback, built here rather than in m6 because the measurement that
+  demanded it was taken in the milestone that wrote the service.
+- **`GET /voices`** reports what this process loaded and what is on disk beside it. It
+  does not fetch Piper's catalogue: an endpoint that reaches the network to answer a
+  question about itself would fail on the offline machine this system is built for.
+- **`services/tts_client.py`** with the same three-outcome taxonomy as the ASR client —
+  unavailable, rejected, protocol error. The 503 a loading voice returns is
+  *unavailable*, never a rejection: the identical text synthesises a second later.
+- **`AudioPlayer.tsx`** — keyboard-operable playback with a caption slot and a visible
+  error state, all three from PRD §9.2 rather than from taste. No test beside it yet;
+  the Jest and RTL harness arrives with m7, which is also what first mounts it.
+- **`make tts-latency`** measures synthesis through the live service; **`make tts-sample`**
+  writes a WAV you can actually listen to, into gitignored `spike/`. Voice quality is a
+  judgement no assertion makes for you, and **nobody has made it yet** — every number in
+  this entry is about latency, size and format.
+- **`docs/decisions/0002-tts-model-choice.md`** — the sweep, the three findings, and the
+  two deviations from the plan.
+
+### Changed
+
+- **The `speech` profile is gone.** It existed to keep two not-yet-created build contexts
+  inert; m4 created `infra/asr` and m5 created `infra/tts`, so it had no members left.
+  `docker compose up -d` now brings up the whole conversational stack — five services —
+  and only the 2 GB pronunciation service stays opt-in. `make speech-up` is removed.
+- **`PIPER_NUM_THREADS` defaults to 8, not to onnxruntime's own choice**, and the
+  difference is 2.3×: 378 ms against 814 ms for an 80-token reply, which is the
+  difference between meeting PRD §9.1's 400 ms budget and missing it. The curve is a U
+  with its minimum at 8 on this 16-core machine, so more is emphatically not better.
+  Note this is the *opposite* of m4's conclusion for CTranslate2 — a library default is
+  a claim to be measured, and two libraries here gave opposite answers.
+- **CI's model-service URLs now name hosts that cannot resolve** (`asr.invalid` and so
+  on). They happened to be unreachable on a GitHub runner anyway; the point is that this
+  is the assumption which broke in `docker-compose.yml` when m4 put a real `asr` on the
+  test network, and CI should not be relying on it either (trap 25).
+
+### Measured
+
+- **Synthesis is not deterministic.** Five syntheses of one reply: 8011, 8220, 8382,
+  8382, 8475 ms — a 5.5 % spread. Piper is VITS and its duration predictor samples from
+  a learned distribution; that is what stops synthetic prosody sounding metronomic. So a
+  reply must be **stored, never re-derived** — `audio_assets` is keyed by sha256 and two
+  syntheses of one sentence hash differently.
+- **On a quiet machine every reply length meets the budget**: 320 ms for an 80-token
+  reply, 50× real time. **On a busy one the whole-reply call misses it** — 771 ms at
+  load average 22 — while time-to-first-sentence stays at 135 ms. That gap is the
+  streaming endpoint's entire justification.
+- **`tts` image 672 MB**, against `asr` at 746 MB and `api` at 424 MB. Counted with
+  `docker images`, not recalled.
+- **170 tests**, 161 of which pass with no model services running.
+
+### Decided
+
+- **No `api/routers/tts.py`** (D31, resolving Q9). The plan listed an internal preview
+  endpoint; plan §6 forecasts 30 operations, none of them a TTS route, and lists
+  `POST /synthesize` under *"never exposed to the browser"* two lines above it. No FR
+  asks for one — reply audio reaches the browser through the ownership-checked
+  `GET /audio/{asset_id}` that already exists. Same question as m4's `POST /audio`, same
+  answer (D28). The operation count stays at 12 of 30.
+
+---
+
 ## [0.4.0] — 2026-08-30 · m4, the recogniser and the audio pipeline
 
 Audio in, transcript with per-word timings and logprobs out — and the first stage of the
@@ -17,7 +95,8 @@ product whose latency budget is measured rather than assumed.
 - **`asr` service** (`infra/asr/`): faster-whisper on CTranslate2, `small.en` at int8,
   word timestamps forced on. No torch, and no ffmpeg binary either — PyAV carries the
   ffmpeg libraries in-process, which is 200 MB of Debian dependencies and one subprocess
-  saved. It joins the **default** compose stack; the `speech` profile now holds only tts.
+  saved. It joins the **default** compose stack; the `speech` profile then held only tts, and
+  m5 retired it altogether.
 - **`POST /transcribe`** returns `{w, start_ms, end_ms, logprob}` per word, plus the
   decoder settings and what the source media actually was. `GET /health` answers 200 with
   `model_loaded: false` while weights load and 503 only when a load has *failed* — the
