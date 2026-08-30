@@ -38,13 +38,29 @@ from services.conversation import build_messages, system_message
 from services.llm import ChatMessage, OllamaProvider, estimate_messages
 from tests.conftest import API_ROOT, register_account, unique_email
 
+# The m4 golden set, in whichever layout this is running in: `/app/eval` when the suite
+# runs in the container, and a sibling of `api/` on a CI runner. Copied from
+# `test_asr_golden.py` rather than paraphrased, because paraphrasing it broke twice over:
+#
+#   * `Path(API_ROOT).parent` strips the trailing `..` instead of following it, so it
+#     resolved to `api/tests/` — `.resolve()` first is what makes `.parent` mean the
+#     repository root;
+#   * and `next()` without a default raises `StopIteration` **at import**, which pytest
+#     reports as a collection error and which aborts the entire suite rather than
+#     skipping one module.
+#
+# Both only appear where `eval/` is a sibling of `api/`, which is never true in the
+# container and always true on a runner — so CI was the only place either could be seen.
 GOLDEN = next(
-    path
-    for path in (
-        Path(API_ROOT) / "eval" / "golden" / "asr",
-        Path(API_ROOT).parent / "eval" / "golden" / "asr",
-    )
-    if path.is_dir()
+    (
+        candidate
+        for candidate in (
+            Path("/app/eval/golden/asr"),
+            Path(API_ROOT).resolve().parent / "eval/golden/asr",
+        )
+        if (candidate / "manifest.json").exists()
+    ),
+    None,
 )
 
 SLUG = "job-interview-backend"
@@ -72,10 +88,11 @@ def _ollama_ready() -> bool:
 
 
 live = pytest.mark.skipif(
-    not (_answers(ASR_URL) and _answers(TTS_URL) and _ollama_ready()),
+    GOLDEN is None or not (_answers(ASR_URL) and _answers(TTS_URL) and _ollama_ready()),
     reason=(
-        "needs a live asr, tts and Ollama. Run `make up` and then `make turn-latency`; "
-        f"tried ASR_URL={ASR_URL} TTS_URL={TTS_URL} OLLAMA_BASE_URL={OLLAMA_BASE_URL}"
+        "needs the golden corpus plus a live asr, tts and Ollama. Run `make up` and then "
+        f"`make turn-latency`; tried ASR_URL={ASR_URL} TTS_URL={TTS_URL} "
+        f"OLLAMA_BASE_URL={OLLAMA_BASE_URL}, golden={GOLDEN}"
     ),
 )
 
