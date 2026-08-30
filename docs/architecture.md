@@ -290,7 +290,147 @@ Same question as m4's `POST /audio`, same answer.
 
 ---
 
-## 7. The frontend
+## 7. The conversation, and the two ways it can quietly go wrong
+
+This is the milestone where the product exists: audio in, transcript, persona reply,
+speech out, persisted, in one request. The interesting parts are not the HTTP.
+
+### The turn holds a database connection for about seven milliseconds of its two seconds
+
+`POST /sessions/{id}/turns` calls three services. Written the obvious way — one session
+from `Depends(get_db)`, held for the whole request — a pooled connection is checked out
+across two seconds of model work, and a pool of ten is exhausted by four people talking
+at once. The symptom would not be this endpoint being slow; it would be every *other*
+endpoint blocking on checkout.
+
+So the request runs in three phases:
+
+```
+A  reads    session, scenario, history          ~2 ms   connection held
+B  models   transcribe -> generate -> speak     ~2 s    no connection
+C  writes   audio assets, both turns            ~5 ms   connection held
+```
+
+Phase A ends with a commit, which returns the connection to the pool;
+`expire_on_commit=False` is what keeps the rows loaded in A usable in C. The property is
+asserted rather than described: a test hands the endpoint a provider that reads
+`engine.pool.checkedout()` at the moment it is called, and fails if it is not zero.
+
+A turn is **atomic** — both halves or neither. If generation fails after the recording
+was transcribed, nothing is written. Keeping the user's half would leave a conversation
+whose last turn is a question nobody answered, and a retry would then have to decide
+whether it was continuing that turn or starting a new one.
+
+### Gemma 3 has no system role, so anchoring the persona once anchors it in the wrong place
+
+PRD R7 says the persona is re-anchored in the system message every turn, and on this
+model that instruction needs reading twice. Ollama's template for `gemma3:4b` is explicit:
+
+```
+{{- if or (eq .Role "user") (eq .Role "system") }}<start_of_turn>user
+```
+
+A system message is rendered as an ordinary user turn, wherever it happens to sit in the
+list. So "put the persona in the system message" means "put the persona in the first user
+turn" — and by turn twenty that is the furthest thing in the prompt from where the reply
+gets written.
+
+The assembly therefore anchors twice: the full brief at the front, where it sets the
+scene, and a short reminder of identity and the reply constraints immediately before the
+latest thing the speaker said, where it is the last instruction the model reads. The
+second anchor costs about thirty tokens a turn. What it buys is measured in decision 0003
+with two deterministic proxies the personas make checkable — replies within their
+sentence cap, and replies that end with a question — rather than with a model grading
+another model, which is what invariant I1 exists to forbid.
+
+### An over-long prompt is not refused. Half of it is deleted.
+
+The most expensive thing this milestone learned, measured against Ollama 0.33.1 and
+`gemma3:4b`:
+
+| prompt | `num_ctx` | `prompt_eval_count` | what happened |
+|---|---|---|---|
+| ~3935 tokens | 4096 | 3935 | intact |
+| ~4200 tokens | 4096 | **2051** | llama.cpp shifted the context |
+
+There is no error, no warning, and no field in the response that says it happened. The
+reply comes back 200 and reads perfectly well. The discarded half is the front of the
+conversation — which is where a system message lives, so the persona is the first thing
+to go, and the symptom is "it drifts out of character after turn twelve": PRD R7,
+arriving through a mechanism nobody would think to look for.
+
+Three things follow, and together they are the whole context strategy:
+
+- **`num_ctx` is sent on every request**, never inherited from whatever the host's
+  default is this version.
+- **The prompt is sized before it is sent**, by a character heuristic — there is no Gemma
+  tokenizer in this image and there will not be one, because it means torch (I5).
+- **The heuristic is allowed to be wrong, and by a stated amount.** Characters per token
+  is a property of the text, not of the language: measured error ran from −8.9 % to
+  +5.7 % on realistic prompts. `LLM_ESTIMATOR_MARGIN` is 1.25, the context window is
+  sized from it, and the live suite asserts the margin still covers the error.
+
+The estimate only ever decides *what to send*. What gets reported is
+`turns.prompt_tokens`, which is Ollama's own count — so a drifting constant shows up as
+a widening gap between two stored numbers rather than as a context that silently overflows.
+
+### Turns that fall out of the window are summarised, not dropped
+
+FR-8. A scenario that forgets your name at turn twelve is not practice. The digest is a
+running prose summary on the session row, with `digest_through_idx` recording how far it
+reaches so that folding is incremental rather than a full re-read every turn.
+
+The fold is triggered at a **high-water mark below the budget**, not at the budget, and
+that gap is the design. At the mark every turn still fits, so the fold is preparation for
+the *next* turn rather than a rescue for this one — which is what makes it correct to run
+it after the reply has been sent. It is awaited rather than fired into a background task,
+so it costs a few hundred milliseconds on roughly one turn in ten; `BackgroundTasks`
+would hide that cost from the caller and the failure from the log, and m9 is where the
+background-job machinery is actually built.
+
+### A sentence goes to the voice while the next one is still being written
+
+PRD §9.1's first prescribed fallback. Generation is the long pole; synthesis is a few
+hundred milliseconds. In series they add up. Overlapped, all but the last sentence is
+spoken inside time that was being spent generating anyway.
+
+That produces N little WAVs where the turn needs one, so `services/wav.py` joins them —
+the one place in the API that opens an audio file, and worth distinguishing from the
+claim in `services/audio.py` that it never does. The API still does not decode anything a
+*user* uploads: format, sample rate and duration for a recording are reported by the
+service that decoded it. What this joins is output its own voice produced seconds
+earlier, in a format it chose, using the standard library. The parameters are checked
+anyway, because the silent version of that bug is a reply that plays at the wrong pitch
+from the second sentence on, and nothing asserts against a sound.
+
+### A failure of the voice does not fail the turn
+
+Three services, three different answers when one of them is down:
+
+| what failed | status | why |
+|---|---|---|
+| the recogniser refused the audio | **422** | the rejected thing is the user's recording, and re-recording genuinely helps |
+| the recogniser or the model is unreachable | **503** | the recording was fine; nothing was written |
+| the model is not pulled | **503** | *this system's* misconfiguration — the speaker can do nothing, so it is not a 4xx |
+| a service answered 200 with nonsense | **502** | version skew between two containers, which must not read as either of the above |
+| the voice failed | **200** | there is a reply and it can be read. `speech.status` says what happened |
+
+The last row is the one worth arguing about. A reply the speaker can read is worth more
+than a 502, and this is the same shape `/health` uses when it reports degraded rather
+than dead (invariant I6).
+
+### FR-26 finally means something
+
+`users.retain_audio` has been settable since m3 and nothing stored a waveform until now.
+With it off, a turn is transcribed and the recording is then not kept: no file, no
+`audio_assets` row, and the turn still carries the transcript, the word timings and the
+confidence — everything every later metric is computed from. The setting drops the audio
+and keeps the derived data, which is exactly what the requirement asks for. The persona's
+own audio is stored either way; it is synthesised speech, not the speaker's voice.
+
+---
+
+## 8. The frontend
 
 Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. One page today,
 which renders `/health`.
@@ -307,7 +447,7 @@ the other way round.
 
 ---
 
-## 8. Ports
+## 9. Ports
 
 Offset from the other stacks on this machine so all of them run at once.
 
@@ -323,7 +463,7 @@ Offset from the other stacks on this machine so all of them run at once.
 
 ---
 
-## 9. Where the rest is written down
+## 10. Where the rest is written down
 
 | | |
 |---|---|

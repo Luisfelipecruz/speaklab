@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db_models import AudioAsset, User
 from models.audio import SourceMedia
-from services import audio as audio_service
 from services.audio import AudioPathError, resolve_path, sha256_of, store_recording
 from tests.conftest import register_account, unique_email
 
@@ -26,18 +25,6 @@ RECORDING = b"RIFF$\x00\x00\x00WAVEfmt " + bytes(range(64))
 SOURCE = SourceMedia(
     format="wav", codec="pcm_s16le", sample_rate=16000, channels=1, duration_ms=4000
 )
-
-
-@pytest.fixture
-def audio_root(tmp_path, monkeypatch):
-    """Point the storage layer at a temporary directory.
-
-    Without this the suite would write into `/audio`, which is a Docker volume in the
-    container and a path that does not exist on a developer's laptop. Patched on the
-    module rather than on `config`, because `services.audio` binds the name at import.
-    """
-    monkeypatch.setattr(audio_service, "AUDIO_ROOT", str(tmp_path))
-    return tmp_path
 
 
 async def a_user(db: AsyncSession, client: AsyncClient) -> User:

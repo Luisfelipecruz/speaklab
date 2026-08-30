@@ -13,7 +13,7 @@ the database on the way in.
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ENUM, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,6 +59,24 @@ class PracticeSession(Base):
     # also in fluency_metrics, grammar_usage and language_errors, which is where the
     # trends are computed from. Nothing on a chart is read from here (invariant I1).
     report: Mapped[dict | None] = mapped_column(JSONB)
+
+    # ── The conversation's memory (m6, FR-8) ────────────────────────────────
+    #
+    # A running prose summary of the turns that no longer fit in the token budget.
+    # FR-8 says oldest turns are *summarised rather than dropped*, and this column is
+    # the difference between the two: without it, a scenario forgets the user's name at
+    # turn twelve, which is not practice.
+    context_digest: Mapped[str | None] = mapped_column(Text)
+
+    # The highest `turns.idx` already folded into `context_digest`. It is what makes
+    # summarisation incremental — without it every summarisation would either re-read
+    # the whole conversation or double-count the turns it already covered, and the
+    # digest would slowly restate the same three facts.
+    #
+    # -1 rather than NULL for "nothing summarised yet" is tempting and wrong: turn
+    # indices start at 0, and a nullable column that means "before the first turn" is
+    # honest about a session that has never needed summarising at all.
+    digest_through_idx: Mapped[int | None] = mapped_column(Integer)
 
     turns: Mapped[list["Turn"]] = relationship(  # noqa: F821
         back_populates="session", cascade="all, delete-orphan"

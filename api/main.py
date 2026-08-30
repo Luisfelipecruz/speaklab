@@ -23,6 +23,8 @@ from routers.auth import router as auth_router
 from routers.health import router as health_router
 from routers.passages import router as passages_router
 from routers.scenarios import router as scenarios_router
+from routers.sessions import router as sessions_router
+from routers.turns import router as turns_router
 
 app = FastAPI(
     title="SpeakLab",
@@ -46,9 +48,15 @@ app.include_router(auth_router)
 app.include_router(scenarios_router)
 app.include_router(passages_router)
 app.include_router(audio_router)
+app.include_router(sessions_router)
+# After sessions, and it matters: both routers carry the /sessions prefix, and FastAPI
+# matches in registration order. `POST /sessions/{id}/turns` and `POST /sessions/{id}/end`
+# cannot collide — the literal segments differ — but registering the more specific router
+# first would put the endpoint the product is about above the CRUD it belongs to in the
+# OpenAPI schema, which is a worse table of contents than it is a routing decision.
+app.include_router(turns_router)
 
 # Routers arriving with their milestones:
-#   m6  sessions, turns
 #   m8  attempts
 #   m10 progress
 

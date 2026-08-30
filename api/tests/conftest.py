@@ -256,3 +256,219 @@ async def other_client(db_engine) -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+# ── Audio storage ───────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def audio_root(tmp_path, monkeypatch):
+    """Point the storage layer at a temporary directory.
+
+    Without this the suite would write into `/audio`, which is a Docker volume in the
+    container and a path that does not exist on a developer's laptop. Patched on the
+    module rather than on `config`, because `services.audio` binds the name at import.
+
+    Lived in `test_audio.py` until m6, when the conversation tests needed the same thing:
+    every stored turn writes a file, and a suite that leaves WAVs in a volume is a suite
+    whose second run tests different state from its first.
+    """
+    from services import audio as audio_service
+
+    monkeypatch.setattr(audio_service, "AUDIO_ROOT", str(tmp_path))
+    return tmp_path
+
+
+# ── Stub models ─────────────────────────────────────────────────────────────
+#
+# The conversation loop is three services deep, and none of them is what the loop's own
+# tests are about. What is about to be tested is prompt assembly, a token budget,
+# summarisation, transaction boundaries and error mapping — all of which are decided in
+# this codebase and none of which need a model to be running. So the recogniser, the
+# voice and the LLM are all replaced here.
+#
+# The measurement suites are the other half of this arrangement. `test_conversation_live.py`
+# runs the same paths against the real containers and skips when they are absent, which
+# is where every number that gets published comes from. Stubs prove the logic; only the
+# live suite is allowed to prove a latency.
+
+
+def silent_wav(duration_ms: int = 200, sample_rate: int = 22050) -> bytes:
+    """A real, playable WAV of silence.
+
+    Real rather than a header-shaped byte string, because `services/wav.py` parses these
+    and joins them: a fake would test the fake. The frame count varies with
+    `duration_ms`, so a concatenation test can assert the output length is the sum of
+    its inputs and mean it.
+    """
+    import io
+    import wave
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(sample_rate)
+        writer.writeframes(b"\x00\x00" * round(sample_rate * duration_ms / 1000))
+    return buffer.getvalue()
+
+
+class StubProvider:
+    """A scripted LLM. Records every message list it was given.
+
+    `calls` is the important attribute and the reason this is a class rather than a
+    lambda: most of what m6 has to get right is *what was in the prompt* — the persona on
+    every turn, the digest once it exists, the history under budget — and those are
+    assertions about the request, not about the reply.
+
+    `stream` yields word-sized deltas rather than the whole reply in one, because the
+    sentence accumulator downstream is built to reassemble sentences from fragments that
+    arrive mid-word, and a stub that yielded whole sentences would never exercise it.
+    """
+
+    def __init__(self, replies=None, model: str = "stub-model") -> None:
+        self.replies = list(replies or ["That sounds reasonable. What happened next?"])
+        self.calls: list[list] = []
+        self._model = model
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def _next(self) -> str:
+        return self.replies[(len(self.calls) - 1) % len(self.replies)]
+
+    def _completion(self, messages, text: str):
+        from services.llm import Completion, estimate_messages
+
+        return Completion(
+            text=text,
+            model=self._model,
+            prompt_tokens=estimate_messages(messages),
+            completion_tokens=max(1, len(text) // 4),
+            latency_ms=1,
+        )
+
+    async def complete(self, messages, max_tokens=None):
+        self.calls.append(messages)
+        return self._completion(messages, self._next())
+
+    async def stream(self, messages, max_tokens=None):
+        import re
+
+        self.calls.append(messages)
+        text = self._next()
+        for delta in re.findall(r"\S+\s*", text):
+            yield delta
+        yield self._completion(messages, text)
+
+
+class BrokenProvider(StubProvider):
+    """A provider that is down. Raises on every call, as `OllamaProvider` would."""
+
+    def __init__(self, error=None) -> None:
+        super().__init__()
+        from services.llm import LlmUnavailable
+
+        self._error = error or LlmUnavailable("ConnectError: [Errno 111] refused")
+
+    async def complete(self, messages, max_tokens=None):
+        self.calls.append(messages)
+        raise self._error
+
+    async def stream(self, messages, max_tokens=None):
+        self.calls.append(messages)
+        raise self._error
+        yield  # pragma: no cover — makes this an async generator, as the protocol says
+
+
+@pytest.fixture
+def provider():
+    """A stub provider wired into the app for the whole test.
+
+    Overriding `get_provider` rather than patching an import: it is a FastAPI dependency
+    precisely so that this is one line, and so that no test has to know which module the
+    endpoint imported it into.
+    """
+    from services.llm import get_provider
+
+    stub = StubProvider()
+    app.dependency_overrides[get_provider] = lambda: stub
+    yield stub
+    app.dependency_overrides.pop(get_provider, None)
+
+
+@pytest.fixture
+def voice(monkeypatch):
+    """Replace the tts service with something that returns real WAVs instantly.
+
+    Patched on `services.conversation`, which is where `speak` is bound. The duration
+    scales with the text so that a two-sentence reply really does produce a longer file
+    than a one-sentence reply, which is what makes the concatenation assertions mean
+    something.
+    """
+    from models.speech import Speech
+    from services import conversation
+
+    spoken: list[str] = []
+
+    async def fake_speak(text, voice=None, length_scale=None, client=None):
+        spoken.append(text)
+        duration_ms = max(80, len(text) * 4)
+        return Speech(
+            audio=silent_wav(duration_ms),
+            voice=voice or "stub-voice",
+            sample_rate=22050,
+            duration_ms=duration_ms,
+            sentences=1,
+            length_scale=1.0,
+            latency_ms=1,
+        )
+
+    monkeypatch.setattr(conversation, "speak", fake_speak)
+    return spoken
+
+
+@pytest.fixture
+def recogniser(monkeypatch):
+    """Replace the asr service. Returns whatever the test queues up.
+
+    `heard` is a list the test appends transcripts to; each call pops the next one, and
+    a test that queues nothing gets a default. Word timings are generated rather than
+    fixed so that `turns.words` is a plausible array of the right length — m9 computes
+    fluency from exactly this shape, and a stub that stored an empty list would leave
+    that column untested until the milestone that reads it.
+    """
+    from models.audio import DecoderSettings, SourceMedia, Transcription, Word
+    from routers import turns as turns_router
+
+    heard: list[str] = []
+
+    async def fake_transcribe(data, filename="recording", content_type=None):
+        text = (
+            heard.pop(0) if heard else "I worked on that project for about two years."
+        )
+        words = [
+            Word(w=word, start_ms=index * 400, end_ms=index * 400 + 350, logprob=-0.2)
+            for index, word in enumerate(text.split())
+        ]
+        return Transcription(
+            text=text,
+            words=words,
+            confidence=0.93,
+            timestamp_fixups=0,
+            language="en",
+            model="stub-whisper",
+            decoder=DecoderSettings(beam_size=5, vad_filter=True, compute_type="int8"),
+            source=SourceMedia(
+                format="wav",
+                codec="pcm_s16le",
+                sample_rate=16000,
+                channels=1,
+                duration_ms=max(400, len(words) * 400),
+            ),
+            latency_ms=12,
+        )
+
+    monkeypatch.setattr(turns_router, "transcribe", fake_transcribe)
+    return heard

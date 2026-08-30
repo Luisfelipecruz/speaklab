@@ -316,6 +316,13 @@ services:
       TTS_URL: http://tts.invalid:8102
       PRON_URL: http://pron.invalid:8103
       HEALTH_PROBE_TIMEOUT_S: "0.5"
+    # Resolves host.docker.internal, so that a measurement run can be pointed at the
+    # host's Ollama with `-e OLLAMA_BASE_URL=...`. Nothing in the hermetic suite uses it:
+    # `make test` never reaches a model, and tests/test_conversation_live.py skips unless
+    # every URL it needs answers. This line is what makes `make turn-latency` possible
+    # without a second compose service that differs from this one in ways nobody tracks.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./api:/app
       # Read-only, and the flag is the point rather than caution. eval/ holds fixtures
