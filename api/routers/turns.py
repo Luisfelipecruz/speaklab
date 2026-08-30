@@ -41,7 +41,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import ASR_CONFIDENCE_FLOOR
 from database import get_db
 from db_models import PracticeSession, Scenario, Turn, User
 from dependencies import current_user, get_owned_or_404
@@ -169,9 +168,16 @@ async def add_turn(
         await _fold_digest(db, session.id, provider)
 
     total_ms = round((time.perf_counter() - started) * 1000)
+
+    # Serialised once and read twice. `low_confidence` is on the envelope as well as on
+    # the turn, and deriving it here a second time from `transcription.confidence` would
+    # be a second copy of the comparison — which is how the envelope and the turn come to
+    # disagree the day the threshold moves (Q11).
+    spoken = TurnOut.of(user_turn)
+
     return TurnResponse(
         session_id=session.id,
-        user_turn=TurnOut.of(user_turn),
+        user_turn=spoken,
         reply_turn=TurnOut.of(reply_turn),
         speech=SpeechOut(
             status=reply.speech_status,
@@ -191,7 +197,7 @@ async def add_turn(
             prompt_tokens=reply.prompt_tokens,
             completion_tokens=reply.completion_tokens,
         ),
-        low_confidence=transcription.confidence < ASR_CONFIDENCE_FLOOR,
+        low_confidence=spoken.low_confidence,
     )
 
 

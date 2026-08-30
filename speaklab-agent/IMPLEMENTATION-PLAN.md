@@ -1,9 +1,10 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.2 — **m0 passed; m1 through m6 are built, merged into `main` and CI green.**
-m7 is next. The repository exists at `Luisfelipecruz/speaklab`; every git command is still
-prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-08-30 (m6)
+**Status:** v1.4 — **m0 passed; m1 through m6 are merged into `main` and CI green; m7 and
+m8 are built and awaiting their PRs.** m9 is next. The repository exists at
+`Luisfelipecruz/speaklab`; every git command is still prepared in `GIT-COMMANDS.md` for
+the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-08-30 (m8)
 **Companion to:** `../PRD.md`
 
 ---
@@ -351,10 +352,12 @@ Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout`
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
 against `app.openapi()` at m12, not recalled — this list is the forecast, the running
-system is the authority. **18 exist as of m6**, counted from the running app rather than
+system is the authority. **18 exist as of m7**, counted from the running app rather than
 from this list. m5 added none: its `POST /synthesize` is a model-service internal API, and
 the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
-Q9). m6 added the six session routes below, exactly as forecast.
+Q9). m6 added the six session routes below, exactly as forecast. m7 added none either — it
+is the interface over m6's six, and its one server-side change was a derived field on
+`TurnOut`, not a route.
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -900,7 +903,7 @@ awaited, visibly, because m9 is where this project's background-job machinery is
 
 ---
 
-### m7 — Conversation UI
+### m7 — Conversation UI · **BUILT (2026-08-30)**
 
 **Goal.** A person who is not the author can hold a conversation without instructions.
 
@@ -932,11 +935,43 @@ network failure mid-turn, transcript reconciliation, keyboard-only operation.
 **Done when.** A first-time user completes a 10-turn scenario in Chrome and Safari with no
 console errors, and the session survives a page reload (FR-10).
 
+**Built, with five deviations from the sketch above.** All decided during the milestone
+and recorded in handoff §3:
+
+1. **The Jest + RTL harness is part of this milestone.** PRD §9.2 has required it since the
+   start and the frontend had never had it, so `jest.config.mjs`, `jest.setup.ts`, the
+   `package.json`/lockfile change and a new CI step ship here. **70 tests, 10 suites.**
+2. **Four modules the deliverable list did not anticipate.** `components/AuthProvider.tsx`
+   and `components/AppShell.tsx` — the header that sits *around* pages needing the profile
+   is what m3 named as the trigger for promoting `useAuth` to a context; `lib/server-api.ts`,
+   because a server component has no cookie jar and has to forward the header by hand; and
+   `lib/navigation.ts`, because `?next=` is an open redirect unless it is checked.
+3. **`frontend/src/app/sessions/page.tsx` is not on the list above.** `GET /sessions` and
+   `DELETE /sessions/{id}` shipped in m6 with nothing calling them, and without a history
+   list a conversation is unreachable once the tab closes — FR-10 true of the API and false
+   of the product.
+4. **One API change.** `TurnOut` gained `low_confidence`, derived from `asr_confidence`:
+   it existed on the turn *response* only, so the marker vanished on a page reload. No new
+   operation — the count stays at 18 of 30.
+5. **`AudioPlayer` gained `autoPlay` and `onPlayingChange`**, and its first tests. m5
+   shipped it with a documented gap naming this milestone as the date.
+
+**Done when — one half is outstanding and cannot be automated.** The session survives a
+reload (verified against the live stack, transcript and low-confidence marks intact), and
+the signed-in pages produce zero console errors. **A microphone recording has never been
+through this UI** — no headless browser has one — so "a first-time user completes a 10-turn
+scenario in Chrome and Safari" needs a person. The recorder's states and failures are
+covered by 9 unit tests; the gesture is not.
+
+**And a correction.** Decision 0003 §3 said this fallback's "real payoff is m7". It is not:
+the turn returns one concatenated WAV after the whole turn completes, so the browser's
+first audio arrives at turn latency. See `docs/decisions/0004` §3.
+
 **Branch** `feature/m7-conversation-ui` · **PR** `feat: add scenario conversation interface with browser recording`
 
 ---
 
-### m8 — Read-aloud and pronunciation scoring
+### m8 — Read-aloud and pronunciation scoring · **BUILT (2026-08-30)**
 
 > The hardest milestone. Gated by m0 — **which passed on 2026-08-29.** Read
 > `spike/gop-feasibility.md` before starting; it carries the mapping table, the measured
@@ -987,7 +1022,34 @@ Synthetic pairs would test the easy case while appearing to pass, and a cloned v
 no ground truth on which phones are wrong. Human recordings only (handoff D13, §9 trap 8).
 
 **Done when.** A 60-word passage returns scores for every canonical phone within 10 s, the
-heatmap renders, and the golden-pair separation is reported in `docs/decisions/0004`.
+heatmap renders, and the golden-pair separation is reported in `docs/decisions/0005`.
+
+**Met, except the last clause.** A 79-word passage returns 250 scored phones in **8.1 s**
+end to end; the heatmap renders; the m0 experiment reproduces **exactly** through the live
+service (9/10 detected, mean drop +8.138, named 10/10). The golden-pair separation is
+**not** reported, because the pairs are human recordings that do not exist yet — the test
+is written and skips. See `docs/decisions/0005` §8.1.
+
+**Six deviations from this section, all in `docs/decisions/0005`:**
+
+1. **The decision doc is `0005`, not `0004`** — m7 took that number.
+2. **No `0005_attempts_phonemes.py` migration.** m2 built the whole of §5 including
+   `attempts` and `phoneme_scores`, so there is nothing to migrate. An empty revision
+   written to match this list would be worse than none.
+3. **`vocab.json` is vendored into the repository**, not read off the hub at build time.
+   It is what makes the phone map testable in CI with no torch, and that test is the one
+   that catches the U+0261 trap.
+4. **PyAV, not `soundfile`** — `soundfile` cannot open WebM/Opus or MP4/AAC, which is what
+   `MediaRecorder` produces.
+5. **torch comes from PyTorch's CPU index.** PyPI's wheels pull the NVIDIA stack on arm64
+   too; the image was 8.51 GB and is now 1.78 GB.
+6. **Read-aloud refuses an account with `retain_audio` off**, because FR-16 and FR-26
+   cannot both hold with `audio_asset_id` NOT NULL. A product call — handoff Q14.
+
+Also delivered but not listed: `api/tests/test_scoring.py` (21 tests over the endpoint and
+the job), `frontend/src/components/{PhonemeHeatmap,PhonemeTable,PassageReader}.test.tsx`,
+`eval/golden/pron/{README.md,manifest.json,fetch.py}`, and `make pron-golden` /
+`make pron-fetch`.
 
 **Branch** `feature/m8-pronunciation` · **PR** `feat: add forced-alignment pronunciation scoring with per-phoneme GOP`
 

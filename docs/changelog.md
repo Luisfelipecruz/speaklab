@@ -7,6 +7,165 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.0] — 2026-08-30 · m8, pronunciation scoring
+
+The hardest milestone, and the one the m0 spike was run to de-risk seven milestones ago.
+A read passage now comes back scored sound by sound, with the sound that came out
+instead — which is the difference between a grade and an instruction.
+
+**The measurements reproduce m0 exactly.** 9 of 10 planted errors detected, mean drop
++8.138 nats, threshold −3.119, competing phone named correctly in 10 of 10 — through an
+entirely rewritten code path, in a container instead of on the host. `docs/decisions/0005`
+has the table.
+
+### Added
+
+- **The `pron` service** (`infra/pron/`): G2P, phone mapping, CTC forced alignment and
+  GOP. The only image in the system with torch in it, profiled for that reason, and the
+  only one that holds an acoustic model of phones rather than of words.
+- **Read-aloud** (`/read`, `/read/{slug}`), FR-11 … FR-16. Choose a passage by the sound
+  it drills, read it aloud, get the passage back with each word tinted by the weakest
+  sound in it and a table of what was heard instead of what was asked for.
+- **`POST /attempts`, `GET /attempts`, `GET /attempts/{id}`, `POST /attempts/{id}/rescore`**
+  — 22 of the 30 forecast operations now exist. Ownership runs through the session,
+  because `attempts` has no `user_id`; `test_ownership.py` names all four.
+- **`eval/golden/pron/`** with a fetchable probe recording and the ten reference
+  perturbations m0 used. Unlike the ASR golden set **nothing here is committed** — `*.wav`
+  is gitignored — so `make pron-fetch` is how the audio reaches a machine, not an audit.
+- **`make pron-golden`**, which is where every number in decision 0005 comes from, and
+  **`make pron-fetch`**.
+- **45 API tests and 23 frontend tests**: 300 passing server-side (from 255), 93 across 13
+  suites in the browser (from 70).
+
+### Fixed
+
+- **The reference tokeniser desynced on 2 of the 12 shipped passages.** Both contain a
+  standalone em dash, which survived the spike's punctuation strip, counted as a word and
+  produced no phones — 79 surface words against 78 phone groups, and the spike raises on
+  that. Read-aloud would have been broken on a sixth of the corpus. The rule is now *a
+  token containing a letter*; 12 of 12 align, 3091 phones. Found before any production
+  code was written, by running the spike's rule over the real seed file.
+- **The `pron` image was 8.51 GB.** PyPI's torch wheels declare the whole NVIDIA CUDA
+  stack on `linux/aarch64` as well as x86_64, so an arm64 CPU-only image carried 2.9 GB of
+  CUDA and 652 MB of Triton it could never execute. Installing torch from PyTorch's CPU
+  index takes it to **1.78 GB**, back inside the budget the profile decision was made on.
+
+### Changed
+
+- **`vocab.json` is vendored into the repository** rather than fetched during the image
+  build. It makes the phone map testable in CI with no torch and no network — and that
+  test is the one that catches the two traps m0 found, so a test that could only run
+  inside a 1.78 GB image was a test that would stop being run. It also pins the ids,
+  which are the meaning of every score this system stores.
+- **The GOP competitor maximum excludes CTC's blank.** The blank is not a phone, and
+  naming `<pad>` as "what you said instead" would be a claim the acoustic model never made
+  (invariant I2). Measured rather than asserted: it changed **0 of 35** rows on real
+  matching speech, which is why m0's numbers reproduce unchanged.
+
+### Known limits
+
+- **Criterion S4 is not met and cannot be met by what exists.** The probe proves the
+  arithmetic; it does not prove the system detects a *learner* error, because a perturbed
+  reference is a categorically different phone and a learner error is gradient. The test
+  is written and skips. It needs five minutes of a person's voice — `spike/RECORD.md`.
+- **No GOP threshold is configured**, and the heatmap says its bands are relative to the
+  reading rather than a pass mark. m0 settled the method and not the numbers (Q2). A
+  threshold that looked calibrated and was not would silently decide which sounds a
+  learner is told to work on.
+- **The 10 000 ms scoring budget has 1.9 s of margin**: 8.1 s for a 34-second reading.
+  Decision 0004 measured 1.3×–3.4× stage degradation under load, so this will be missed
+  on a busy machine. Nothing was changed for it, and 0005 §8 says why.
+- **Read-aloud refuses an account with audio retention off**, because FR-16 (rescore a
+  stored reading) and FR-26 (do not keep the waveform) genuinely conflict and the schema
+  cannot express both. It says which setting, and points at conversation practice. This is
+  a product call an agent made and a human should confirm — handoff Q14.
+
+---
+
+## [0.7.0] — 2026-08-30 · m7, the conversation interface
+
+The first milestone somebody who is not the author can use. m6 proved the loop
+server-side; this is the part a person actually touches — and the milestone where a
+claim from the last one turned out to be wrong.
+
+### Added
+
+- **The conversation screen** (`/sessions/{id}`). Hold the button — or hold Space — to
+  speak, and the persona answers out loud. The transcript is server-rendered with the
+  browser's cookie forwarded and then hydrated, so a page reload paints the conversation
+  rather than a spinner over it. That is what FR-10 is actually asking for.
+- **The scenario catalogue** (`/scenarios`, `/scenarios/{slug}`), FR-5, with band and
+  setting filters as links rather than client state — so a filtered catalogue can be
+  bookmarked, shared and reloaded, and the back button does what it looks like it does.
+- **History** (`/sessions`), paginated, with delete. Not in the plan's deliverable list;
+  `GET /sessions` and `DELETE /sessions/{id}` shipped in m6 with nothing calling them,
+  and without a list a conversation is unreachable once the tab is closed.
+- **`useRecorder`** — the microphone as a state machine with four named failure states,
+  each carrying a sentence about what to do next. Two of them (an insecure origin and a
+  browser with no `MediaRecorder`) are told apart by the origin and nothing else: the
+  missing API is byte-for-byte the same.
+- **A live waveform**, because it is the only honest signal that the microphone is
+  working. Muted hardware, the wrong OS input device and a granted permission over a
+  dead track all produce a flat line — a diagnosis, where a spinner is reassurance about
+  nothing. After 1.8 s of silence it says so in words, for people who have never had to
+  read a waveform.
+- **The session report on screen**, split into the three groups it arrives in: counted
+  from stored rows, written by the language model (named), and not measured yet with the
+  milestone that will. Invariant I1, rendered as three headings instead of a docstring.
+- **Jest and React Testing Library**, which PRD §9.2 has asked for since the start and
+  the frontend has never had. **70 tests across 10 suites**, run in CI and by
+  `make test-frontend`. That includes `AudioPlayer`, which m5 shipped with a documented
+  gap naming this milestone as its date.
+- **`?next=`** on the login page, guarded by `safeNext` — an unchecked redirect target is
+  the standard way a real login form becomes one hop in a phishing chain, and
+  `//evil.example` starts with a slash.
+
+### Changed
+
+- **`TurnOut` now carries `low_confidence`**, derived server-side from `asr_confidence`.
+  It was on the turn *response* only, so the marker the UI shows during a conversation
+  vanished on a page refresh — a reload quietly upgraded a turn the recogniser was unsure
+  of into one it was sure of. The envelope's field is now serialised from the same
+  comparison rather than computed a second time, so the two cannot disagree the day Q11
+  moves the threshold.
+- **`useAuth` is a context, not a hook per consumer.** m3 wrote down the condition for
+  this — several components needing one copy of the session — and the header that sits
+  around pages which also need the profile is it. Two independent copies would have meant
+  two `GET /auth/me` calls per load and a sign-out that empties one of them.
+- **`AudioPlayer` gained `autoPlay` and `onPlayingChange`.** The reply speaks on arrival
+  through the visible player, not a hidden element that would leave the control at
+  `0:00` while sound comes out of the speakers.
+- **Recording is blocked while the reply is playing.** An open microphone during
+  playback records the persona, and the recogniser transcribes SpeakLab's own voice as
+  though the learner had said it — trap 3 arriving through the room instead of through a
+  codec, and invisible in the data afterwards.
+- **The home page has a way in.** Until now the only entry point was a URL somebody had
+  to already know.
+
+### Corrected
+
+- **Decision 0003 §3 said the streaming fallback's "real payoff is m7". It is not, and
+  could not have been.** The claim assumed a delivery mechanism that does not exist:
+  `POST /sessions/{id}/turns` concatenates the synthesised sentences into one WAV and
+  returns one URL after the whole turn completes, so the first sound a user hears arrives
+  at **turn latency**, not at first-sentence latency. m5's 78 ms describes a boundary
+  inside the API that nothing downstream can observe. The overlap still shortens the turn,
+  which is what the p95 budget measures — but its benefit is entirely server-side.
+  Collecting the rest needs a streaming endpoint *and* giving up the atomic turn, which is
+  what makes a failed turn a retry of the same bytes. Not scheduled; the honest
+  measurement to make first needs users, not another endpoint. See decision 0004 §3.
+
+### Not built, and named so nothing reads as a claim
+
+- **Nobody has still heard the voice in context** (Q10). `make tts-sample` takes ten
+  seconds and remains unrun.
+- **A microphone recording has never been through this UI.** No headless browser has one.
+  The recorder is covered by 9 unit tests over its states and failures; the gesture itself
+  needs a person, in Chrome and in Safari, which is what m7's "done when" asks for.
+- No progress screens, no read-aloud, no error taxonomy — m8 through m10.
+
+---
+
 ## [0.6.0] — 2026-08-30 · m6, the conversation
 
 The first milestone where the product exists: a spoken turn goes in and the persona

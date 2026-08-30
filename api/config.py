@@ -11,6 +11,7 @@ Every default here is the value that works on a laptop with nothing else running
 fresh clone starts with `cp .env.example .env && make up` and no editing.
 """
 
+import json
 import os
 
 # ── Application ─────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ import os
 # had already drifted by the end of m2 — the changelog said 0.2.0 while /health said
 # 0.1.0 — which is a small instance of exactly what invariant I9 is about: a number
 # that is written down rather than reported by the thing it describes.
-VERSION = "0.6.0"
+VERSION = "0.8.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -173,6 +174,35 @@ TTS_TIMEOUT_S = float(os.environ.get("TTS_TIMEOUT_S", "30"))
 # later voice are different audio for the same text, and "we changed the voice in
 # March" should not be something only the container's environment remembers.
 PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
+
+# ── Pronunciation (m8) ──────────────────────────────────────────────────────
+
+# Generous, like ASR_TIMEOUT_S and for the same reason: a cold pron container is
+# downloading 1.2 GB of wav2vec2 weights, and the first alignment after a restart waits
+# for that. The *work* is not slow — m0 measured 99 ms on 3.4 s of audio against a
+# 10 000 ms budget, and the cost of this service is memory and image size, not latency —
+# so a call that has not returned in two minutes is a stuck process, not a busy one.
+PRON_TIMEOUT_S = float(os.environ.get("PRON_TIMEOUT_S", "120"))
+
+# The GOP below which a phone is worth showing the learner, per ARPAbet symbol.
+#
+# **Empty by default, and that is the honest state.** m0 settled the *method* — set each
+# threshold as a percentile of the correct-speech GOP distribution, so it carries a
+# stated false-positive rate — and settled that it must be per phone: consonant
+# mismatches dropped ~9.0 nats where vowels dropped ~4.2, and a single global cut-off
+# would either miss every vowel or drown in false positives. What m0 could not settle is
+# the numbers, because it had one speaker, 35 phones and 10 probes.
+#
+# So this map is empty until it is calibrated, and `GET /attempts/{id}` reports each
+# reading's own 5th percentile rather than pretending a line exists. The spike's −3.119
+# is one native speaker's number and is deliberately NOT the default here: a threshold
+# that looks calibrated and is not would silently decide which sounds a learner is told
+# to work on. Handoff Q2.
+#
+# Format: PRON_GOP_THRESHOLDS='{"TH": -3.2, "IH": -1.8}'
+PRON_GOP_THRESHOLDS: dict[str, float] = json.loads(
+    os.environ.get("PRON_GOP_THRESHOLDS", "{}")
+)
 
 # ── Auth (m3) ───────────────────────────────────────────────────────────────
 

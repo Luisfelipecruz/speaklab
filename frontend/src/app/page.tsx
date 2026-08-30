@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,13 +13,17 @@ import { Separator } from "@/components/ui/separator";
 import { getHealth, PUBLIC_API_URL, type ServiceStatus } from "@/lib/api";
 
 /**
- * The m1 page: the stack, describing itself.
+ * The front door, and the stack describing itself.
  *
- * It exists to prove one thing that no unit test can — that the browser reaches the
- * frontend container, the frontend container reaches the API container, and the API
- * container reaches Postgres. It renders whatever /health actually says, including
- * "degraded", because degraded is the correct and expected state of this repository
- * until m4 builds the first model service.
+ * m1 built the second half: proof of something no unit test can give — that the browser
+ * reaches the frontend container, the frontend container reaches the API container, and
+ * the API container reaches Postgres. It renders whatever /health actually says,
+ * including "degraded", which is the correct state on a machine where the model services
+ * have not been started (I6, FR-27).
+ *
+ * m7 put a way in above it. Until this milestone the only entry point to the product was
+ * a URL somebody had to know, which made "a person who is not the author can hold a
+ * conversation without instructions" false on the first screen.
  */
 
 export const dynamic = "force-dynamic";
@@ -47,12 +54,24 @@ export default async function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
-      <header className="flex flex-col gap-2">
+      <header className="flex flex-col gap-4">
         <h1 className="text-4xl font-semibold tracking-tight">SpeakLab</h1>
         <p className="text-muted-foreground text-balance">
           Practise spoken English against local models. Scenario role-play, read-aloud
           pronunciation scoring with per-phoneme GOP, and progress you can actually
           measure.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button asChild size="lg" className="h-11 px-6">
+            <Link href="/scenarios">Start practising</Link>
+          </Button>
+          <Button asChild variant="ghost" size="lg" className="h-11 px-4">
+            <Link href="/sessions">Your conversations</Link>
+          </Button>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          You will need a microphone and about ten minutes. Nothing you say leaves this
+          machine.
         </p>
       </header>
 
@@ -100,9 +119,12 @@ export default async function Home() {
         <CardHeader>
           <CardTitle>Model services</CardTitle>
           <CardDescription>
-            None of these are running yet, and the stack is designed to work without
-            them. The API serves everything that is not speech while they are absent or
-            still loading their weights.
+            <code className="font-mono text-xs">asr</code> and{" "}
+            <code className="font-mono text-xs">tts</code> are what a conversation needs;
+            the stack still serves everything that is not speech while they are absent or
+            still loading their weights (FR-27). Conversation also needs Ollama on the
+            host — it is deliberately not a Compose service, because Docker on macOS
+            cannot pass the GPU through.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
@@ -130,7 +152,7 @@ export default async function Home() {
       </Card>
 
       <p className="text-muted-foreground text-xs">
-        Milestone m1 — scaffold, Compose, Postgres. The conversation loop arrives in m6.
+        Milestone m7 — the conversation interface. Pronunciation scoring arrives in m8.
       </p>
     </main>
   );

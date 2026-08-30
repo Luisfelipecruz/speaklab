@@ -5,9 +5,9 @@
 # from `up` AND from `build`, which is what lets docker-compose.yml declare the infra/pron
 # build context that m8 has not created yet.
 
-.PHONY: help up down restart logs ps health test lint fmt clean \
+.PHONY: help up down restart logs ps health test test-frontend lint fmt clean \
         pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer tts-latency \
-        tts-sample turn-latency turn-latency-noflow
+        tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -38,6 +38,13 @@ health:                            ## The API's own account of what is degraded
 test:                              ## Run the API suite in a container
 	docker compose --profile tools run --rm test
 
+# The frontend's suite is a separate target rather than part of `test`, for the same
+# reason CI runs them as two jobs: they share no fixtures, they fail for unrelated
+# reasons, and the API loop is the one that gets run every few minutes. `--no-deps` so
+# it does not wait for a healthy api to run assertions that never leave the browser.
+test-frontend:                     ## Run the frontend suite (Jest + RTL) in a container
+	docker compose run --rm --no-deps frontend npm test
+
 # `--exclude eval` on both, and the reason is structural rather than stylistic. Inside
 # the container /app is api/, and eval/ is mounted into it READ-ONLY so that the corpus a
 # system is evaluated on cannot be rewritten by the system being evaluated (invariant I7).
@@ -54,8 +61,17 @@ fmt:                               ## ruff --fix + black, in place
 
 # ── Model services ──────────────────────────────────────────────────────────
 
-pron-up:                           ## Start the pronunciation service (m8). ~2 GB of torch.
+pron-up:                           ## Start the pronunciation service (m8). 1.78 GB.
+	@echo "Not in the default stack: this is the only image with torch in it, and the"
+	@echo "stack has to stay usable by somebody who never wants to download it (D10)."
+	@echo "First start also pulls 1.2 GB of wav2vec2 weights onto the model_cache"
+	@echo "volume — measured at 109 s including the download, 2 s once cached."
 	docker compose --profile pron up -d
+
+pron-fetch:                        ## Download the pronunciation probe recording
+	@echo "eval/golden/pron holds no audio in git (*.wav is ignored — trap 4), so this"
+	@echo "is how the probe gets onto a machine rather than an audit step."
+	python3 eval/golden/pron/fetch.py
 
 llm-up:                            ## Start the CONTAINERISED LLM. On macOS you do not want this.
 	@echo "Docker Desktop on macOS cannot pass the Apple GPU into a Linux container, so"
@@ -122,10 +138,18 @@ turn-latency-noflow:               ## The same measurement with PRD 9.1's first 
 		-e LLM_STREAM_TO_TTS=0 \
 		test python -m pytest /app/tests/test_conversation_live.py -v -s -k whole_turn
 
+pron-golden:                       ## Measure GOP against the live pron service
+	@echo "The m0 experiment, re-run through the real service: real human speech scored"
+	@echo "against text containing phones the speaker did not produce. Gate is 8 of 10."
+	@echo "Needs \`make pron-up\` and \`make pron-fetch\`. Takes about two and a half minutes."
+	docker compose --profile tools run --rm \
+		-e PRON_URL=http://pron:8103 test \
+		python -m pytest /app/tests/test_gop.py -v -s
+
 eval:                              ## Retrieval + scoring evaluation (lands in m11)
 	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."
-	@echo "The measurements that exist now are \`make asr-wer\`, \`make tts-latency\`"
-	@echo "and \`make turn-latency\`."
+	@echo "The measurements that exist now are \`make asr-wer\`, \`make tts-latency\`,"
+	@echo "\`make turn-latency\` and \`make pron-golden\`."
 	@exit 1
 
 # ── Destructive ─────────────────────────────────────────────────────────────

@@ -7,14 +7,21 @@
  * the session cookie is set by that response, and a server-side fetch would set it on
  * the Next.js server instead of on the person's browser.
  *
- * `router.refresh()` after a successful sign-in is not optional: the home page is a
- * server component with `force-dynamic`, and without the refresh it would render from
- * the client-side cache as though nobody had signed in.
+ * `router.refresh()` after a successful sign-in is not optional: the pages it lands on
+ * are server components with `force-dynamic` that fetch with the browser's cookie
+ * forwarded, and without the refresh they would render from the client-side cache as
+ * though nobody had signed in.
+ *
+ * **`?next=` is honoured.** m7 sends people here from the middle of something — a
+ * scenario they were about to start, a conversation they opened from a bookmark — and
+ * landing them on the home page afterwards makes them find their way back by hand. The
+ * value is checked by `safeNext` before it is used: an unchecked `next` is an open
+ * redirect, which is the standard way a login form becomes a phishing hop.
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,9 +29,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { safeNext } from "@/lib/navigation";
 
 export default function LoginPage() {
+  // `useSearchParams` opts the tree into client-side rendering, and Next requires the
+  // boundary to be explicit rather than inferring one around the whole page.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn, error, pending } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +52,7 @@ export default function LoginPage() {
     event.preventDefault();
     const profile = await signIn(email, password);
     if (profile) {
-      router.push("/");
+      router.push(safeNext(searchParams.get("next")));
       router.refresh();
     }
   }

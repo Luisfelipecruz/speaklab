@@ -56,7 +56,9 @@ export default function RegisterPage() {
       ...(band ? { cefr_self_assessed: band } : {}),
     });
     if (profile) {
-      router.push("/");
+      // The catalogue, not the home page. Somebody who has just created an account
+      // came here to practise, and the home page is a stack diagnostic.
+      router.push("/scenarios");
       router.refresh();
     }
   }
