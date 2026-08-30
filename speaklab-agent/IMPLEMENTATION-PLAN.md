@@ -121,15 +121,17 @@ speaklab/
 │   └── GIT-COMMANDS.md
 ├── api/
 │   ├── main.py  config.py  database.py
+│   ├── dependencies.py             current_user, get_owned_or_404 — m3
 │   ├── alembic/versions/
 │   ├── db_models/                  SQLAlchemy ORM — write path
 │   ├── models/                     Pydantic — request/response
 │   ├── routers/                    auth scenarios sessions turns passages
 │   │                               attempts progress health
-│   ├── services/                   asr_client tts_client pron_client llm
-│   │                               conversation grammar errors fluency
-│   │                               progress recommend audio
+│   ├── services/                   security (m3) · asr_client audio wer (m4)
+│   │                               tts_client pron_client llm conversation
+│   │                               grammar errors fluency progress recommend
 │   ├── scripts/                    seed.py  rollup.py
+│   ├── seeds/                      scenarios.json, passages.json
 │   └── tests/
 ├── frontend/
 │   └── src/{app,components,lib,hooks}
@@ -139,11 +141,17 @@ speaklab/
 │   ├── asr/{Dockerfile,app.py,requirements.txt}
 │   ├── tts/{Dockerfile,app.py,requirements.txt}
 │   └── pron/{Dockerfile,app.py,gop.py,g2p.py,requirements.txt}
-├── seeds/{scenarios.json,passages.json}
-├── eval/golden/
+├── eval/golden/asr/                ten LibriSpeech utterances + manifest — m4
 ├── spike/                          m0 only — never merged
 └── docs/                           architecture, data-model, decisions, changelog
 ```
+
+`seeds/` sits under `api/`, not at the repository root as this plan originally had it.
+One path then resolves identically in all three places the loader runs: the container,
+where `api/` is `/app`; CI, which runs from `api/`; and a host shell. A root-level
+`seeds/` needs a bind mount in one of those and a different relative path in another, and
+the day the two disagree the loader reads an empty directory and reports success.
+Recorded as **D20**.
 
 There is deliberately no `infra/postgres/`. Plain `postgres:16` is pulled, not built
 (D9 — no PostGIS, no pgvector), so a Dockerfile whose only line is `FROM postgres:16`
@@ -339,17 +347,23 @@ tables precisely because they are queried across rows, aggregated by category an
 
 ## 6. API surface
 
-Target: 29 operations. Counted against `app.openapi()` at m12, not recalled — this list is
-the forecast, the running system is the authority.
+Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout` that m3
+found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
+token cannot delete it either, so logging out has to be a server operation. Counted
+against `app.openapi()` at m12, not recalled — this list is the forecast, the running
+system is the authority. **12 exist as of m5.** m5 added none: its `POST /synthesize` is
+a model-service internal API, and the "internal preview endpoint" the m5 deliverable list
+named was not built (D31, resolving Q9).
 
 ```
 GET    /health                        liveness; reports each model service independently
 GET    /health/models                 which model services are up, which degraded
 
-POST   /auth/register                 FR-1
-POST   /auth/login                    FR-2
-GET    /auth/me                       FR-2
-PATCH  /auth/me                       native language, retention preference
+POST   /auth/register                 FR-1                                    m3
+POST   /auth/login                    FR-2                                    m3
+POST   /auth/logout                   clears the cookie; see D24              m3
+GET    /auth/me                       FR-2                                    m3
+PATCH  /auth/me                       native language, retention preference   m3
 
 GET    /scenarios                     filter: band, category, target_grammar   FR-5
 GET    /scenarios/{slug}
@@ -486,6 +500,9 @@ are absent from the API image.
 
 ### m2 — Data model and seeds
 
+> **Built and verified on 2026-08-30.** Every number in *Measured* below was counted
+> against the running stack. See `docs/changelog.md` 0.2.0 and `docs/data-model.md`.
+
 **Goal.** The full schema of §5 exists via Alembic, seeded with 8 scenarios and 12 passages.
 
 **Why here.** Everything downstream writes to these tables. Getting the shape right once
@@ -500,133 +517,274 @@ api/db_models/{__init__.py,base.py,user.py,scenario.py,passage.py,
 api/models/{scenario.py,passage.py,common.py}
 api/routers/{scenarios.py,passages.py}
 api/scripts/seed.py
-seeds/{scenarios.json,passages.json}
-api/tests/{test_scenarios.py,test_passages.py,test_migrations.py}
+api/seeds/{scenarios.json,passages.json}          under api/, not the root — D20
+api/tests/{test_scenarios.py,test_passages.py,test_migrations.py,test_seed.py}
 docs/data-model.md
 ```
+
+`api/models/common.py` also carries the closed `CEFRBand` enum and the 39 ARPAbet
+symbols. `api/tests/conftest.py`, `api/main.py`, `Makefile`, `README.md`,
+`docs/architecture.md` and `docs/changelog.md` are edited rather than added — the shared
+files of §1.1, plus the fixtures.
 
 **Decisions.**
 - Scenarios and passages are **seeded data, not fixtures**: real rows, versioned in `seeds/`, loaded idempotently by slug. Re-running the seed inserts 0 rows.
 - Passages are written to be phoneme-dense for their declared focus — a `/θ/` passage is not prose that happens to contain "think", it is engineered to force the sound repeatedly.
-- Enums are Postgres native types, so bad values fail at the database rather than in Python.
+- Enums are Postgres native types, so bad values fail at the database rather than in Python. Three of them — `session_mode`, `session_status`, `attempt_status`. `turns.role`, `language_errors.detector` and `progress_snapshots.period` are CHECK constraints instead: two members, or a vocabulary expected to change. `language_errors.category` is TEXT and enforced in the application at m9, because a closed taxonomy that will be revised after reading real transcripts should be a code change with a test, not an `ALTER TYPE` that cannot run inside a transaction.
+- **The test suite builds its schema with Alembic, never `Base.metadata.create_all`.** `create_all` builds what the ORM says; the migration builds what is applied to a real database. A suite that tests the first is green while the second is broken. Costs about a second per run.
+- **Every constraint and index is named explicitly**, following the convention in `db_models/base.py`. Postgres names a constraint one way and SQLAlchemy names it another, and then the next `--autogenerate` emits a drop-and-recreate for something that never changed.
+- **`persona_prompt` is never serialised to a client.** It is the exercise — a user who reads the persona's instructions is no longer practising against them — and it is the one string in a turn the user is not meant to influence. Asserted by a test against the prompt text, not the field name.
+- **Seeds live at `api/seeds/`** rather than the repository root (**D20**), so the loader has one path in the container, in CI and on a host.
 
-**Tests.** Migration up and down clean; seed idempotency (twice → 0 new rows); both list
-endpoints with filters.
+**Tests.** Migration up, down and up again on a scratch database, enum types included;
+**`compare_metadata` between the ORM and the migrated schema must be empty**, which is
+what catches a column added to a model and never migrated; seed idempotency (twice → 0
+new rows) and an edit reported as an update that keeps the row id; both list endpoints
+with every filter, an unknown band rejected as 422 rather than answered with `[]`, a
+404 that names the slug; and the seed content itself — stored `word_count` matches the
+body, every `phoneme_focus` symbol is one of the 39 the pron service can score, every
+scenario declares the forms it exists to elicit.
 
 **Done when.** `alembic upgrade head` on an empty volume creates all 12 tables. `make seed`
 loads 8 scenarios and 12 passages, and loads 0 on a second run.
+
+**Measured 2026-08-30:** 12 tables created · 3 enum types · `make seed` 8 + 12 inserted,
+then 0 inserted / 0 updated / 20 unchanged · `GET /scenarios` 200 in 2.5–3.8 ms warm over
+5 calls · ORM-vs-migration diff 0 entries · 52 tests passed in 2.1–2.4 s · `make lint`
+clean · 6 of the 29 forecast
+operations · passages 73–79 words · the 39 ARPAbet symbols match the m0 phone map exactly.
 
 **Branch** `feature/m2-data-model` · **PR** `feat: add schema, migrations and scenario/passage seeds`
 
 ---
 
-### m3 — Auth and user session
+### m3 — Auth and user session — **BUILT** (2026-08-30)
 
 **Goal.** Register, log in, and scope every practice row to its owner.
 
 **Why here.** Adding a `user_id` foreign key after four milestones of data-writing code is
 a rewrite. Adding it before is a column.
 
-**Deliverables.**
+**Delivered.**
 ```
-api/db_models/user.py                 (extended)
-api/models/auth.py
-api/routers/auth.py
-api/services/security.py              argon2 hashing, JWT issue/verify
-api/dependencies.py                   current_user, ownership guard
-api/alembic/versions/0002_users.py
-api/tests/{test_auth.py,test_ownership.py}
-frontend/src/app/(auth)/{login,register}/page.tsx
-frontend/src/lib/auth.ts
-frontend/src/hooks/useAuth.ts
+api/models/auth.py                    request and profile shapes; no field for the hash
+api/routers/auth.py                   5 operations, not the 4 forecast — see D24
+api/services/security.py              Argon2id + JWT, importing neither FastAPI nor the ORM
+api/dependencies.py                   current_user, and get_owned_or_404
+api/tests/{test_auth.py,test_ownership.py}    46 tests
+frontend/src/app/(auth)/{layout,login/page,register/page}.tsx
+frontend/src/lib/auth.ts              every call sets credentials: "include"
+frontend/src/hooks/useAuth.ts         three-state status, not a boolean
 ```
+
+No Alembic revision (**D23**) and `db_models/user.py` gained only a corrected comment:
+m2 created `users` complete, and an empty revision would make `alembic history` claim a
+change that never happened. Shared files touched: `config.py`, `main.py`,
+`docker-compose.yml`, `.env.example`, `infra/api/requirements.txt`, `tests/conftest.py`.
 
 **Decisions.**
-- Argon2id, not bcrypt. No reason to ship the weaker default in 2026.
-- JWT in an httpOnly cookie, not `localStorage` — the frontend never touches the token.
-- A single `owned_by_current_user` dependency, applied uniformly. Per-endpoint ownership checks are how one gets forgotten.
+- **D22 — Argon2id, via `argon2-cffi`, and passlib removed.** PRD FR-1 required Argon2
+  and m1's requirements file shipped `passlib[bcrypt]` arguing the opposite; the PRD is
+  the authority over a convenience call made in a requirements comment. Dropping the
+  wrapper as well is a second decision: passlib 1.7.4 is from 2020, is unmaintained, its
+  bcrypt backend raises on bcrypt ≥ 4.1, and a library whose value is switching between
+  schemes buys nothing when there is one scheme and no legacy hashes. **Q6 closed.**
+- **D23 — no Alembic revision at m3.** **Q7 closed.**
+- **D24 — one access token in an httpOnly cookie; no refresh token; a logout endpoint.**
+  The cookie is read by nothing in the browser, which also means nothing in the browser
+  can clear it, so §6's four auth operations became five. The cost is stated rather than
+  hidden: there is no server-side revocation, so a token copied out before logout stays
+  valid for the rest of `ACCESS_TOKEN_TTL_HOURS` (168).
+- **D25 — cross-user reads are 404, not 403**, enforced by one `get_owned_or_404` that
+  folds existence and ownership into a single `WHERE` rather than a fetch-then-compare.
 - Native language captured at registration: it selects the L1 phoneme priors of PRD §7.4.
 
-**Tests.** Register/login/refresh happy paths; wrong password; expired token;
-**cross-user access returns 404 not 403** — a 403 confirms the row exists.
+**Measured.**
 
-**Done when.** Two users register; neither can read the other's sessions; `test_ownership`
-covers every user-scoped route by enumerating the router table rather than by hand.
+| | |
+|---|---|
+| Tests | 98 passing (was 52), 5.2–8.3 s in one container |
+| Operations in `app.openapi()` | 11 of the 30 forecast |
+| `POST /auth/register` | 61 ms median — one Argon2id hash at 64 MiB |
+| Wrong password vs. unknown email | 75.6 vs 78.1 ms median, n=12 each — a 3% gap |
+| The same pair without the dummy-hash equaliser | ~3.6 ms vs ~76 ms, a 21× tell |
+| Stored hash | `$argon2id$v=19$m=65536,t=3,p=4$…` |
+| API image | 424 MB (was 422 MB; argon2-cffi and email-validator cost 2 MB) |
+| Browser check | `document.cookie` empty while signed in; the same fetch without `credentials: "include"` is 401 |
 
-**Branch** `feature/m3-auth` · **PR** `feat: add argon2 auth with JWT cookies and per-user scoping`
+**Tests.** The two that carry the milestone:
+
+- `test_ownership.py::test_every_route_is_either_scoped_to_a_user_or_declared_public`
+  enumerates the registered router table and asserts each route either depends on
+  `current_user` or is listed public **with a written reason**, in both directions. FR-4
+  is a claim about every endpoint including the unwritten ones, and a per-endpoint check
+  can only test the ones somebody remembered. Verified by mutation: adding an unscoped
+  route makes it fail and name the route.
+- `test_auth.py::test_registration_survives_the_request_that_created_it` proves the test
+  client commits. It found a real defect — m2's `get_db` override yielded a session and
+  never committed, so every write through the client was rolled back. m2 only read, so
+  the suite was green and meaningless together. Verified by mutation: 12 failures.
+
+**Done when.** ✅ Two users register and neither can read the other's rows;
+`test_ownership` covers every user-scoped route by enumerating the router table.
+
+**Branch** `feature/m3-auth` · **PR** `feat: add argon2id auth with JWT cookies and per-user scoping`
 
 ---
 
-### m4 — ASR service and the audio pipeline
+### m4 — ASR service and the audio pipeline · **BUILT (2026-08-30)**
 
 **Goal.** Audio in, transcript with word timestamps and per-word logprobs out.
 
 **Why here.** Every metric in the product derives from this output. It comes before
 anything that consumes it.
 
-**Deliverables.**
+**Delivered.**
 ```
-infra/asr/{Dockerfile,app.py,requirements.txt}    faster-whisper + ffmpeg
-api/services/{asr_client.py,audio.py}
-api/models/audio.py
-api/routers/audio.py
-api/db_models/audio.py                             (extended)
-api/alembic/versions/0003_audio_assets.py
-api/tests/{test_asr_client.py,test_audio.py}
-eval/golden/asr/                                   reference recordings + transcripts
+infra/asr/{Dockerfile,app.py,requirements.txt}     faster-whisper on CTranslate2, PyAV
+api/services/{asr_client.py,audio.py,wer.py}       client, pipeline, scorer
+api/models/audio.py                                Word, SourceMedia, Transcription
+api/routers/audio.py                               GET /audio/{asset_id}
+api/tests/{test_asr_client.py,test_audio.py,test_asr_golden.py}
+eval/golden/asr/                                   10 utterances + manifest + fetch.py
 docs/decisions/0001-asr-model-choice.md
+Makefile                                           `make asr-wer`
+docker-compose.yml  .env.example  api/config.py  api/main.py
 ```
+
+Three deliverables in the original list were **not** produced, each for a reason:
+
+- **`api/alembic/versions/0003_audio_assets.py` — not written (D27).** `audio_assets` and
+  `turns` were created complete at m2, and m4 changed no column. The second milestone
+  running where the honest answer was "no revision"; see D23.
+- **`api/db_models/audio.py` (extended) — not created.** `AudioAsset` lives in
+  `db_models/user.py` by m2's design: audio has no meaning apart from its owner. Moving
+  it to satisfy a filename in this plan would have been the plan editing the code.
+- **A test file became three**, not two: `test_asr_client.py` (error taxonomy + the WER
+  scorer), `test_audio.py` (storage, path safety, the endpoint) and `test_asr_golden.py`
+  (the measurement, skipped without a live recogniser).
 
 **Decisions.**
-- **faster-whisper on CTranslate2, not `openai-whisper`.** CT2 avoids torch entirely, keeping this image around 400 MB instead of 2.5 GB. `pron` is where torch is allowed to live.
-- **Remove `profiles: ["speech"]` from the `asr` service.** m1 put it there only because a profiled service is excluded from `build`, which is what let `docker-compose.yml` name `./infra/asr` before that directory existed. This milestone creates it, so the profile has done its job. PRD §10.1 has `asr` in the default stack.
-- `small.en` at int8 as the default, overridable by env. English-only variants are meaningfully better than multilingual at the same size for this workload.
-- **`word_timestamps=True` is non-negotiable** — PRD §7.1 has no other source.
-- ffmpeg normalises everything to 16 kHz mono PCM at the service boundary. The browser sends Opus/WebM on Chrome and MP4/AAC on Safari; neither format reaches the model.
-- Audio is content-addressed by sha256, so a retried upload does not duplicate a row.
-- `/health` returns 200 before weights finish loading, with `{"model_loaded": false}`. A cold start is minutes and must not read as a crash.
+- **faster-whisper on CTranslate2, not `openai-whisper`.** Held. No torch in the image.
+- **`profiles: ["speech"]` removed from `asr`.** Held — it is in the default stack, and
+  the profile now holds only `tts`.
+- **`small.en` at int8, overridable by env.** Held, and now measured: 1.72 % WER.
+- **`word_timestamps=True` is non-negotiable.** Held.
+- **ffmpeg normalises at the service boundary.** Deviated: **PyAV, in-process** (D29).
+  It *is* the ffmpeg libraries, is already a faster-whisper dependency, and saves ~200 MB
+  of Debian multimedia packages plus a subprocess. The source metadata comes from the same
+  object that does the decoding, which is why the `audio_assets` row records what a
+  decoder measured rather than what an uploader claimed.
+- **Content-addressed by sha256.** Held, scoped to the user, and the insert runs in a
+  **savepoint** so that m6's surrounding transaction survives a duplicate.
+- **`/health` 200 before weights load.** Held, and sharpened: **503 when a load has
+  failed**, which is permanent and is a different fact from a cold start.
+- **New — `small.en` stays although it misses the latency budget (D26).** See below.
+- **New — no `POST /audio` (D28).** Audio enters attached to a turn (m6) or an attempt
+  (m8). A bare upload endpoint would create recordings that belong to nothing, and
+  something would then have to decide what to do with the orphans.
 
-**Tests.** Transcript matches reference within a WER threshold on the golden set;
-word timestamps are monotonic and within duration; sha256 dedup; malformed audio returns
-422 rather than 500.
+**Measured.** Ten LibriSpeech test-clean utterances, ten speakers, 232 reference words.
+Latency is the minimum of 7 runs after 3 warm-ups, service-side.
 
-**Done when.** A 10-second WAV posted to `/transcribe` returns text plus per-word timings
-in under 700 ms warm, and measured WER on the golden set is recorded in
-`docs/decisions/0001`.
+| Configuration | WER | ~6.8 s | ~10.1 s |
+|---|---:|---:|---:|
+| **`small.en` int8 beam 5 (default)** | **1.72 %** | **1231 ms** | 1416 ms |
+| `small.en` int8 beam 1 | 1.72 % | 1352 ms | 1289 ms |
+| `small.en` beam 5, VAD off | 3.45 % | — | 1772 ms |
+| `base.en` int8 beam 5 | 6.03 % | 4420 ms | 984 ms |
+| `base.en` int8 beam 1 | 4.31 % | 525 ms | 599 ms |
+| `tiny.en` int8 beam 1 | 4.74 % | — | 384 ms |
+
+| | |
+|---|---|
+| Tests | 146 — 139 without a recogniser, all 146 with one |
+| Operations | 12 of 30 |
+| `asr` image | 746 MB, no torch (planned ~400 MB — the estimate was optimistic) |
+| Timestamp repairs on the golden set | 0 |
+| Model load, warm cache | 1.3 s · cold download 139 s |
+| Host load during the latency runs | 21 |
+
+**Tests.** Transcript within a WER ceiling per model; timestamps monotonic, ordered and
+inside the duration; `timestamp_fixups == 0`; sha256 dedup, per user, through a savepoint;
+malformed audio 422 not 500; a truncated file does not claim its intended duration; the
+golden audio matches the manifest's hashes. Two mutations were run to prove the new tests
+are load-bearing: reverting the savepoint to a full rollback fails 2 tests, and replacing
+`resolve()`-then-contain with a string prefix fails the symlink test.
+
+**Done when.** *Partially met, and the gap is the finding.* A 10-second file returns text
+with per-word timings — **but in 1416 ms, not the 700 ms this line asked for**, and ~6 s
+of audio takes 1231 ms against PRD §9.1's ≤ 700 ms. Measured WER **is** recorded in
+`docs/decisions/0001`. The model was not swapped to make the gate pass: `base.en` meets it
+at 525 ms for 2.6× the error rate, that error rate feeds every downstream metric, and
+§9.1's own fallback order spends a cheaper lever — streaming TTS — that m5 and m6 have not
+built. **Carried to m6 as Q8**, where a whole turn can be measured instead of one stage.
 
 **Branch** `feature/m4-asr` · **PR** `feat: add faster-whisper ASR service with word-level timestamps`
 
 ---
 
-### m5 — TTS service
+### m5 — TTS service · **BUILT (2026-08-30)**
 
 **Goal.** Text in, natural speech out, fast enough to be inside a conversational turn.
 
 **Why here.** Small, independent, and needed by m6. Landing it alone keeps m6's diff about
 conversation rather than about audio plumbing.
 
-**Deliverables.**
+**Delivered.**
 ```
-infra/tts/{Dockerfile,app.py,requirements.txt}     piper-tts + onnxruntime
-api/services/tts_client.py
-api/routers/tts.py                                 internal preview endpoint
-api/tests/test_tts_client.py
+infra/tts/{Dockerfile,app.py,requirements.txt}     Piper 1.7 on onnxruntime
+api/services/tts_client.py                         client, three-outcome taxonomy
+api/models/speech.py                               Speech, SpeechChunk
+api/tests/{test_tts_client.py,test_tts_live.py}
 frontend/src/components/AudioPlayer.tsx
 docs/decisions/0002-tts-model-choice.md
+Makefile                                           `make tts-latency`, `make tts-sample`
+docker-compose.yml  .env.example  api/config.py  .github/workflows/ci.yml
 ```
 
-**Decisions.**
-- **Piper over Coqui or Bark.** ONNX, CPU, faster than real time, ~60 MB per voice. Bark is expressive and far too slow for a 400 ms budget; Coqui's licensing and model size buy nothing here. Chatterbox is the same class of problem — 3.0 GB and a GPU this machine cannot pass into a container (D14).
-- **Remove `profiles: ["speech"]` from the `tts` service**, for the same reason as m4: the profile existed to keep a not-yet-created build context inert. With `asr` and `tts` both unprofiled, `docker compose up -d` brings up the full conversational stack and only `pron` stays opt-in.
-- `en_US-lessac-medium` default. Voice is env-configurable so a persona can eventually carry its own.
-- Voices download at build time into the shared `model_cache` volume, not at first request — a cold first turn is a bad first impression.
-- WAV out, not MP3. No encode step inside the latency budget, and every browser plays it.
+**Two deviations, both deliberate and both measured.**
 
-**Tests.** Non-empty valid WAV of plausible duration for the input length; unknown voice
-→ 400; synthesis time under budget for a 30-word input.
+- **`api/routers/tts.py` — not written (D31, resolving Q9).** §6 of this plan forecasts
+  exactly 30 operations, none of them a TTS route, and lists `POST /synthesize` under
+  *"Model-service internal APIs, never exposed to the browser"* — two lines above the
+  deliverable that would have exposed one. No FR asks for it: FR-6 and FR-7 deliver
+  reply audio as part of a session turn, and it reaches the browser through the
+  ownership-checked `GET /audio/{asset_id}` that m4 built. The same question as m4's
+  `POST /audio`, and the same answer (D28). The count stays at **12 of 30**.
+- **`POST /synthesize/stream` — written, and not in the list (D32).** Piper produces
+  audio one sentence at a time. Exposing that drops time-to-first-audio from 320 ms to
+  78 ms and, on a contended machine, is the difference between missing PRD §9.1's budget
+  (771 ms) and meeting it (135 ms). It is PRD §9.1's own first prescribed fallback, it
+  lives in the file this milestone was writing anyway, and leaving it to m6 would have
+  meant m6 reopening `infra/tts/app.py` — which is exactly what this milestone exists to
+  prevent.
 
-**Done when.** `POST /synthesize` returns playable audio in under 400 ms warm for a typical
-reply, and the frontend plays it.
+The plan's *"voices download at build time into the shared `model_cache` volume"* was not
+literally implementable — a volume is not mounted during a build. Resolved by honouring
+the reason rather than the wording: the 61 MB voice is baked into the image, which
+removes the cold first turn entirely, and the volume caches any other voice (**D33**).
+
+**Decisions, as planned and now with evidence.**
+- **Piper over Coqui or Bark**, confirmed. 50× real time on CPU, no torch, no GPU — and Docker Desktop on macOS cannot pass the Apple GPU into a container anyway (D14), so every GPU-bound alternative runs on CPU here for no benefit.
+- **`profiles: ["speech"]` removed**, and with `asr` already un-profiled at m4 the profile itself is gone. `docker compose up -d` now brings up five containers; only `pron` stays opt-in. `make speech-up` is deleted.
+- `en_US-lessac-medium` default, env-configurable as both a build argument and a runtime variable.
+- WAV out, not MP3. No encode step inside the budget, and every browser plays it.
+- **New: `intra_op_num_threads = 8`, measured not chosen.** onnxruntime's own default is 2.3× slower here (814 ms against 378 ms). The curve is a U with its minimum at 8 on 16 cores. This is the *opposite* of m4's conclusion for CTranslate2, whose default was fine — a library default is a claim to be measured.
+
+**Tests.** 22 client tests against `httpx.MockTransport` (the taxonomy, the WAV magic
+check, every metadata header, the streaming contract) and 9 live tests that skip unless a
+voice answers. **177 tests total**, 161 of which pass with no model service running.
+Three mutations confirmed the new guards are load-bearing: dropping the RIFF check,
+ignoring a mid-stream error object, and relaxing `duration_ms` to `ge=0` each fail
+exactly the one test that names them.
+
+**Done when — met, with one number worth stating plainly.** `POST /synthesize` returns
+playable audio in **320 ms** for an ~80-token reply on a quiet machine, inside the 400 ms
+budget. On a machine also running an iOS simulator and a build it takes **771 ms** and
+misses, while first-sentence streaming holds at **135 ms** — which is why both endpoints
+exist. The frontend player is written and type-checked but nothing mounts it yet: m7 is
+the first page with audio on it, and m7 is also where the Jest/RTL harness lands.
 
 **Branch** `feature/m5-tts` · **PR** `feat: add Piper TTS service with cached voices`
 

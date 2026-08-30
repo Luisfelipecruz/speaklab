@@ -22,7 +22,13 @@ out/
 # `git add -f`. They are human recordings, they are small, and they are the only
 # audio in the repository. See IMPLEMENTATION-PLAN.md m11.
 audio_data/
-models/
+
+# Anchored with a leading slash, and that slash is load-bearing. An unanchored
+# `models/` matches a directory called `models` at EVERY level, which on 2026-08-30
+# silently excluded `api/models/` — the Pydantic layer — from `git add`. The pattern is
+# meant for a top-level cache of downloaded weights; the extension patterns below are
+# what catch weight files wherever they land.
+/models/
 *.wav
 *.webm
 *.mp3

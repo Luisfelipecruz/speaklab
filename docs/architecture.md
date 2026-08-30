@@ -61,16 +61,18 @@ a GPU and for CI, where a self-contained stack matters more than throughput.
 
 ## 2. Compose profiles, and why the file is complete before the code is
 
-`docker-compose.yml` declares all seven services now, including build contexts —
-`infra/asr`, `infra/tts`, `infra/pron` — that do not exist and will not until m4, m5 and
-m8. This works because a profiled service is excluded from `up` **and** from `build`, so
-a missing context is inert rather than fatal.
+`docker-compose.yml` declared all seven services from m1, including build contexts —
+`infra/asr`, `infra/tts`, `infra/pron` — that did not exist and would not until m4, m5
+and m8. This works because a profiled service is excluded from `up` **and** from `build`,
+so a missing context is inert rather than fatal.
 
-| Profile | Services | Arrives |
+Two of those three contexts now exist, and their profiles went with them.
+
+| Profile | Services | State |
 |---|---|---|
-| *(default)* | `postgres`, `api`, `frontend` | m1 |
-| `speech` | `asr`, `tts` | m4, m5 — **the profile is removed then**; PRD §10.1 has both in the default stack |
-| `pron` | `pron` | m8 |
+| *(default)* | `postgres`, `api`, `frontend`, `asr`, `tts` | five services as of m5 |
+| ~~`speech`~~ | ~~`asr`, `tts`~~ | **removed at m5.** It held two contexts that did not exist; m4 and m5 created them, and an empty profile is something people paste into a command that then does nothing |
+| `pron` | `pron` | m8. The only build context still missing, and the only 2 GB one |
 | `llm` | `ollama` | not on this machine — see above |
 | `tools` | `test` | m1 |
 
@@ -131,12 +133,164 @@ Two database URLs, derived rather than configured separately so they cannot drif
 which runs migrations synchronously and cannot parse the async dialect suffix.
 
 Audio lives in a named volume, never in the working tree. `.gitignore` excludes `*.wav`,
-`*.webm`, `*.mp3` and `audio_data/` for the same reason: the one exception is the golden
-evaluation set in m11, which is small, human-recorded, and added with `git add -f`.
+`*.webm`, `*.mp3` and `audio_data/` for the same reason. The one exception is the golden
+evaluation set, which arrived at m4 rather than m11: ten LibriSpeech utterances in
+`eval/golden/asr/`, 1.5 MB, human-recorded, committed so that a number measured in CI and
+a number measured on a laptop mean the same thing. They are FLAC, which needs no
+`git add -f` — and which also exercises the format conversion a set already in the target
+format would never test.
+
+Since m2 the schema exists: twelve tables, three enum types, one revision. Two layers
+above it — `api/db_models/` for columns, `api/models/` for wire shapes — because they
+answer different questions, and `scenarios.persona_prompt` is the standing example of a
+column that is loaded on every query and serialised by nothing. The tables, and why five
+columns are JSONB while two adjacent ones are not, are in
+[data-model.md](data-model.md).
+
+Scenarios and passages are **seeded data, not fixtures**: real rows versioned as JSON in
+`api/seeds/`, loaded idempotently by slug with `make seed`. They sit under `api/` rather
+than at the repository root so that one path resolves identically in the container, in
+CI and in a host shell.
+
+Since m3 there are accounts. Passwords are Argon2id (`argon2-cffi`, library defaults, so
+that raising the cost later is a library upgrade rather than a migration — the parameters
+travel inside each hash and a successful login re-hashes anything behind). The session is
+a JWT in an **httpOnly** cookie, which decides more than it looks like it does: the
+frontend cannot read the token, so it cannot attach it to a header, cannot store it, and
+cannot leak it through an XSS payload — but it also cannot delete it, which is why there
+is a `POST /auth/logout` the plan's API surface did not forecast. Every browser call
+carries `credentials: "include"`; without that flag the cookie is silently dropped
+cross-origin and a login appears to succeed while every following request 401s.
+
+Access control is one dependency and one helper, in `api/dependencies.py`, and the
+interesting part is how it is enforced. `tests/test_ownership.py` walks the registered
+router table and asserts that every route either depends on `current_user` or appears in
+an explicit table of public paths with a written reason. FR-4 is a claim about *all*
+endpoints including the ones nobody has written yet, and the only test that can make
+that claim is one that reads the router table rather than a list somebody maintains.
+Cross-user reads are **404, not 403** — a 403 confirms the row exists and belongs to
+somebody else, which turns an incrementing id into an enumeration of the table.
 
 ---
 
-## 5. The frontend
+## 5. Audio, and what the recogniser is for
+
+`asr` exists because of one line in PRD §7.1: **every fluency metric in the product is
+arithmetic on word-level timings, and every accuracy metric is gated on word-level
+confidence.** Nothing else in the system can produce either. So `word_timestamps=True` is
+not a configuration choice, it is the reason the service is a separate process at all.
+
+It returns `{w, start_ms, end_ms, logprob}` per word, and that shape appears in exactly
+three places: the service emits it, `api/models/audio.py` types it, and the `turns.words`
+JSONB column stores it. Three copies is two chances to drift, so the middle one is the
+authority — the client parses into it, which means a field the service renames fails
+validation at the boundary rather than becoming a fluency metric of zero six months later.
+
+**Decoding happens in the service, not in the API.** The browser sends Opus in WebM on
+Chrome and AAC in MP4 on Safari; neither reaches the model, and the API holds no media
+library at all (invariant I5 is about weights, but the same logic applies to codecs). PyAV
+— the ffmpeg libraries in-process — resamples everything to 16 kHz mono. That is also why
+`audio_assets.format`, `.sample_rate` and `.duration_ms` are reported *back* by the
+recogniser and stored as measured: the row describes what a decoder actually saw, and
+`duration_ms` comes from the decoded sample count rather than the container header,
+because a truncated upload declares the duration the recorder intended.
+
+The service promises `0 <= start <= end <= duration` and **counts the timings it had to
+repair to keep that promise** rather than silently repairing them. A `timestamp_fixups`
+that starts climbing is a fact about the model; the same instinct as invariant I3, which
+rejects out-of-taxonomy labels *and* counts them.
+
+### The latency budget is missed, and that is written down
+
+`small.en` scores **1.72 % WER** on the golden set and takes **1231 ms** on ~6 s of audio,
+against PRD §9.1's **≤ 700 ms**. `base.en` at beam 1 meets the budget at 525 ms and costs
+**4.31 % WER**. The default did not change, because that error rate is the input to the
+grammar analyser, the fluency metrics and the read-aloud reference — and because §9.1's
+own fallback order spends a cheaper lever first. **m5 has since built that lever**: the
+streaming synthesis path in §6 returns first audio in 78 ms instead of 320 ms, which
+hands back roughly 242 ms of the 531 ms this stage overspends. The switch to `base.en` is
+still one environment variable, already measured, and m6 is where a whole turn decides
+whether it is needed (Q8). The full argument, and the
+reproducible case where `base.en` at beam 5 hallucinates a word and takes 4.5 s, is
+[decisions/0001-asr-model-choice.md](decisions/0001-asr-model-choice.md).
+
+### Storing a recording
+
+Content-addressed: the filename is the sha256 of the bytes and `audio_assets` is unique on
+`(user_id, sha256)`, so a double-tapped send or a retry after a timeout is one row rather
+than two attempts. Scoped to the user, not global — two people reading the same passage
+are two attempts, and a shared row would be a deletion request that cannot be honoured.
+
+The insert runs inside a **savepoint**. That is not tidiness: from m6 this pipeline is
+called inside a larger transaction that also writes a turn, and a plain rollback on the
+duplicate path would discard that turn — a data-loss bug that appears only on a retry.
+
+Nothing from a request ever reaches the filesystem. The stored name is a hex digest the
+API computed, so there is no `..` and no separator to smuggle; `resolve_path` checks
+containment *after* `resolve()` anyway, because a prefix comparison passes a symlink
+pointing out of the volume.
+
+
+## 6. Speech, and why there are two ways to ask for it
+
+`tts` is Piper 1.7 on onnxruntime: no torch, no `espeak-ng` package — `piper-tts` carries
+the phonemiser as a compiled extension — and a 61 MB voice that is **baked into the
+image at build time**. That last part is the one place this system puts weights in an
+image rather than on the shared volume, and the reason is size: Whisper is 746 MB and
+wav2vec2 is ~2 GB, but 61 MB fits in a cached layer, and it buys the removal of the cold
+first turn entirely. A voice other than the default is still downloaded into
+`model_cache` and survives rebuilds there (FR-28).
+
+### Two endpoints, because one of them cannot meet the budget
+
+`POST /synthesize` returns the whole reply as one WAV. It is what m6 stores on the
+`audio_assets` row, and on a quiet machine it takes **320 ms** for an 80-token reply
+against PRD §9.1's **≤ 400 ms**. On a machine also running an iOS simulator and a build,
+the same call takes **771 ms** and misses.
+
+`POST /synthesize/stream` returns one PCM chunk **per sentence**, as Piper produces them.
+Time to first audio is **78 ms** quiet and **135 ms** busy — and, crucially, flat in the
+length of the reply, because a first sentence is a first sentence. This is PRD §9.1's
+first prescribed fallback (*stream the LLM reply into TTS sentence by sentence*), built
+in m5 rather than m6 so that the milestone which measured the problem is the one that
+shipped the lever.
+
+The chunks carry raw PCM rather than a WAV each, because both consumers want samples:
+the API concatenates them into the single asset it stores, and a browser playing a queue
+of separate `<audio>` elements gets an audible gap at every sentence boundary.
+
+### The thread count is set by hand, and that is the finding
+
+`intra_op_num_threads = 8` rather than onnxruntime's own default, which is **2.3×
+slower** here — 814 ms against 378 ms. The curve is a U with its minimum at 8 on this
+16-core machine; 16 threads is as bad as 1. Note that this is the *opposite* of m4's
+conclusion, where CTranslate2's own default was left alone: a library default is a claim
+to be measured, and two libraries in this system gave opposite answers.
+
+### Synthesis is not deterministic
+
+The same sentence twice is not the same audio — five runs of one reply spanned
+8011–8475 ms. Piper is VITS and its duration predictor samples from a learned
+distribution, which is what stops synthetic prosody sounding metronomic. Two consequences
+belong to m6: a reply must be **stored rather than re-derived**, because `audio_assets` is
+keyed by sha256 and two syntheses hash differently; and there is no golden WAV to assert
+against, so the tests assert properties instead.
+
+Everything above is measured in
+[decisions/0002-tts-model-choice.md](decisions/0002-tts-model-choice.md).
+
+### There is no TTS route on the API
+
+`POST /synthesize` is reachable only from inside the compose network. The plan sketched
+an "internal preview endpoint" on the API; it does not exist, because no requirement asks
+for one — FR-6 and FR-7 deliver reply audio as part of a session turn, and it reaches the
+browser through the ownership-checked `GET /audio/{asset_id}`. Adding a browser-facing
+route would have been an unbounded text-to-speech endpoint with no requirement behind it.
+Same question as m4's `POST /audio`, same answer.
+
+---
+
+## 7. The frontend
 
 Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. One page today,
 which renders `/health`.
@@ -153,7 +307,7 @@ the other way round.
 
 ---
 
-## 6. Ports
+## 8. Ports
 
 Offset from the other stacks on this machine so all of them run at once.
 
@@ -169,11 +323,12 @@ Offset from the other stacks on this machine so all of them run at once.
 
 ---
 
-## 7. Where the rest is written down
+## 9. Where the rest is written down
 
 | | |
 |---|---|
 | What the product is, and the measurement model | `../PRD.md` §5, §7 |
 | The twelve milestones, the schema, the API surface | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |
+| The tables, the enums, the seed contract | [data-model.md](data-model.md) |
 | Why each milestone is shaped the way it is | the **Decisions** block of that milestone in §7 |
 | Does pronunciation scoring actually work | m0 passed — the writeup lands in `decisions/` at m8; the headline numbers are in the README |

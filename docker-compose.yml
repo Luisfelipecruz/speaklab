@@ -1,22 +1,25 @@
 # SpeakLab — the whole service graph, declared once.
 #
-# Seven services. Three start by default (postgres, api, frontend) and four are behind
-# profiles, because a profiled service is excluded from `up` AND from `build` — which is
-# what lets this file name build contexts that do not exist yet without breaking anything:
+# Seven services. Five start by default (postgres, api, frontend, asr, tts) and three are
+# behind profiles, because a profiled service is excluded from `up` AND from `build` —
+# which is what lets this file name a build context that does not exist yet without
+# breaking anything:
 #
-#   speech   asr (m4) + tts (m5)      TEMPORARY — m4 and m5 delete this profile when
-#                                     they create infra/asr and infra/tts, and the two
-#                                     services join the default stack (PRD §10.1)
 #   pron     pron (m8)                torch, ~2 GB. Profiled for that reason alone (D10)
 #   llm      ollama                   NOT the default. See the api service's comment
 #   tools    test                     batch jobs with an exit code, not services
 #
-# So `docker compose up -d` today brings up three containers against build contexts that
-# all exist, and `docker compose --profile speech up -d` will bring up two more the day
-# m4 and m5 create infra/asr and infra/tts. Nothing here needs editing for that to happen.
+# **The `speech` profile is gone as of m5.** It existed to keep two not-yet-created build
+# contexts inert; m4 created infra/asr and m5 created infra/tts, so it had no members
+# left and an empty profile is a thing people paste into a command that then does
+# nothing. `docker compose up -d` now brings up the whole conversational stack — FIVE
+# containers — and only the 2 GB pronunciation service stays opt-in.
 #
-# This file is committed whole in m1 and is absent from every later milestone's `git add`
-# (IMPLEMENTATION-PLAN.md §1.1). That is why it is complete rather than minimal.
+# This file was written complete at m1 rather than minimal, so that the shape of the
+# system is visible in one place from the start (IMPLEMENTATION-PLAN.md §1.1). Later
+# milestones still amend it — m3 added the auth variables, m4 added the ASR ones and
+# un-profiled the asr service — but they amend a declared graph rather than discovering
+# it a service at a time.
 
 services:
 
@@ -69,6 +72,18 @@ services:
       TTS_URL: ${TTS_URL:-http://tts:8102}
       PRON_URL: ${PRON_URL:-http://pron:8103}
       HEALTH_PROBE_TIMEOUT_S: ${HEALTH_PROBE_TIMEOUT_S:-1.5}
+      # Audio (m4). AUDIO_ROOT is the mount point of the audio_data volume below, and
+      # the API refuses to serve any path that does not resolve inside it.
+      AUDIO_ROOT: ${AUDIO_ROOT:-/audio}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      # Speech synthesis (m5). PIPER_VOICE is read by the API as well as by the tts
+      # container because m6 records which voice produced a turn's audio.
+      PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+      TTS_TIMEOUT_S: ${TTS_TIMEOUT_S:-30}
+      # Generous, and deliberately so: a cold asr container is loading weights, and the
+      # first transcription after a restart pays for it. The health probe is the short
+      # timeout; this is the working one.
+      ASR_TIMEOUT_S: ${ASR_TIMEOUT_S:-120}
       # Points at the HOST's Ollama, not the container below. Docker Desktop on macOS
       # cannot pass the Apple GPU into a Linux container, so the containerised Ollama
       # runs CPU-only while the host's uses Metal — the same model, several times
@@ -80,6 +95,13 @@ services:
       LLM_MAX_INPUT_TOKENS: ${LLM_MAX_INPUT_TOKENS:-4000}
       LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3003}
+      # Auth (m3). JWT_SECRET has no default here on purpose: unset, it arrives as an
+      # empty string, config.py treats blank as absent and falls back to the built-in
+      # development key, and the API says so in its startup log on every boot.
+      JWT_SECRET: ${JWT_SECRET:-}
+      ACCESS_TOKEN_TTL_HOURS: ${ACCESS_TOKEN_TTL_HOURS:-168}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
     # Docker Desktop resolves host.docker.internal on its own; Linux does not, and this
     # line is what makes the host-Ollama default portable rather than a Mac-only trick.
     extra_hosts:
@@ -144,17 +166,33 @@ services:
 
   # ── Model services ─────────────────────────────────────────────────────────
   #
-  # None of these exist yet. Their build contexts are created by m4, m5 and m8; until
-  # then the profiles keep them inert. All three are the same shape: a small FastAPI app
-  # wrapping one model, weights in the shared model_cache volume, and a /health that
-  # answers 200 before the weights finish loading — a cold start is minutes and must not
-  # read as a crash.
+  # asr and tts exist as of m4 and m5. pron does not; its build context arrives with m8,
+  # and until then its profile keeps it inert. All three are the same shape: a small
+  # FastAPI app wrapping one model, and a /health that answers 200 with a `*_loaded:
+  # false` flag before the weights finish loading — a cold start is minutes and must not
+  # read as a crash — reserving 503 for the one case that is not a cold start, a load
+  # that has actually failed.
+  #
+  # They differ in where the weights live, and the difference is size. Whisper is 746 MB
+  # and wav2vec2 is ~2 GB, so both are downloaded once into the shared model_cache
+  # volume. A Piper voice is 63 MB, small enough to bake into the image at build time,
+  # which removes the cold first turn entirely. tts still mounts the volume, because a
+  # voice other than the default is cached there.
 
   asr:
     build: ./infra/asr
-    profiles: ["speech"]
+    # No profile as of m4: infra/asr exists, so the build context is real and this is
+    # part of the default stack (PRD §10.1). `docker compose up -d` therefore builds
+    # this image and downloads the weights on a first run — minutes, once. Nothing
+    # depends_on it, so the rest of the stack comes up while that happens.
     environment:
       WHISPER_MODEL: ${WHISPER_MODEL:-small.en}
+      # The decoder settings that move the numbers in docs/decisions/0001. Overridable
+      # so the measurement in that document can be reproduced without editing a file.
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
+      WHISPER_VAD: ${WHISPER_VAD:-1}
+      WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-0}
       HF_HOME: /models
     volumes:
       - model_cache:/models
@@ -170,11 +208,32 @@ services:
       - speaklab
 
   tts:
-    build: ./infra/tts
-    profiles: ["speech"]
+    build:
+      context: ./infra/tts
+      args:
+        # The voice baked into the image. It has to be a build argument as well as a
+        # runtime variable, because the two answer different questions: this one decides
+        # what the image ships with, PIPER_VOICE below decides what the process loads.
+        # Setting only the runtime one still works — the voice is downloaded into the
+        # shared volume on first start — it just costs a minute the first time.
+        PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    # No profile as of m5, which retires the `speech` profile entirely: infra/tts exists,
+    # so the build context is real and this is part of the default stack (PRD §10.1).
+    # Nothing depends_on it, so the rest of the stack comes up regardless.
     environment:
       PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+      # 8, and it is measured rather than chosen. onnxruntime's own default is 2.3x
+      # slower here — 831 ms against 368 ms on an 80-token reply — which is the
+      # difference between missing PRD §9.1's 400 ms budget and meeting it. The curve is
+      # a U with its minimum at 8 on this 16-core machine; 0 restores the library
+      # default. docs/decisions/0002 has the sweep.
+      PIPER_NUM_THREADS: ${PIPER_NUM_THREADS:-8}
+      # Below 1 is faster speech, above 1 is slower. 1.0 is the voice's trained rate.
+      PIPER_LENGTH_SCALE: ${PIPER_LENGTH_SCALE:-1.0}
+      PIPER_VOICE_DIR: /models/piper
     volumes:
+      # For voices other than the one in the image. Shared with asr and pron so a
+      # rebuild never re-downloads anything (FR-28).
       - model_cache:/models
     ports:
       - "8102:8102"
@@ -183,6 +242,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      # 60s, not asr's 180s: the default voice is already in the image, so this window
+      # covers process start rather than a download.
       start_period: 60s
     networks:
       - speaklab
@@ -242,12 +303,18 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
-      # Pointed at hosts that do not resolve, on purpose. The health tests assert that
-      # unreachable model services produce a degraded 200 rather than a 500, and the
-      # cheapest way to have an unreachable service is to name one.
-      ASR_URL: http://asr:8101
-      TTS_URL: http://tts:8102
-      PRON_URL: http://pron:8103
+      # Pointed at hosts that do not resolve, on purpose, and note that these are NOT
+      # the real service names. Until m4 `http://asr:8101` was itself unresolvable and
+      # served the same purpose; then asr joined the default stack, started sharing this
+      # network, and the health tests quietly began asserting against a service that was
+      # actually up. Naming hosts that cannot exist restores the property the comment
+      # always claimed: `make test` is hermetic, and the model layer it sees is absent.
+      #
+      # The suite that DOES want a real recogniser is tests/test_asr_golden.py, which
+      # skips unless ASR_URL answers. `make asr-wer` runs it against the live container.
+      ASR_URL: http://asr.invalid:8101
+      TTS_URL: http://tts.invalid:8102
+      PRON_URL: http://pron.invalid:8103
       HEALTH_PROBE_TIMEOUT_S: "0.5"
     volumes:
       - ./api:/app

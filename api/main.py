@@ -12,11 +12,17 @@ auto-discovery: a router that fails to import should break startup loudly rather
 disappear from the OpenAPI schema with nothing in the logs.
 """
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import CORS_ORIGINS, VERSION
+from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
+from routers.audio import router as audio_router
+from routers.auth import router as auth_router
 from routers.health import router as health_router
+from routers.passages import router as passages_router
+from routers.scenarios import router as scenarios_router
 
 app = FastAPI(
     title="SpeakLab",
@@ -36,10 +42,23 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(auth_router)
+app.include_router(scenarios_router)
+app.include_router(passages_router)
+app.include_router(audio_router)
 
 # Routers arriving with their milestones:
-#   m2  scenarios, passages
-#   m3  auth
 #   m6  sessions, turns
-#   m8  attempts, audio
+#   m8  attempts
 #   m10 progress
+
+# Said once, at startup, in the logs the operator is already reading. The sentinel
+# signing key is the right default for a laptop and a serious problem anywhere else,
+# and the difference between those two situations is not something config.py can see —
+# so it is reported rather than guessed at. `docker compose logs api` is where it lands.
+if JWT_SECRET_IS_DEV:
+    logging.getLogger("speaklab").warning(
+        "JWT_SECRET is unset, so sessions are signed with the built-in development "
+        "key. Anyone holding this repository can mint a valid session cookie. Set "
+        "JWT_SECRET before this is reachable by anyone but you."
+    )

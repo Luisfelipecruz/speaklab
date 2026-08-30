@@ -24,11 +24,29 @@ alembic==1.14.1
 httpx==0.28.1
 
 # ── Auth (m3) ───────────────────────────────────────────────────────────────
-# Installed one milestone early, deliberately: they are ~2 MB together and it means the
-# image is rebuilt once rather than twice. bcrypt over argon2 only because passlib's
-# argon2 backend needs a compiled extra for no gain at this scale.
-passlib[bcrypt]==1.7.4
+#
+# Argon2id, and argon2-cffi rather than passlib. m1 shipped `passlib[bcrypt]` here with
+# a comment arguing bcrypt was good enough; PRD FR-1 says passwords are stored
+# Argon2-hashed, and the PRD is the authority over a convenience call made in a
+# requirements file. That settled the hash. Dropping passlib as well is a second
+# decision with its own reason: passlib 1.7.4 was released in 2020 and is unmaintained,
+# its bcrypt backend raises on bcrypt >= 4.1, and a wrapper whose value is switching
+# between schemes buys nothing when there is exactly one scheme and no legacy hashes to
+# migrate. argon2-cffi gives hash/verify/check_needs_rehash directly. If a second scheme
+# is ever needed at once — importing users from an existing system — that is what
+# passlib's CryptContext is actually for, and that is when to reconsider.
+#
+# It installs from a wheel on linux/amd64 and linux/arm64, so no compiler is added to
+# the image. Verified on 2026-08-30 in this image: hashes carry the `$argon2id$` prefix
+# at the library's default parameters (t=3, m=64 MiB, p=4).
+argon2-cffi==25.1.0
 pyjwt==2.10.1
+
+# Pydantic's EmailStr, which is a FastAPI extra rather than a direct import. Hand-rolling
+# an email regex is a well-known way to reject valid addresses, and the alternative of
+# not validating at all makes the unique constraint on `users.email` the only thing
+# standing between the table and two rows for the same person typed differently.
+email-validator==2.3.0
 
 # ── Tests and lint ──────────────────────────────────────────────────────────
 pytest==8.3.4
