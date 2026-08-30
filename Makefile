@@ -1,11 +1,12 @@
 # SpeakLab — every operation worth having a name.
 #
-# Three services run by default. The model services are behind profiles because a
-# profiled service is excluded from `up` AND from `build`, which is what lets
-# docker-compose.yml declare build contexts that m4, m5 and m8 have not created yet.
+# Five services run by default as of m5: postgres, api, frontend, asr and tts. Only the
+# pronunciation service is still behind a profile, because a profiled service is excluded
+# from `up` AND from `build`, which is what lets docker-compose.yml declare the infra/pron
+# build context that m8 has not created yet.
 
 .PHONY: help up down restart logs ps health test lint fmt clean \
-        speech-up pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer
+        pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer tts-latency tts-sample
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -13,7 +14,7 @@ help:                              ## This list
 
 # ── Everyday ────────────────────────────────────────────────────────────────
 
-up:                                ## Start postgres, api and frontend
+up:                                ## Start the whole default stack (5 services)
 	docker compose up -d
 
 down:                              ## Stop everything. Volumes survive.
@@ -52,9 +53,6 @@ fmt:                               ## ruff --fix + black, in place
 
 # ── Model services ──────────────────────────────────────────────────────────
 
-speech-up:                         ## Start asr + tts alongside the default stack (m4, m5)
-	docker compose --profile speech up -d
-
 pron-up:                           ## Start the pronunciation service (m8). ~2 GB of torch.
 	docker compose --profile pron up -d
 
@@ -87,9 +85,26 @@ asr-wer:                           ## Measure WER on the golden set against the 
 		-e ASR_URL=http://asr:8101 test \
 		python -m pytest /app/tests/test_asr_golden.py -v -s
 
+tts-latency:                       ## Measure synthesis latency against the live tts
+	@echo "Whole-reply and per-sentence synthesis through the running voice. Needs \`make up\`."
+	docker compose --profile tools run --rm \
+		-e TTS_URL=http://tts:8102 test \
+		python -m pytest /app/tests/test_tts_live.py -v -s
+
+tts-sample:                        ## Synthesise a WAV you can actually listen to
+	@echo "Voice quality is a judgement no assertion makes for you. This writes a file;"
+	@echo "play it. spike/ is gitignored, so the audio cannot reach a commit (trap 4)."
+	@mkdir -p spike/tts-sample
+	@curl -sf -X POST http://localhost:8102/synthesize \
+		-H 'content-type: application/json' \
+		-d '{"text":"That sounds like a reasonable plan, though I would want to confirm the delivery date before we commit to anything. Could you check with your supplier and let me know by Friday?"}' \
+		-o spike/tts-sample/reply.wav \
+		&& echo "wrote spike/tts-sample/reply.wav" \
+		|| echo "no answer from http://localhost:8102 — is the stack up?"
+
 eval:                              ## Retrieval + scoring evaluation (lands in m11)
 	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."
-	@echo "The one measurement that exists now is \`make asr-wer\`."
+	@echo "The measurements that exist now are \`make asr-wer\` and \`make tts-latency\`."
 	@exit 1
 
 # ── Destructive ─────────────────────────────────────────────────────────────

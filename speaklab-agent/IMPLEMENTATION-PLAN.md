@@ -351,7 +351,9 @@ Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout`
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
 against `app.openapi()` at m12, not recalled — this list is the forecast, the running
-system is the authority. **12 exist as of m4** — `GET /audio/{asset_id}`.
+system is the authority. **12 exist as of m5.** m5 added none: its `POST /synthesize` is
+a model-service internal API, and the "internal preview endpoint" the m5 deliverable list
+named was not built (D31, resolving Q9).
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -722,35 +724,67 @@ built. **Carried to m6 as Q8**, where a whole turn can be measured instead of on
 
 ---
 
-### m5 — TTS service
+### m5 — TTS service · **BUILT (2026-08-30)**
 
 **Goal.** Text in, natural speech out, fast enough to be inside a conversational turn.
 
 **Why here.** Small, independent, and needed by m6. Landing it alone keeps m6's diff about
 conversation rather than about audio plumbing.
 
-**Deliverables.**
+**Delivered.**
 ```
-infra/tts/{Dockerfile,app.py,requirements.txt}     piper-tts + onnxruntime
-api/services/tts_client.py
-api/routers/tts.py                                 internal preview endpoint
-api/tests/test_tts_client.py
+infra/tts/{Dockerfile,app.py,requirements.txt}     Piper 1.7 on onnxruntime
+api/services/tts_client.py                         client, three-outcome taxonomy
+api/models/speech.py                               Speech, SpeechChunk
+api/tests/{test_tts_client.py,test_tts_live.py}
 frontend/src/components/AudioPlayer.tsx
 docs/decisions/0002-tts-model-choice.md
+Makefile                                           `make tts-latency`, `make tts-sample`
+docker-compose.yml  .env.example  api/config.py  .github/workflows/ci.yml
 ```
 
-**Decisions.**
-- **Piper over Coqui or Bark.** ONNX, CPU, faster than real time, ~60 MB per voice. Bark is expressive and far too slow for a 400 ms budget; Coqui's licensing and model size buy nothing here. Chatterbox is the same class of problem — 3.0 GB and a GPU this machine cannot pass into a container (D14).
-- **Remove `profiles: ["speech"]` from the `tts` service**, for the same reason as m4: the profile existed to keep a not-yet-created build context inert. With `asr` and `tts` both unprofiled, `docker compose up -d` brings up the full conversational stack and only `pron` stays opt-in.
-- `en_US-lessac-medium` default. Voice is env-configurable so a persona can eventually carry its own.
-- Voices download at build time into the shared `model_cache` volume, not at first request — a cold first turn is a bad first impression.
-- WAV out, not MP3. No encode step inside the latency budget, and every browser plays it.
+**Two deviations, both deliberate and both measured.**
 
-**Tests.** Non-empty valid WAV of plausible duration for the input length; unknown voice
-→ 400; synthesis time under budget for a 30-word input.
+- **`api/routers/tts.py` — not written (D31, resolving Q9).** §6 of this plan forecasts
+  exactly 30 operations, none of them a TTS route, and lists `POST /synthesize` under
+  *"Model-service internal APIs, never exposed to the browser"* — two lines above the
+  deliverable that would have exposed one. No FR asks for it: FR-6 and FR-7 deliver
+  reply audio as part of a session turn, and it reaches the browser through the
+  ownership-checked `GET /audio/{asset_id}` that m4 built. The same question as m4's
+  `POST /audio`, and the same answer (D28). The count stays at **12 of 30**.
+- **`POST /synthesize/stream` — written, and not in the list (D32).** Piper produces
+  audio one sentence at a time. Exposing that drops time-to-first-audio from 320 ms to
+  78 ms and, on a contended machine, is the difference between missing PRD §9.1's budget
+  (771 ms) and meeting it (135 ms). It is PRD §9.1's own first prescribed fallback, it
+  lives in the file this milestone was writing anyway, and leaving it to m6 would have
+  meant m6 reopening `infra/tts/app.py` — which is exactly what this milestone exists to
+  prevent.
 
-**Done when.** `POST /synthesize` returns playable audio in under 400 ms warm for a typical
-reply, and the frontend plays it.
+The plan's *"voices download at build time into the shared `model_cache` volume"* was not
+literally implementable — a volume is not mounted during a build. Resolved by honouring
+the reason rather than the wording: the 61 MB voice is baked into the image, which
+removes the cold first turn entirely, and the volume caches any other voice (**D33**).
+
+**Decisions, as planned and now with evidence.**
+- **Piper over Coqui or Bark**, confirmed. 50× real time on CPU, no torch, no GPU — and Docker Desktop on macOS cannot pass the Apple GPU into a container anyway (D14), so every GPU-bound alternative runs on CPU here for no benefit.
+- **`profiles: ["speech"]` removed**, and with `asr` already un-profiled at m4 the profile itself is gone. `docker compose up -d` now brings up five containers; only `pron` stays opt-in. `make speech-up` is deleted.
+- `en_US-lessac-medium` default, env-configurable as both a build argument and a runtime variable.
+- WAV out, not MP3. No encode step inside the budget, and every browser plays it.
+- **New: `intra_op_num_threads = 8`, measured not chosen.** onnxruntime's own default is 2.3× slower here (814 ms against 378 ms). The curve is a U with its minimum at 8 on 16 cores. This is the *opposite* of m4's conclusion for CTranslate2, whose default was fine — a library default is a claim to be measured.
+
+**Tests.** 22 client tests against `httpx.MockTransport` (the taxonomy, the WAV magic
+check, every metadata header, the streaming contract) and 9 live tests that skip unless a
+voice answers. **177 tests total**, 161 of which pass with no model service running.
+Three mutations confirmed the new guards are load-bearing: dropping the RIFF check,
+ignoring a mid-stream error object, and relaxing `duration_ms` to `ge=0` each fail
+exactly the one test that names them.
+
+**Done when — met, with one number worth stating plainly.** `POST /synthesize` returns
+playable audio in **320 ms** for an ~80-token reply on a quiet machine, inside the 400 ms
+budget. On a machine also running an iOS simulator and a build it takes **771 ms** and
+misses, while first-sentence streaming holds at **135 ms** — which is why both endpoints
+exist. The frontend player is written and type-checked but nothing mounts it yet: m7 is
+the first page with audio on it, and m7 is also where the Jest/RTL harness lands.
 
 **Branch** `feature/m5-tts` · **PR** `feat: add Piper TTS service with cached voices`
 

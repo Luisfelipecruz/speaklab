@@ -61,16 +61,18 @@ a GPU and for CI, where a self-contained stack matters more than throughput.
 
 ## 2. Compose profiles, and why the file is complete before the code is
 
-`docker-compose.yml` declares all seven services now, including build contexts —
-`infra/asr`, `infra/tts`, `infra/pron` — that do not exist and will not until m4, m5 and
-m8. This works because a profiled service is excluded from `up` **and** from `build`, so
-a missing context is inert rather than fatal.
+`docker-compose.yml` declared all seven services from m1, including build contexts —
+`infra/asr`, `infra/tts`, `infra/pron` — that did not exist and would not until m4, m5
+and m8. This works because a profiled service is excluded from `up` **and** from `build`,
+so a missing context is inert rather than fatal.
 
-| Profile | Services | Arrives |
+Two of those three contexts now exist, and their profiles went with them.
+
+| Profile | Services | State |
 |---|---|---|
-| *(default)* | `postgres`, `api`, `frontend` | m1 |
-| `speech` | `asr`, `tts` | m4, m5 — **the profile is removed then**; PRD §10.1 has both in the default stack |
-| `pron` | `pron` | m8 |
+| *(default)* | `postgres`, `api`, `frontend`, `asr`, `tts` | five services as of m5 |
+| ~~`speech`~~ | ~~`asr`, `tts`~~ | **removed at m5.** It held two contexts that did not exist; m4 and m5 created them, and an empty profile is something people paste into a command that then does nothing |
+| `pron` | `pron` | m8. The only build context still missing, and the only 2 GB one |
 | `llm` | `ollama` | not on this machine — see above |
 | `tools` | `test` | m1 |
 
@@ -204,8 +206,11 @@ rejects out-of-taxonomy labels *and* counts them.
 against PRD §9.1's **≤ 700 ms**. `base.en` at beam 1 meets the budget at 525 ms and costs
 **4.31 % WER**. The default did not change, because that error rate is the input to the
 grammar analyser, the fluency metrics and the read-aloud reference — and because §9.1's
-own fallback order spends a cheaper lever first, one that m5 and m6 have not built yet.
-The switch is one environment variable, already measured. The full argument, and the
+own fallback order spends a cheaper lever first. **m5 has since built that lever**: the
+streaming synthesis path in §6 returns first audio in 78 ms instead of 320 ms, which
+hands back roughly 242 ms of the 531 ms this stage overspends. The switch to `base.en` is
+still one environment variable, already measured, and m6 is where a whole turn decides
+whether it is needed (Q8). The full argument, and the
 reproducible case where `base.en` at beam 5 hallucinates a word and takes 4.5 s, is
 [decisions/0001-asr-model-choice.md](decisions/0001-asr-model-choice.md).
 
@@ -226,7 +231,66 @@ containment *after* `resolve()` anyway, because a prefix comparison passes a sym
 pointing out of the volume.
 
 
-## 6. The frontend
+## 6. Speech, and why there are two ways to ask for it
+
+`tts` is Piper 1.7 on onnxruntime: no torch, no `espeak-ng` package — `piper-tts` carries
+the phonemiser as a compiled extension — and a 61 MB voice that is **baked into the
+image at build time**. That last part is the one place this system puts weights in an
+image rather than on the shared volume, and the reason is size: Whisper is 746 MB and
+wav2vec2 is ~2 GB, but 61 MB fits in a cached layer, and it buys the removal of the cold
+first turn entirely. A voice other than the default is still downloaded into
+`model_cache` and survives rebuilds there (FR-28).
+
+### Two endpoints, because one of them cannot meet the budget
+
+`POST /synthesize` returns the whole reply as one WAV. It is what m6 stores on the
+`audio_assets` row, and on a quiet machine it takes **320 ms** for an 80-token reply
+against PRD §9.1's **≤ 400 ms**. On a machine also running an iOS simulator and a build,
+the same call takes **771 ms** and misses.
+
+`POST /synthesize/stream` returns one PCM chunk **per sentence**, as Piper produces them.
+Time to first audio is **78 ms** quiet and **135 ms** busy — and, crucially, flat in the
+length of the reply, because a first sentence is a first sentence. This is PRD §9.1's
+first prescribed fallback (*stream the LLM reply into TTS sentence by sentence*), built
+in m5 rather than m6 so that the milestone which measured the problem is the one that
+shipped the lever.
+
+The chunks carry raw PCM rather than a WAV each, because both consumers want samples:
+the API concatenates them into the single asset it stores, and a browser playing a queue
+of separate `<audio>` elements gets an audible gap at every sentence boundary.
+
+### The thread count is set by hand, and that is the finding
+
+`intra_op_num_threads = 8` rather than onnxruntime's own default, which is **2.3×
+slower** here — 814 ms against 378 ms. The curve is a U with its minimum at 8 on this
+16-core machine; 16 threads is as bad as 1. Note that this is the *opposite* of m4's
+conclusion, where CTranslate2's own default was left alone: a library default is a claim
+to be measured, and two libraries in this system gave opposite answers.
+
+### Synthesis is not deterministic
+
+The same sentence twice is not the same audio — five runs of one reply spanned
+8011–8475 ms. Piper is VITS and its duration predictor samples from a learned
+distribution, which is what stops synthetic prosody sounding metronomic. Two consequences
+belong to m6: a reply must be **stored rather than re-derived**, because `audio_assets` is
+keyed by sha256 and two syntheses hash differently; and there is no golden WAV to assert
+against, so the tests assert properties instead.
+
+Everything above is measured in
+[decisions/0002-tts-model-choice.md](decisions/0002-tts-model-choice.md).
+
+### There is no TTS route on the API
+
+`POST /synthesize` is reachable only from inside the compose network. The plan sketched
+an "internal preview endpoint" on the API; it does not exist, because no requirement asks
+for one — FR-6 and FR-7 deliver reply audio as part of a session turn, and it reaches the
+browser through the ownership-checked `GET /audio/{asset_id}`. Adding a browser-facing
+route would have been an unbounded text-to-speech endpoint with no requirement behind it.
+Same question as m4's `POST /audio`, same answer.
+
+---
+
+## 7. The frontend
 
 Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. One page today,
 which renders `/health`.
@@ -243,7 +307,7 @@ the other way round.
 
 ---
 
-## 7. Ports
+## 8. Ports
 
 Offset from the other stacks on this machine so all of them run at once.
 
@@ -259,7 +323,7 @@ Offset from the other stacks on this machine so all of them run at once.
 
 ---
 
-## 8. Where the rest is written down
+## 9. Where the rest is written down
 
 | | |
 |---|---|

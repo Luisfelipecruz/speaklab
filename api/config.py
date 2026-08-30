@@ -19,7 +19,7 @@ import os
 # had already drifted by the end of m2 — the changelog said 0.2.0 while /health said
 # 0.1.0 — which is a small instance of exactly what invariant I9 is about: a number
 # that is written down rather than reported by the thing it describes.
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -67,6 +67,21 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
 LLM_TIMEOUT_S = float(os.environ.get("LLM_TIMEOUT_S", "120"))
 LLM_MAX_INPUT_TOKENS = int(os.environ.get("LLM_MAX_INPUT_TOKENS", "4000"))
 LLM_MAX_OUTPUT_TOKENS = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "400"))
+
+# ── Speech synthesis (m5) ───────────────────────────────────────────────────
+
+# Shorter than ASR_TIMEOUT_S by an order of magnitude, and the asymmetry is the point.
+# A cold recogniser is downloading 746 MB and the first transcription after a restart
+# legitimately waits for it. The tts container's default voice is baked into its image,
+# so it loads in under a second and there is no cold-start case to be generous about —
+# a synthesis that has not returned in 30 s is a stuck process, not a slow one.
+TTS_TIMEOUT_S = float(os.environ.get("TTS_TIMEOUT_S", "30"))
+
+# The voice this system speaks with. Read here as well as by the service because m6
+# records it on the turn: a reply synthesised by lessac and one synthesised by some
+# later voice are different audio for the same text, and "we changed the voice in
+# March" should not be something only the container's environment remembers.
+PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
 
 # ── Auth (m3) ───────────────────────────────────────────────────────────────
 

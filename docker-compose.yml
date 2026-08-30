@@ -1,20 +1,19 @@
 # SpeakLab — the whole service graph, declared once.
 #
-# Seven services. Three start by default (postgres, api, frontend) and four are behind
-# profiles, because a profiled service is excluded from `up` AND from `build` — which is
-# what lets this file name build contexts that do not exist yet without breaking anything:
+# Seven services. Five start by default (postgres, api, frontend, asr, tts) and three are
+# behind profiles, because a profiled service is excluded from `up` AND from `build` —
+# which is what lets this file name a build context that does not exist yet without
+# breaking anything:
 #
-#   speech   tts (m5)                 TEMPORARY — half spent. m4 created infra/asr and
-#                                     removed asr from this profile, so asr is now in
-#                                     the default stack (PRD §10.1); m5 does the same
-#                                     for tts and the profile disappears with it
 #   pron     pron (m8)                torch, ~2 GB. Profiled for that reason alone (D10)
 #   llm      ollama                   NOT the default. See the api service's comment
 #   tools    test                     batch jobs with an exit code, not services
 #
-# So `docker compose up -d` today brings up FOUR containers — postgres, api, frontend and
-# asr — and `docker compose --profile speech up -d` will add tts the day m5 creates
-# infra/tts.
+# **The `speech` profile is gone as of m5.** It existed to keep two not-yet-created build
+# contexts inert; m4 created infra/asr and m5 created infra/tts, so it had no members
+# left and an empty profile is a thing people paste into a command that then does
+# nothing. `docker compose up -d` now brings up the whole conversational stack — FIVE
+# containers — and only the 2 GB pronunciation service stays opt-in.
 #
 # This file was written complete at m1 rather than minimal, so that the shape of the
 # system is visible in one place from the start (IMPLEMENTATION-PLAN.md §1.1). Later
@@ -77,6 +76,10 @@ services:
       # the API refuses to serve any path that does not resolve inside it.
       AUDIO_ROOT: ${AUDIO_ROOT:-/audio}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      # Speech synthesis (m5). PIPER_VOICE is read by the API as well as by the tts
+      # container because m6 records which voice produced a turn's audio.
+      PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+      TTS_TIMEOUT_S: ${TTS_TIMEOUT_S:-30}
       # Generous, and deliberately so: a cold asr container is loading weights, and the
       # first transcription after a restart pays for it. The health probe is the short
       # timeout; this is the working one.
@@ -163,12 +166,18 @@ services:
 
   # ── Model services ─────────────────────────────────────────────────────────
   #
-  # asr exists as of m4. tts and pron do not; their build contexts are created by m5 and
-  # m8, and until then the profiles keep them inert. All three are the same shape: a
-  # small FastAPI app wrapping one model, weights in the shared model_cache volume, and
-  # a /health that answers 200 before the weights finish loading — a cold start is
-  # minutes and must not read as a crash. asr answers 503 rather than 200 in the one
-  # case that is not a cold start: a load that has actually failed.
+  # asr and tts exist as of m4 and m5. pron does not; its build context arrives with m8,
+  # and until then its profile keeps it inert. All three are the same shape: a small
+  # FastAPI app wrapping one model, and a /health that answers 200 with a `*_loaded:
+  # false` flag before the weights finish loading — a cold start is minutes and must not
+  # read as a crash — reserving 503 for the one case that is not a cold start, a load
+  # that has actually failed.
+  #
+  # They differ in where the weights live, and the difference is size. Whisper is 746 MB
+  # and wav2vec2 is ~2 GB, so both are downloaded once into the shared model_cache
+  # volume. A Piper voice is 63 MB, small enough to bake into the image at build time,
+  # which removes the cold first turn entirely. tts still mounts the volume, because a
+  # voice other than the default is cached there.
 
   asr:
     build: ./infra/asr
@@ -199,11 +208,32 @@ services:
       - speaklab
 
   tts:
-    build: ./infra/tts
-    profiles: ["speech"]
+    build:
+      context: ./infra/tts
+      args:
+        # The voice baked into the image. It has to be a build argument as well as a
+        # runtime variable, because the two answer different questions: this one decides
+        # what the image ships with, PIPER_VOICE below decides what the process loads.
+        # Setting only the runtime one still works — the voice is downloaded into the
+        # shared volume on first start — it just costs a minute the first time.
+        PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    # No profile as of m5, which retires the `speech` profile entirely: infra/tts exists,
+    # so the build context is real and this is part of the default stack (PRD §10.1).
+    # Nothing depends_on it, so the rest of the stack comes up regardless.
     environment:
       PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+      # 8, and it is measured rather than chosen. onnxruntime's own default is 2.3x
+      # slower here — 831 ms against 368 ms on an 80-token reply — which is the
+      # difference between missing PRD §9.1's 400 ms budget and meeting it. The curve is
+      # a U with its minimum at 8 on this 16-core machine; 0 restores the library
+      # default. docs/decisions/0002 has the sweep.
+      PIPER_NUM_THREADS: ${PIPER_NUM_THREADS:-8}
+      # Below 1 is faster speech, above 1 is slower. 1.0 is the voice's trained rate.
+      PIPER_LENGTH_SCALE: ${PIPER_LENGTH_SCALE:-1.0}
+      PIPER_VOICE_DIR: /models/piper
     volumes:
+      # For voices other than the one in the image. Shared with asr and pron so a
+      # rebuild never re-downloads anything (FR-28).
       - model_cache:/models
     ports:
       - "8102:8102"
@@ -212,6 +242,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      # 60s, not asr's 180s: the default voice is already in the image, so this window
+      # covers process start rather than a download.
       start_period: 60s
     networks:
       - speaklab

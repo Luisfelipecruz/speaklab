@@ -1,9 +1,11 @@
 # CI runs the same three checks a reviewer would run by hand, and nothing else.
 #
-# It deliberately does NOT build the model service images. asr, tts and pron pull
-# hundreds of megabytes to gigabytes of weights, and a pipeline that downloads
-# wav2vec2 on every push is a pipeline nobody waits for. Their own suites run against
-# cached fixtures when those milestones land.
+# It deliberately does NOT build the model service images. asr and pron pull hundreds of
+# megabytes to gigabytes of weights, and a pipeline that downloads wav2vec2 on every push
+# is a pipeline nobody waits for. tts is small enough that it could be built here — its
+# voice is 63 MB — but building one model image and not the others would make CI's
+# coverage of the model layer look better than it is. Both services' measurement suites
+# skip unless a real service answers, which is why the URLs below name hosts that cannot.
 
 name: CI
 
@@ -36,12 +38,15 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://speaklab:speaklab_dev@localhost:5432/speaklab
-      # Hosts that do not resolve, on purpose. The health tests assert that unreachable
-      # model services produce a degraded 200 rather than a 500, and the cheapest way to
-      # have an unreachable service is to name one.
-      ASR_URL: http://asr:8101
-      TTS_URL: http://tts:8102
-      PRON_URL: http://pron:8103
+      # Hosts that CANNOT resolve, on purpose — `.invalid` is reserved by RFC 2606 for
+      # exactly this. The health tests assert that unreachable model services produce a
+      # degraded 200 rather than a 500, and the measurement suites skip when nothing
+      # answers. Bare `asr`/`tts` would work here today, because a GitHub runner has no
+      # such DNS entry — and that is precisely the assumption that broke in
+      # docker-compose.yml when m4 put a real `asr` on the test network (trap 25).
+      ASR_URL: http://asr.invalid:8101
+      TTS_URL: http://tts.invalid:8102
+      PRON_URL: http://pron.invalid:8103
       HEALTH_PROBE_TIMEOUT_S: "0.5"
 
     steps:
@@ -103,14 +108,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # docker-compose.yml declares build contexts that do not exist yet (infra/asr,
-      # infra/tts, infra/pron, created by m4, m5 and m8). Profiles are what keeps them
-      # inert. This step is what catches the day somebody removes a profile and breaks
-      # `docker compose up` for everyone.
+      # docker-compose.yml still declares one build context that does not exist yet —
+      # infra/pron, which arrives with m8 — and its profile is what keeps it inert. This
+      # step is what catches the day somebody removes a profile and breaks
+      # `docker compose up` for everyone. As of m5 the default stack builds five
+      # services, so a typo in infra/tts fails here rather than on a developer's machine.
       - name: Validate the default stack
         run: docker compose config --quiet
 
       - name: Validate every profile
         run: >-
-          docker compose --profile speech --profile pron --profile llm
-          --profile tools config --quiet
+          docker compose --profile pron --profile llm --profile tools config --quiet
