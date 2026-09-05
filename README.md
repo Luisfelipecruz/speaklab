@@ -5,15 +5,18 @@
 
 Every model runs on your machine. Nothing is sent anywhere.
 
-**Status: milestone 9 of 12.** Both practice modes work end to end, and what you said is
-now analysed. Choose a scenario, hold a button, talk, and a persona answers out loud; or
-choose a passage, read it aloud, and get it back with every sound scored against the sound
-the text asked for — including which sound came out instead. End a conversation and the
-report tells you how fast you spoke, which grammatical forms you actually used against the
-ones the scenario was built to draw out, and what to correct. See
-[What does not exist yet](#what-does-not-exist-yet), which is still a real list: progress
-charts and the evaluation harness are m10–m11, and **error detection does not yet meet its
-own accuracy bar** — that is measured, published below, and named there.
+**Status: milestone 10 of 12.** Both practice modes work end to end, what you said is
+analysed, and it now adds up over time. Choose a scenario, hold a button, talk, and a
+persona answers out loud; or choose a passage, read it aloud, and get it back with every
+sound scored against the sound the text asked for — including which sound came out
+instead. End a conversation and the report tells you how fast you spoke, which grammatical
+forms you actually used against the ones the scenario was built to draw out, and what to
+correct. The progress page then collapses all of that into weekly figures, and mostly
+tells you what it is still waiting for. See
+[What does not exist yet](#what-does-not-exist-yet), which is still a real list: the
+evaluation harness is m11, **error detection does not yet meet its own accuracy bar**, and
+**neither does the progress page's own criterion** — both are measured, published below,
+and named there.
 
 ---
 
@@ -156,16 +159,19 @@ has not been measured yet and is not claimed.
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **458** — 426 pass with no model services running; the other 32 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **99** across 13 suites, Jest and React Testing Library, no services needed |
-| API image | **811 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
+| API test suite | **536** — 504 pass with no model services running; the other 32 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **130** across 18 suites, Jest and React Testing Library, no services needed |
+| API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
-| API operations implemented | 22 of the 30 forecast — m9 added no routes, because analysis surfaces inside the session report |
+| API operations implemented | 25 of the 30 forecast — m10 added three, and none of them takes a user id |
 | **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size** |
 | Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
 | Grammar forms detected in the stored corpus | **11 distinct**, over 31 counted instances in 7 turns |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
+| **Progress trends rendered from real sessions** | **2**, against a bar of 20 — **not met.** Two conversations and two readings, all on one calendar day. Three of the four families draw a single point and the fourth is gated off |
+| The whole stored corpus, rolled up | 7 turns · 272 words · 2 readings · 450 phone instances · **2.57 errors per 100 words** · 11 distinct forms · one week |
+| Reading the progress page | **7 ms** — it reads snapshots and computes nothing. A rollup with nothing to do is also 7 ms; a forced rebuild of both snapshots is 17 ms |
 | **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
 | **ASR latency, ~6 s of audio** | **1231 ms** against a 700 ms budget — **missed, deliberately** |
 | **TTS latency, ~80-token reply** | **320 ms** whole against a 400 ms budget — **78 ms** to the first sentence |
@@ -270,6 +276,39 @@ a stored turn scored 0.899 overall while containing "department" where the speak
 turn-level threshold could ever reach it. See
 [decision 0006 §4](docs/decisions/0006-error-taxonomy.md).
 
+### Progress, and what it refuses to say (m10)
+
+Everything analysed is collapsed into one row per week, and the progress page reads those
+rows and nothing else. Aggregating raw turns on page load would get slower every week you
+practised, which is backwards for a feature about practising over months.
+
+**Most of this page is refusals, and they are the part worth reading.** A week with too
+little speech in it is drawn as a **hole with a reason**, not left out — leaving it out
+would compress a thin fortnight into the space between two points, which reads as
+continuous practice. A per-sound trend stays closed until five readings are behind it,
+because the first few describe your microphone as much as your mouth. And a direction is
+claimed only where one end of the scale is defensibly better: **speech rate is drawn and
+never judged**, because faster is nerves as often as it is fluency.
+
+**Pronunciation is expressed as a distance from your own recent readings**, per sound, in
+standard deviations — never as a raw score compared across weeks, and never against another
+person. The sampling unit is the *reading*: forty instances of one sound inside a single
+recording are one observation of one microphone in one room, and treating them as forty
+independent samples would make every baseline look far tighter than it is.
+
+**Recommendations are a weighted score with no model in it.** Corrected categories, forms
+you have not reached for, sounds scoring worst, each decayed by how old the evidence is.
+Every entry prints the measurement that chose it — *"2 corrections in 272 words"* — because
+a suggestion you cannot check is indistinguishable from a guess. The response also states
+how much it rests on, and on the current corpus it says **thin evidence**.
+
+**The accuracy chart carries m9's measured labelling precision on the screen.** The rate is
+an exact count of stored rows; the categories those rows are grouped by came from a model
+that filed roughly half of them correctly. That belongs next to the chart somebody would
+act on, not in a document they will not open. [Decision
+0007](docs/decisions/0007-progress-metrics.md) has the gates, the weights and what S7 does
+and does not demonstrate.
+
 ### Pronunciation scoring (m0 spike, m8 in production)
 
 Pronunciation is the risky part of this product, so it was proved before anything was
@@ -309,7 +348,11 @@ Named explicitly so nothing here reads as a claim.
 | m9 | **A rule-based detector.** `language_errors.detector` allows `'rule'` and every row so far is `'llm'`. Subject–verb agreement and article omission are where the parse is reliable enough to propose errors on its own, and that is the way to raise precision without a bigger model |
 | m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
 | m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |
-| m10 | Progress charts and recommendations |
+| m10 | **The progress page has almost nothing to show, and the criterion it is judged by is not met.** S7 asks for 30-day trends across four families from ≥ 20 real sessions; the database holds **2** conversations and **2** readings, all on one calendar day. Three families draw a single point, the fourth is gated off, and no direction is claimed anywhere. That is the page behaving correctly, and it is also the whole of what has been demonstrated about it |
+| m10 | **A direction is two endpoints compared, not a fitted trend.** First measured point to last, over at least three points. No regression, no interval — on a noisy series it will call a direction a slope would not |
+| m10 | **No accuracy per grammatical form.** Errors are filed under a taxonomy category and forms are counted by a parser; nothing links an error to the form it happened in, so a per-form chart would be an invented join |
+| m10 | **The device annotation is computed and inert.** `audio_assets.device_hint` exists and nothing populates it, so a chart is never annotated when the microphone changes. The arithmetic is there for the day something fills the column |
+| m10 | **`progress_snapshots.cefr_estimate` is a column nothing writes.** A band assigned from seven turns would be a confident answer to a question this data cannot settle |
 | m11 | The evaluation harness |
 | m12 | Documentation and a demo |
 
@@ -327,7 +370,8 @@ api/            FastAPI. No model weights, no torch.
   alembic/      One revision per milestone that changes schema
   seeds/        The 8 scenarios and 12 passages, as JSON
 frontend/       Next.js 15, React 19, shadcn/ui
-  src/app/      Routes. (auth) is a group; scenarios/ and sessions/ are the application
+  src/app/      Routes. (auth) is a group; scenarios/, sessions/, read/ and progress/
+                are the application
   src/components/  The conversation UI, plus the shadcn primitives under ui/
   src/hooks/    useAuth (a provider), useRecorder (the microphone), useSession
   src/lib/      api.ts is the wire shapes and the browser client; server-api.ts forwards

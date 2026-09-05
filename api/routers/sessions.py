@@ -33,6 +33,7 @@ from services.analysis import Analyser, get_analyser, summarise
 from services.audio import delete_unreferenced_assets
 from services.conversation import build_messages, build_report, narrate_report
 from services.llm import LlmError, LlmProvider, LlmRejected, get_provider
+from services.rollup import rebuild_user
 from services.turns import persist_reply, reply_to
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -269,6 +270,7 @@ async def end_session(
                 await summarise(db, session.id, scenario),
             )
             await db.flush()
+            await _roll_up(db, user.id)
 
         return SessionDetail(
             **_summary(
@@ -299,6 +301,7 @@ async def end_session(
         session, scenario, turns, narrative, await summarise(db, session.id, scenario)
     )
     await db.flush()
+    await _roll_up(db, user.id)
 
     return SessionDetail(
         **_summary(
@@ -310,6 +313,30 @@ async def end_session(
         turns=[TurnOut.of(turn) for turn in turns],
         report=session.report,
     )
+
+
+async def _roll_up(db: AsyncSession, user_id: int) -> None:
+    """Fold this account's finished practice into its progress snapshots.
+
+    Here rather than on a schedule, because this is the moment the numbers stop changing:
+    every turn has been analysed and the report is written, so the arithmetic will not
+    have to be redone. It is a handful of queries over rows already in this transaction.
+
+    **A failed rollup must not cost a session its ending**, and the commit below is what
+    makes that true rather than merely intended. The report has been flushed, not
+    committed, so rolling back a broken snapshot would take the report with it — the
+    session would end without one, which is the worse of the two failures by a long way.
+    Committing first makes the report durable and leaves the snapshot as the only thing a
+    rollback can cost. A chart that is a day behind is repaired by the next session end,
+    or by the refresh the progress page offers when it reports itself stale.
+    """
+    await db.commit()
+
+    try:
+        await rebuild_user(db, user_id)
+    except Exception:  # noqa: BLE001 — see above; a chart is not worth the session
+        log.exception("rolling up progress for user %s failed", user_id)
+        await db.rollback()
 
 
 def _is_incomplete(report: dict | None) -> bool:

@@ -82,6 +82,16 @@ were *used* is what makes a narrowing repertoire visible as the regression it is
 recorded, and it is labelled as such. That is what lets m11 report LLM precision against
 the rule layer instead of asserting it.
 
+`progress_snapshots` is the only table nothing writes per turn: one row per user per
+period, at day and week granularity, rewritten from the rows underneath whenever they
+change. `updated_at` (revision `0004`) is what makes "is this row still current?" a
+question with an answer — the turns and attempts underneath carry their own timestamps, so
+a snapshot older than its inputs is stale by arithmetic rather than by guess. Weekly rows
+are computed from turns and never from seven daily rows, because averaging averages weights
+a quiet Tuesday the same as a long Sunday. `cefr_estimate` is the one column in this schema
+that nothing writes at all: a band assigned from a handful of turns would be a confident
+answer to a question the data cannot settle.
+
 `phoneme_scores` carries both `canonical_phone` and `recognized_phone`, and the pair is
 the point:
 
@@ -135,9 +145,10 @@ Two different reasons, worth keeping apart:
   query is `@>`, one indexable predicate, and GIN indexes it when the seed set outgrows a
   sequential scan over a dozen rows.
 - **Documents read whole for one screen** — `rubric`, `words`, `report`, and the progress
-  families. Nothing queries inside them across rows. The set of fluency measures will
-  change as m9 and m10 land, and a schema migration per metric added is a tax on exactly
-  the experimentation this project exists for.
+  families. Nothing queries inside them across rows. The set of fluency measures is still
+  moving, and a schema migration per metric added is a tax on exactly the experimentation
+  this project exists for — the progress rollup added three keys to `sample_counts` without
+  touching the schema.
 
 The counter-example is the rule: `language_errors` and `phoneme_scores` are tables, not
 JSON columns, precisely because they *are* aggregated across rows — by category, by phone,

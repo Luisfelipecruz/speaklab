@@ -20,7 +20,7 @@ import os
 # drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
 # which is the small version of the rule this project runs on: a number is reported by
 # the thing it describes, never written down beside it.
-VERSION = "0.9.0"
+VERSION = "0.10.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -343,3 +343,43 @@ ANALYSIS_BATCH_SIZE = int(os.environ.get("ANALYSIS_BATCH_SIZE", "20"))
 # session" into a request that hangs for minutes. A report written short says how many
 # turns it is missing, and ending the session again picks up where it left off.
 ANALYSIS_SESSION_BUDGET_S = float(os.environ.get("ANALYSIS_SESSION_BUDGET_S", "60"))
+
+
+# ── Progress (rollups, trends, recommendations) ─────────────────────────────
+
+# How far back the progress page looks. Thirty days is what "am I getting better"
+# usually means to somebody practising a few times a week — long enough to hold several
+# sessions, short enough that a month of neglect is visible as a gap rather than
+# averaged into the line.
+PROGRESS_TREND_DAYS = int(os.environ.get("PROGRESS_TREND_DAYS", "30"))
+
+# Words a speaker has to produce in one period before that period gets a point on a
+# fluency or accuracy chart. Both are rates per unit of speech, and a rate over eleven
+# words is arithmetic rather than measurement: one filler in a short answer is 9 per 100
+# words, which would draw a spike the speaker cannot see in themselves and cannot act on.
+PROGRESS_MIN_WORDS = int(os.environ.get("PROGRESS_MIN_WORDS", "50"))
+
+# Scored readings before any per-phone trend is shown at all. Pronunciation scores move
+# with the microphone, the room and the distance from it, so the first few readings
+# describe the setup as much as the speaker.
+PROGRESS_MIN_ATTEMPTS = int(os.environ.get("PROGRESS_MIN_ATTEMPTS", "5"))
+
+# And instances of one phone within a period before that phone gets a point. A passage
+# engineered around one sound yields it thirty times; a phone that turned up twice is a
+# sample of two, whatever the surrounding reading was worth.
+PROGRESS_MIN_PHONE_SAMPLES = int(os.environ.get("PROGRESS_MIN_PHONE_SAMPLES", "5"))
+
+# Points on a series before a *direction* is claimed. The points themselves are drawn as
+# soon as they exist — hiding a measurement is its own dishonesty — but "improving" over
+# two of them is a line through noise, and it is the sentence a learner would act on.
+PROGRESS_MIN_POINTS = int(os.environ.get("PROGRESS_MIN_POINTS", "3"))
+
+# How far back the pronunciation baseline reaches. Every phone score is expressed as a
+# distance from this speaker's own recent history rather than as a raw value, because a
+# raw value compares them against a microphone. Ninety days is long enough to survive a
+# fortnight away and short enough that a year-old recording does not anchor today's.
+PROGRESS_BASELINE_DAYS = int(os.environ.get("PROGRESS_BASELINE_DAYS", "90"))
+
+# How many things to suggest practising next. Three: a list long enough to offer a
+# choice and short enough that every entry has a measured reason worth reading.
+RECOMMEND_LIMIT = int(os.environ.get("RECOMMEND_LIMIT", "3"))

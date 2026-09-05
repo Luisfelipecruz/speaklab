@@ -7,6 +7,81 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.0] — 2026-09-05 · m10, progress, trends and recommendations
+
+You can now see whether you are getting better — and, far more often at this stage, be
+told exactly what would have to happen before the system is willing to say. Every turn
+that has been analysed and every reading that has been scored is collapsed into one row per
+week, and the progress page reads those rows and nothing else.
+
+**Most of this milestone is refusals.** A period with too little speech in it is drawn as a
+hole with a reason attached, not omitted — an omitted point reads as a week somebody did
+not practise. A per-sound trend stays closed until five readings are behind it, because the
+first few describe the microphone as much as the mouth. And a direction is only ever
+claimed for a metric with a defensibly better end: speech rate is drawn and never judged,
+because faster is nerves as often as it is fluency.
+
+**Criterion S7 is not met, and it is not close.** It asks for 30-day trends across four
+families from twenty real sessions. The database holds two conversation sessions and two
+scored readings, all on one calendar day. Three families draw a single point, the fourth is
+gated off, and no direction is claimed anywhere. `docs/decisions/0007` has what that does
+and does not demonstrate.
+
+### Added
+
+- **`services/rollup.py`** — analysed turns and scored readings collapsed into
+  `progress_snapshots`, at day and week granularity, computed from turns rather than from
+  each other. Idempotent: a period whose newest turn is older than its snapshot is skipped,
+  which is what makes rolling up on every session end cheap. It replaces rather than
+  merges, so a deleted session takes its contribution back off the chart.
+- **`services/progress.py`** — the snapshots as gated series. Four families, eleven
+  metrics, and a `Gate` on every one of them carrying what it has and what it needs.
+- **`services/recommend.py`** — what to practise next, as a transparent weighted score over
+  corrected categories, unused forms and weak sounds, decayed by how old the evidence is.
+  Every entry states the measurement that chose it; the response states how much it rests
+  on. No language model is involved in the choice.
+- **`GET /progress`**, **`GET /progress/recommendations`** and **`POST /progress/refresh`**
+  — 25 of the 30 forecast operations. None takes a user id.
+- **The progress page**, with `TrendChart`, `MetricPanel`, `PhonemeTrend`,
+  `RepertoireChart` and `NextUpCard`. The charts are hand-drawn SVG: what this page needs
+  is a polyline through a few dozen points, and every charting library draws a *continuous*
+  line through whatever it is given, which is exactly the thing the gaps exist to prevent.
+- **`scripts/rollup.py`** and `make rollup` / `rollup-dry` / `rollup-force` — for readings
+  scored after the request that started them, and for turns filled in by a backfill.
+- **Migration `0004`** — one column, `progress_snapshots.updated_at`. No tables: the table
+  was created complete by `0001`. A materialised aggregate with no record of when it was
+  materialised cannot be asked whether it is current.
+
+### Changed
+
+- **Ending a session now rolls that account up**, after committing the report. The ordering
+  is deliberate: the report is flushed but not committed at that point, so a rollback of a
+  broken rollup would take the report with it, and a session would end without one.
+- **`services/analysis.py` exposes `weighted_fluency` and `is_counted`**, which the rollup
+  uses rather than reimplementing. A month of practice is now averaged the same way one
+  session is, and the rule that decides whether a correction reaches a rate exists once.
+- **Pronunciation numbers are expressed against the speaker's own recent readings**, per
+  sound, with the *reading* as the sampling unit — forty instances of a sound inside one
+  recording are one observation of a microphone, not forty independent samples.
+- **The accuracy family carries m9's measured labelling precision on screen.** The rate is
+  an exact count of stored rows; the categories under it came from a model that filed
+  roughly half of them correctly, and that belongs next to the chart rather than in a
+  document nobody opens.
+
+### Measured
+
+- **504 of 536 API tests pass** with no model services running; **130 frontend tests across
+  18 suites**.
+- **Rolled up over the whole stored corpus:** 7 analysed turns, 272 words, 2 scored
+  readings, 450 phone instances, one week. The figures cross-check against m9's — 272 words
+  and 11 distinct forms match exactly, and 2.57 errors per 100 words is the 7 counted
+  errors of 12 that the per-word confidence gate left standing.
+- **Reading the page: 7 ms. A rollup with nothing to do: 7 ms.** Small numbers on a small
+  corpus, recorded for their shape rather than their size — the page read grows with the
+  window, the rollup grows with the practice, and only one of those is on the request path.
+
+---
+
 ## [0.9.0] — 2026-09-05 · m9, grammar analysis and the closed error taxonomy
 
 What you said now gets analysed. Every user turn is parsed for the grammatical forms it

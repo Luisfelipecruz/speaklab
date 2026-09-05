@@ -1058,7 +1058,7 @@ the job), `frontend/src/components/{PhonemeHeatmap,PhonemeTable,PassageReader}.t
 
 ---
 
-### m9 — Error taxonomy and grammar analysis · **BUILT (2026-09-05)**
+### m9 — Error taxonomy and grammar analysis · **MERGED (PR #11, 2026-09-05)**
 
 **Goal.** Every user turn yields deterministic grammar usage and validated error records.
 
@@ -1096,7 +1096,6 @@ the job), `frontend/src/components/{PhonemeHeatmap,PhonemeTable,PassageReader}.t
 ```
 api/services/{grammar.py,errors.py,fluency.py}
 api/services/taxonomy.py               the closed taxonomy as code
-api/models/analysis.py
 api/db_models/metrics.py               (extended)
 api/alembic/versions/0003_analysis.py  columns only; the tables exist from 0001
 api/scripts/analyze_backfill.py
@@ -1109,6 +1108,11 @@ docs/decisions/0006-error-taxonomy.md
 **Also built, and not in the list above:** `api/services/analysis.py` (the background job
 and the session summary), a `temperature` argument on the LLM provider, and the session
 report's new sections in `frontend/src/components/SessionReport.tsx`.
+
+**`api/models/analysis.py` was never written**, and the line above has been removed rather
+than left as a deliverable nobody produced. The report is typed `dict | None` on
+`SessionDetail` and its shape lives in `services/analysis.py`; giving it wire models would
+have meant typing a document that is stored as produced and read whole by one screen.
 
 **Decisions.**
 - **Two detectors, deliberately.** spaCy morphology gives tense/aspect/modality/clause counts — deterministic, fast, and the source of every *trend* (PRD P1). Gemma proposes *errors*, which is a judgement call no rule set makes well.
@@ -1130,39 +1134,75 @@ detection precision on the golden set is ≥ 0.70 (criterion S5) and reported in
 
 ---
 
-### m10 — Progress, trends and recommendations
+### m10 — Progress, trends and recommendations · **BUILT (2026-09-05)**
 
 **Goal.** The user sees whether they are improving, and what to practise next.
 
 **Why here.** Needs everything above it to have produced data.
 
+> **Built, and here is what it cost.** 504 of 536 API tests pass with no services running,
+> and 130 frontend tests across 18 suites; lint, `tsc`, `eslint` and `next build` all
+> clean. The writeup is `docs/decisions/0007-progress-metrics.md`. What a reader needs
+> before touching it:
+>
+> 1. **Criterion S7 is not met and cannot be on this corpus.** It asks for 30-day trends
+>    across four families from ≥ 20 real sessions. The database holds **2** conversation
+>    sessions and **2** scored readings, all on one calendar day, for one account. Three
+>    families draw a single point, the fourth is gated off at 2 readings against a floor of
+>    5, and no direction is claimed anywhere on the page. That is the gate working.
+> 2. **The gate is the milestone.** Most of the code is about what *not* to say: a thin
+>    period is a hole with a reason rather than an omitted point; a suppressed series names
+>    what it is waiting for; a direction is claimed only for a metric with a defensibly
+>    better end and at least three points. Speech rate is drawn and never judged.
+> 3. **Q5 is answered and it generalised.** The question was how many readings a phoneme
+>    trend needs; the answer is five, and the useful outcome is that every family needed a
+>    floor and they are not the same floor. Four gates, all in `config.py`, all reasoned
+>    rather than measured — which is stated.
+> 4. **The migration adds one column.** `progress_snapshots` was created complete by
+>    `0001`; `updated_at` is what makes staleness answerable. Same shape as m9's `0003`.
+> 5. **`api/db_models/progress.py` was not created.** `ProgressSnapshot` has lived in
+>    `db_models/metrics.py` since m2, with the other three measurement tables, and moving
+>    it would have been a rename for the sake of a filename in this list.
+> 6. **The charts are hand-drawn SVG and no dependency was added.** Every charting library
+>    draws a continuous line through whatever it is given, and the holes are the point.
+> 7. **The obvious next lever is still Q15's rule layer.** The accuracy family carries m9's
+>    0.500 labelling precision as an on-screen caveat, which is the honest rendering and
+>    not a fix.
+
 **Deliverables.**
 ```
 api/services/{progress.py,rollup.py,recommend.py}
 api/routers/progress.py
+api/models/progress.py                 the wire shapes: series, gates, reasons
 api/scripts/rollup.py                  scheduled aggregation
-api/db_models/progress.py              (extended)
-api/alembic/versions/0004_progress.py
-frontend/src/app/progress/page.tsx
+api/alembic/versions/0004_progress.py  one column; the table exists from 0001
+frontend/src/app/progress/{page.tsx,layout.tsx,RefreshProgress.tsx}
 frontend/src/components/{TrendChart,MetricPanel,PhonemeTrend,
                          RepertoireChart,NextUpCard}.tsx
 api/tests/{test_progress.py,test_rollup.py,test_recommend.py,test_zscore.py}
 docs/decisions/0007-progress-metrics.md
 ```
 
+**Also built, and not in the list above:** five component test files, the progress entry in
+`AppShell`, `make rollup`/`rollup-dry`/`rollup-force`, the `PROGRESS_*` block in
+`.env.example`, and two promotions in `services/analysis.py` — `weighted_fluency` and
+`is_counted` — so a month of practice is averaged the same way one session is.
+
 **Decisions.**
 - Rollups are **materialised**, not computed per request. The progress page reads snapshot rows; scanning every turn on page load stops working around session 200.
 - Phoneme trends are z-scored within the user against their own rolling baseline (PRD P4), and **gated on a minimum sample count** (Q5 — 5 as the working default, revisited with real data). Below the gate the UI says "not enough data yet" rather than drawing a confident line through noise.
 - The repertoire chart implements P3 directly: forms used, alongside accuracy per form. A shrinking repertoire with a falling error rate is rendered as a **warning**, not a win.
 - Recommendations are a **transparent weighted score** over weakest categories, least-used forms, worst phones, and recency. Every recommendation states its measured reason (FR-24). No ML, because a model here would be unexplainable and unnecessary.
-- A device change annotates the pronunciation chart (PRD R5) rather than being silently absorbed.
+- A device change annotates the pronunciation chart (PRD R5) rather than being silently absorbed. **Built and inert:** `sample_counts.devices` records the distinct hints a period's readings used, and nothing populates `audio_assets.device_hint`, so the list is always empty and no chart is ever annotated. It is computed now so that the day something fills the column, the history does not have to be rebuilt.
 
 **Tests.** Rollup arithmetic against a fixture of known turns; z-score correctness;
 the sample gate suppressing thin series; recommendation determinism; a repertoire
 regression producing the warning.
 
 **Done when.** 30-day trends render for all four families from ≥ 20 real sessions
-(criterion S7), and every recommendation carries a reason traceable to a stored metric.
+(criterion S7) — **reported, and not met: 2 sessions and 2 readings, on one day.** Every
+recommendation carries a reason traceable to a stored metric — **done**, and asserted by a
+test that every reason contains a number.
 
 **Branch** `feature/m10-progress` · **PR** `feat: add progress trends, rollups and explainable recommendations`
 
@@ -1304,24 +1344,31 @@ below.
 
 ### The next three actions
 
-1. **Commit m9 and open its PR.** `GIT-COMMANDS.md` §A.9 is the sheet. The uncommitted
+1. **Commit m10 and open its PR.** `GIT-COMMANDS.md` §A.10 is the sheet. The uncommitted
    tree is the whole milestone; nothing is half-landed.
-2. **Read `docs/decisions/0006` §6 before starting m10.** m10 plots what m9 produces, and
-   what m9 produces is 0.500-precision error labelling. A trend chart built on that
-   without the caveat on the screen would be the exact failure this project exists to
-   avoid — the requirement that nothing on a chart comes from a model is met by *counting*
-   the errors, not by the errors being right.
-3. **Start m10 — progress, trends and recommendations.** Its decision doc is `0007` and
-   its migration is `0004`; both were renumbered above because m9 took `0006` and `0003`.
+2. **Read `docs/decisions/0007` §7 before starting m11.** m11 turns claims into numbers a
+   command produces, and three success criteria are now measured and unmet — S4 (needs
+   recordings), S5 (0.500 against 0.70) and S7 (2 sessions against 20). All three fail for
+   the same reason: the system needs *use*, not code. An evaluation harness that reports
+   them as failures with their sample sizes attached is the right outcome; one that quietly
+   drops them is not.
+3. **Start m11 — the evaluation harness.** Four suites, and three of them already exist as
+   ad-hoc measurement scripts: `make asr-wer`, `make pron-golden` and `make error-precision`.
+   The work is a common runner, `docs/evaluation.md` with dated numbers, and persona
+   adherence, which is the only one with nothing behind it yet.
 
-Three things still need a person, and none blocks m10:
+Three things still need a person, and none blocks m11 — but two of them are now what
+stands between this project and three of its own success criteria:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
   `eval/golden/pron/README.md`. Until they exist, the broken-vs-clean test skips and no
-  GOP threshold can be calibrated, so `PRON_GOP_THRESHOLDS` stays empty.
-- **More recorded conversation.** It is the only thing that can settle S5. Seven user
-  turns is the whole corpus, and the measurement suite re-runs against whatever is there:
-  `make analyze` then `python3 eval/golden/errors/build.py` then `make error-precision`.
+  GOP threshold can be calibrated, so `PRON_GOP_THRESHOLDS` stays empty. **S4.**
+- **More recorded conversation, on more than one day.** It is the only thing that can
+  settle S5 *or* S7. Seven user turns in two sessions on a single calendar day is the whole
+  corpus; the progress page cannot draw a trend through one point however well it is
+  written, and the error measurement re-runs against whatever is there: `make analyze`,
+  then `python3 eval/golden/errors/build.py`, then `make error-precision`, then
+  `make rollup`.
 - **A product decision on read-aloud with audio retention off.** Today the endpoint
   refuses with a 409 naming the setting, because a reading that cannot be rescored would
   break the promise its schema makes. The alternative worth weighing is a third retention

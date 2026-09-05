@@ -9,12 +9,17 @@
 
 import type {
   AttemptDetail,
+  MetricFamily,
   PassageDetail,
   PhonemeScore,
+  Progress,
+  Recommendations,
+  Repertoire,
   ScenarioSummary,
   SessionAnalysis,
   SessionDetail,
   SessionReportShape,
+  TrendSeries,
   Turn,
 } from "@/lib/api";
 
@@ -209,6 +214,126 @@ export function makeAttempt(overrides: Partial<AttemptDetail> = {}): AttemptDeta
     summary: null,
     pronunciation: "ok",
     pronunciation_detail: null,
+    ...overrides,
+  };
+}
+
+// ── Progress ────────────────────────────────────────────────────────────────
+
+/**
+ * A series with three measured weeks in it.
+ *
+ * The default is a *drawable* series, because most tests are about what happens around
+ * one — a suppressed gate, a hole, a direction — and each of those is one override rather
+ * than a whole object rebuilt by hand.
+ */
+export function makeSeries(overrides: Partial<TrendSeries> = {}): TrendSeries {
+  return {
+    metric: "errors_per_100_words",
+    label: "errors",
+    unit: "per 100 words",
+    better: "lower",
+    points: [
+      { start: "2026-08-17", value: 8, samples: 210, withheld: null },
+      { start: "2026-08-24", value: 6, samples: 240, withheld: null },
+      { start: "2026-08-31", value: 3, samples: 300, withheld: null },
+    ],
+    gate: { shown: true, reason: null, have: 3, need: 1 },
+    change: -5,
+    direction: "improving",
+    ...overrides,
+  };
+}
+
+export function makeFamily(overrides: Partial<MetricFamily> = {}): MetricFamily {
+  return {
+    name: "accuracy",
+    label: "What you get wrong",
+    description: "Counted from stored corrections, per hundred words.",
+    series: [makeSeries()],
+    caveat: null,
+    ...overrides,
+  };
+}
+
+export function makeRepertoire(overrides: Partial<Repertoire> = {}): Repertoire {
+  return {
+    latest_period: "2026-08-31",
+    forms: { present_simple: 9, past_simple: 4, going_to_future: 1 },
+    distinct_forms: 3,
+    previous_distinct_forms: 3,
+    warning: null,
+    ...overrides,
+  };
+}
+
+export function makeProgress(overrides: Partial<Progress> = {}): Progress {
+  return {
+    period: "week",
+    since: "2026-08-03",
+    until: "2026-09-05",
+    totals: {
+      sessions: 2,
+      turns: 7,
+      words: 272,
+      attempts: 2,
+      phones: 450,
+      periods: 1,
+    },
+    families: [makeFamily()],
+    phones: [],
+    phone_gate: {
+      shown: false,
+      reason:
+        "2 scored readings so far. Per-sound trends start at 5, because the first few readings describe your microphone as much as your mouth.",
+      have: 2,
+      need: 5,
+    },
+    repertoire: makeRepertoire(),
+    stale: false,
+    ...overrides,
+  };
+}
+
+export function makeRecommendations(
+  overrides: Partial<Recommendations> = {},
+): Recommendations {
+  return {
+    items: [
+      {
+        kind: "error_category",
+        title: "verb tense",
+        reason: "6 corrections in 272 words — 2.2 per 100 words, your most frequent category.",
+        measured: 2.2,
+        samples: 6,
+        score: 0.98,
+        scenario_slug: null,
+        passage_slug: null,
+      },
+      {
+        kind: "weak_phone",
+        title: "the /TH/ sound",
+        reason: "30 instances scored, -1.8 standard deviations from your own recent readings of it.",
+        measured: -1.8,
+        samples: 30,
+        score: 0.81,
+        scenario_slug: null,
+        passage_slug: "third-street-theatre",
+      },
+      {
+        kind: "unused_form",
+        title: "conditional 2",
+        reason: "Not once in 272 words of practice.",
+        measured: 0,
+        samples: 272,
+        score: 0.72,
+        scenario_slug: "job-interview-backend",
+        passage_slug: null,
+      },
+    ],
+    confidence: "low",
+    detail:
+      "Based on 272 words and 2 scored readings. That is enough to notice a pattern and not enough to be sure of one — practise a few more times and these will change.",
     ...overrides,
   };
 }
