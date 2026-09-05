@@ -69,7 +69,7 @@ async def test_a_transcript_comes_back_as_typed_words():
 
     assert result.text == "hello there"
     assert [word.w for word in result.words] == ["hello", "there"]
-    # Not a dict. The parse is the point: m6 dumps these straight into `turns.words`,
+    # Not a dict. The parse is the point: these go straight into `turns.words`,
     # and a field the service renamed should fail here rather than there.
     assert result.words[0].start_ms == 0
     assert result.source.duration_ms == 700

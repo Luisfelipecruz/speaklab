@@ -80,7 +80,7 @@ def final(**extra) -> dict:
 
 async def test_a_completion_carries_the_counts_the_server_reported():
     """Not the estimate. The stored `turns.prompt_tokens` has to be a measurement, or
-    the FR-8 budget is a claim nothing ever checks."""
+    the token budget is a claim nothing ever checks."""
     completion = await provider_with(
         lambda request: chat_response("Hi there.")
     ).complete(MESSAGES)

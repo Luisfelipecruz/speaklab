@@ -1,4 +1,4 @@
-"""Scenario browsing, FR-5.
+"""Scenario browsing.
 
 The properties worth asserting are not "the endpoint returns rows". They are:
 
@@ -6,7 +6,7 @@ The properties worth asserting are not "the endpoint returns rows". They are:
   answered with an empty list;
 * `persona_prompt` never leaves the server;
 * every seeded scenario declares the forms it is designed to elicit, because a scenario
-  that declares none can never fail m11's check that it elicited them.
+  that declares none can never fail the check that it elicited them.
 """
 
 import pytest
@@ -163,8 +163,8 @@ async def test_the_persona_prompt_is_absent_from_every_scenario_response(
 
 
 async def test_every_scenario_declares_the_forms_it_should_elicit(seeded):
-    """PRD §6.1. A scenario with an empty `target_grammar` is exempt from the only
-    check that says whether it works, which makes it permanently unfalsifiable."""
+    """A scenario with an empty `target_grammar` is exempt from the only check that says
+    whether it works, which makes it permanently unfalsifiable."""
     scenarios = (await seeded.scalars(select(Scenario))).all()
 
     for scenario in scenarios:
@@ -173,9 +173,9 @@ async def test_every_scenario_declares_the_forms_it_should_elicit(seeded):
 
 
 async def test_every_persona_prompt_forbids_correcting_the_user(seeded):
-    """P1 in miniature.
+    """Correction is the analysers' job, not the persona's.
 
-    A persona that corrects grammar mid-conversation is doing m9's job, badly and
+    A persona that corrects grammar mid-conversation does it badly and
     non-deterministically — and it stops the user speaking. The instruction is in every
     prompt, so it is worth a test rather than a convention.
     """

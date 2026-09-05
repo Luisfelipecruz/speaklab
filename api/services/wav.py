@@ -6,8 +6,8 @@ audio file, and that remains true of everything a *user* uploads: the API never 
 a recording, never guesses its format, and takes `duration_ms` and `sample_rate` from
 the service that actually decoded it.
 
-This module is the other direction. PRD §9.1's first fallback is to stream the reply out
-of the LLM and synthesise it sentence by sentence while the rest is still being written,
+This module is the other direction. The reply is streamed out of the LLM and synthesised
+sentence by sentence while the rest is still being written,
 which is what makes a long reply fit the turn budget at all — and it produces N little
 WAVs where the turn needs one, because `turns.audio_asset_id` is a single reference and
 because a browser playing a queue of `<audio>` elements puts an audible gap at every

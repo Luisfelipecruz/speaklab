@@ -5,7 +5,7 @@ that moves the number, and it has to be readable.** A WER of 3% and a WER of 11%
 same transcripts is entirely a question of whether "didn't" matches "did not" and
 whether "20" matches "twenty". Importing that decision from a library makes it invisible
 in review, and every published WER in this project is a claim somebody should be able to
-check (invariant I9).
+check.
 
 What `normalise` does, and each of these is a decision that could have gone the other
 way:

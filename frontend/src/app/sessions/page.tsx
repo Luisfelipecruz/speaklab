@@ -1,12 +1,9 @@
 /**
  * Everything you have practised, newest first.
  *
- * **Not in the plan's deliverable list for m7, and added anyway.** `GET /sessions` and
- * `DELETE /sessions/{id}` shipped in m6 with nothing that calls them, and without this
- * page a conversation is unreachable the moment the tab is closed — which makes FR-10
- * ("a session survives a page reload") true of the API and false of the product. It is
- * one server-rendered list and one client button; the deviation is recorded in the
- * milestone notes rather than quietly absorbed.
+ * Without this page a conversation is unreachable the moment the tab is closed, which
+ * would make "a session survives a page reload" true of the API and false of the product.
+ * It is one server-rendered list and one client button.
  *
  * Paginated because the endpoint is. Eight scenarios are eight scenarios forever, but
  * history is the one list here that grows without bound, and a page that reads a year of

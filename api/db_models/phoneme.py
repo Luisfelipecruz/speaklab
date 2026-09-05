@@ -8,9 +8,8 @@ gives the second.
     GOP(p) = log P(p | O_segment) − max over q of log P(q | O_segment)
 
 so GOP is ≤ 0 by construction, near zero when the target sound won cleanly, and large
-and negative when something else did. The m0 spike measured a drop of 8.14 nats between
-a produced and an unproduced phone, Cohen's d = 8.26 — the separation this table is
-built to record.
+and negative when something else did. A produced and an unproduced phone separate by
+about 8.1 nats, Cohen's d = 8.26 — the separation this table is built to record.
 
 Two indexes, because there are two questions: everything about one attempt (the result
 screen), and one phone's history for this user (the trend under it).
@@ -38,9 +37,9 @@ class PhonemeScore(Base):
 
     canonical_phone: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Nullable: the aligner can report a segment with no clear winner, and inventing a
-    # substitution that the acoustic model did not actually assert would be exactly the
-    # kind of claim invariant I2 exists to forbid.
+    # Nullable: the aligner can report a segment with no clear winner. Inventing a
+    # substitution the acoustic model did not actually assert would be a pronunciation
+    # claim nothing heard, which this system never makes.
     recognized_phone: Mapped[str | None] = mapped_column(Text)
 
     start_ms: Mapped[int | None] = mapped_column(Integer)

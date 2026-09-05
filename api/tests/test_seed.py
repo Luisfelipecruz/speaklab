@@ -55,7 +55,7 @@ async def test_the_first_run_loads_eight_scenarios_and_twelve_passages(empty_ses
 
 
 async def test_the_second_run_inserts_nothing(seeded):
-    """m2's Done-when, asserted."""
+    """Seeding is idempotent: a second run inserts nothing."""
     report = await seed(seeded)
     await seeded.commit()
 

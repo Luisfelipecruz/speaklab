@@ -156,8 +156,8 @@ test("the passage is sent with the reading, not guessed at by the server", async
 });
 
 test("with the scorer off the reading is kept and the fix is offered", async () => {
-  // PRD R6, and the default state of a fresh clone. This must not read as a failure:
-  // nothing was lost, and the reading can be scored later without being read again.
+  // The default state of a fresh clone. This must not read as a failure: nothing was
+  // lost, and the reading can be scored later without being read again.
   api.postAttempt.mockResolvedValue(makeAttempt({ status: "pending" }));
   api.getAttempt.mockResolvedValue(
     makeAttempt({

@@ -4,7 +4,7 @@ The client is an in-process ASGI transport, not a network call to a running cont
 That is what makes `make test` a test of *this* code rather than of whatever happens to
 be listening on port 8002.
 
-From m2 the suite also needs a schema, and it builds it **with Alembic** — not with
+The suite needs a schema, and it builds it **with Alembic** — not with
 `Base.metadata.create_all`. Those are two different things: `create_all` builds what the
 ORM currently says, and the migration builds what will actually be applied to the
 database people run. A suite that tests the first is green while the second is broken,
@@ -164,8 +164,8 @@ async def client(db_engine) -> AsyncGenerator[AsyncClient, None]:
     The override **commits**, exactly as the real `get_db` does. That is not decoration.
     Written the obvious way — `async with factory() as session: yield session` — the
     override quietly removes the transaction boundary, and every write made through the
-    client is rolled back when the session closes. Until m3 the suite only read, so it
-    was green and meaningless in the same breath; the first symptom would have been
+    client is rolled back when the session closes. A read-only suite stays green and
+    meaningless in the same breath; the first symptom would have been
     `POST /auth/register` returning 201 and the next request 401ing on a user that never
     existed. `test_auth.py::test_registration_survives_the_request_that_created_it`
     exists to fail if this drifts back.
@@ -269,9 +269,9 @@ def audio_root(tmp_path, monkeypatch):
     container and a path that does not exist on a developer's laptop. Patched on the
     module rather than on `config`, because `services.audio` binds the name at import.
 
-    Lived in `test_audio.py` until m6, when the conversation tests needed the same thing:
-    every stored turn writes a file, and a suite that leaves WAVs in a volume is a suite
-    whose second run tests different state from its first.
+    Shared rather than local to one module: every stored turn writes a file, and a suite
+    that leaves WAVs in a volume is a suite whose second run tests different state from
+    its first.
     """
     from services import audio as audio_service
 
@@ -317,9 +317,9 @@ class StubProvider:
     """A scripted LLM. Records every message list it was given.
 
     `calls` is the important attribute and the reason this is a class rather than a
-    lambda: most of what m6 has to get right is *what was in the prompt* — the persona on
-    every turn, the digest once it exists, the history under budget — and those are
-    assertions about the request, not about the reply.
+    lambda: most of what the conversation loop has to get right is *what was in the
+    prompt* — the persona on every turn, the digest once it exists, the history under
+    budget — and those are assertions about the request, not about the reply.
 
     `stream` yields word-sized deltas rather than the whole reply in one, because the
     sentence accumulator downstream is built to reassemble sentences from fragments that
@@ -435,9 +435,9 @@ def recogniser(monkeypatch):
 
     `heard` is a list the test appends transcripts to; each call pops the next one, and
     a test that queues nothing gets a default. Word timings are generated rather than
-    fixed so that `turns.words` is a plausible array of the right length — m9 computes
-    fluency from exactly this shape, and a stub that stored an empty list would leave
-    that column untested until the milestone that reads it.
+    fixed so that `turns.words` is a plausible array of the right length — fluency is
+    computed from exactly this shape, and a stub that stored an empty list would leave
+    that column untested until something reads it.
     """
     from models.audio import DecoderSettings, SourceMedia, Transcription, Word
     from routers import turns as turns_router
@@ -474,7 +474,7 @@ def recogniser(monkeypatch):
     return heard
 
 
-# ── Read-aloud (m8) ─────────────────────────────────────────────────────────
+# ── Read-aloud ──────────────────────────────────────────────────────────────
 
 
 @pytest.fixture

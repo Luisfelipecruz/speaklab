@@ -1,5 +1,5 @@
 /**
- * The confusion pairs — the output PRD §7.4 is written around.
+ * The confusion pairs — the output read-aloud exists to produce.
  *
  * The filtering is the whole substance of this component. *Every* scored phone carries a
  * `recognized_phone`, including the ones produced perfectly, so a table that listed them

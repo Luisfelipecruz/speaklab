@@ -4,8 +4,8 @@
 fields as `turns.words` stores and the same four the asr service emits. Three copies of
 one shape is two chances to drift, so this module is the one the other two are checked
 against: `services/asr_client.py` parses the service's response into these models, and
-m6 will dump them straight into the JSONB column. A field renamed here fails validation
-immediately rather than producing a fluency metric of zero six months later.
+the turn writer stores them straight into the JSONB column. A field renamed here fails
+validation immediately rather than producing a fluency metric of zero six months later.
 """
 
 from datetime import datetime
@@ -28,9 +28,9 @@ class Word(BaseModel):
     end_ms: int = Field(ge=0)
 
     # A log-probability, so it is <= 0 and more negative means less sure. Stored rather
-    # than a 0-1 probability because the confidence gate in PRD §7.5 thresholds in log
-    # space, where the difference between 0.9 and 0.99 is the same size as the
-    # difference between 0.09 and 0.9.
+    # than a 0-1 probability because the confidence gate thresholds in log space, where
+    # the difference between 0.9 and 0.99 is the same size as the difference between
+    # 0.09 and 0.9.
     logprob: float = Field(le=0)
 
 
@@ -82,7 +82,7 @@ class Transcription(BaseModel):
 
     # How many word timings the service had to correct to satisfy its own contract
     # (0 <= start <= end <= duration). Non-zero is not an error; it is a fact about the
-    # model worth watching, in the same spirit as I3's out-of-taxonomy counter.
+    # model worth watching, like the out-of-taxonomy counter on error labelling.
     timestamp_fixups: int = Field(ge=0)
 
     language: str

@@ -1,10 +1,10 @@
-"""Registration, login, logout and the profile. FR-1 to FR-3.
+"""Registration, login, logout and the profile.
 
 The tests worth reading first are the ones that are not about happy paths:
 
 * `test_registration_survives_the_request_that_created_it` — proves the test client's
-  session actually commits. Until m3 the override did not, and the whole suite would
-  have been green while every write through the API was silently rolled back.
+  session actually commits. An override that does not would leave the whole suite green
+  while every write through the API was silently rolled back.
 * `test_an_unknown_email_and_a_wrong_password_are_indistinguishable` — the login
   endpoint must not be usable to ask whether somebody has an account here.
 * `test_no_auth_response_contains_the_password_hash` — asserted against the raw response
@@ -117,7 +117,7 @@ async def test_registration_rejects(client: AsyncClient, body: dict, why: str):
 
 
 async def test_the_stored_hash_is_argon2id(client: AsyncClient, db_session):
-    """FR-1, asserted against the column rather than against the library.
+    """Asserted against the column rather than against the library.
 
     The prefix is the part that matters: it names the variant, and `argon2id` rather
     than `argon2i` or `argon2d` is the one that resists both GPU and side-channel
@@ -331,9 +331,9 @@ async def test_patch_me_rejects_an_empty_body(client: AsyncClient, account: dict
 
 
 async def test_patch_me_rejects_a_misspelled_field(client: AsyncClient, account: dict):
-    """`retain_audioo` must not return 200 with the old value. FR-26 is a promise about
-    whether a recording is deleted; an endpoint that silently ignores it breaks the
-    promise and reports success."""
+    """`retain_audioo` must not return 200 with the old value. Audio retention is a
+    promise about whether a recording is deleted; an endpoint that silently ignores it
+    breaks the promise and reports success."""
     response = await client.patch("/auth/me", json={"retain_audioo": False})
     assert response.status_code == 422
     assert (await client.get("/auth/me")).json()["retain_audio"] is True

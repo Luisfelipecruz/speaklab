@@ -2,7 +2,7 @@
 
 `AudioAsset` lives here rather than in a file of its own because audio has no meaning
 apart from its owner: every path on the audio volume is reachable only through the user
-who recorded it, and `GET /audio/{asset_id}` at m8 is an ownership check before it is
+who recorded it, and `GET /audio/{asset_id}` is an ownership check before it is
 anything else.
 """
 
@@ -32,21 +32,20 @@ class User(Base):
     # Argon2id, in argon2-cffi's encoded form: `$argon2id$v=19$m=...,t=...,p=...$salt$hash`.
     # The cost parameters travel inside each row, which is what lets them be raised later
     # without invalidating anything — `services/security.py` rehashes on the next
-    # successful login. m3 resolved this: the requirements file shipped bcrypt and this
-    # comment claimed argon2, and PRD FR-1 settled it in favour of argon2 (handoff Q6/D22).
+    # successful login.
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Selects the L1 phoneme priors at m8: which English sounds this speaker's first
-    # language does not have is the difference between "your /v/ is weak" and a
-    # prediction the system could have made before hearing anything.
+    # Selects the L1 phoneme priors: which English sounds this speaker's first language
+    # does not have is the difference between "your /v/ is weak" and a prediction the
+    # system could have made before hearing anything.
     native_language: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="es"
     )
     cefr_self_assessed: Mapped[str | None] = mapped_column(Text)
 
-    # FR-26. False means the waveform is deleted after scoring and only the derived
-    # numbers survive — which is why every metric in the schema is stored, not
-    # recomputed on demand from audio that may no longer exist.
+    # False means the waveform is deleted after scoring and only the derived numbers
+    # survive — which is why every metric in the schema is stored, not recomputed on
+    # demand from audio that may no longer exist.
     retain_audio: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="true"
     )
@@ -76,8 +75,8 @@ class AudioAsset(Base):
     format: Mapped[str] = mapped_column(Text, nullable=False)
     sha256: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # PRD P4: GOP moves with microphone, room and distance from the mic. A trend that
-    # cannot see the mic change reads a new headset as improvement.
+    # GOP moves with microphone, room and distance from the mic. A trend that cannot
+    # see the mic change reads a new headset as improvement.
     device_hint: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

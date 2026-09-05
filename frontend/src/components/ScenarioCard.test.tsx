@@ -31,7 +31,7 @@ test("the band and setting are legible, not raw column values", () => {
 test("the forms a scenario is built to draw out are shown", () => {
   render(<ScenarioCard scenario={makeScenario()} />);
 
-  // PRD §6.1: a scenario declares the grammar it should elicit, and m11 later checks
+  // A scenario declares the grammar it should elicit, and the eval harness later checks
   // whether it did. Showing it is what makes choosing a scenario a decision.
   expect(screen.getByText("present perfect")).toBeInTheDocument();
   expect(screen.getByText("past simple")).toBeInTheDocument();

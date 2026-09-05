@@ -1,8 +1,8 @@
 /**
  * Where a redirect is allowed to go.
  *
- * m7 sends people to the login page from the middle of something — a scenario they were
- * about to start, a conversation opened from a bookmark — and carries where they were
+ * People reach the login page from the middle of something — a scenario they were about
+ * to start, a conversation opened from a bookmark — and it carries where they were
  * going in `?next=`. That parameter is attacker-controlled by construction: anybody can
  * send somebody a link to this site with any `next` they like.
  *

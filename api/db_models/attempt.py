@@ -2,9 +2,9 @@
 
 Scoring is asynchronous — the pipeline is ffmpeg, faster-whisper, G2P, wav2vec2 and
 forced alignment, which is seconds of work, not milliseconds — so an attempt is a row
-with a lifecycle rather than a request that returns a score. `status` is that lifecycle
-and `error_message` is FR-16: a failed attempt must be able to say *why* it failed and
-be retried, which is impossible if failure is only an absent score.
+with a lifecycle rather than a request that returns a score. `status` is that lifecycle,
+and `error_message` is what lets a failed attempt say *why* it failed and be retried,
+which is impossible if failure is only an absent score.
 """
 
 from datetime import datetime
@@ -29,8 +29,8 @@ class Attempt(Base):
     )
 
     # No ON DELETE on either of these. A passage is deactivated rather than deleted,
-    # and an attempt without its audio cannot be rescored — FR-16 would be a promise
-    # the schema could not keep.
+    # and an attempt without its audio cannot be rescored, so allowing the audio to
+    # vanish would make rescoring a promise the schema could not keep.
     passage_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("passages.id"), nullable=False
     )

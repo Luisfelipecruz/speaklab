@@ -15,30 +15,27 @@ import { getHealth, PUBLIC_API_URL, type ServiceStatus } from "@/lib/api";
 /**
  * The front door, and the stack describing itself.
  *
- * m1 built the second half: proof of something no unit test can give — that the browser
- * reaches the frontend container, the frontend container reaches the API container, and
- * the API container reaches Postgres. It renders whatever /health actually says,
- * including "degraded", which is the correct state on a machine where the model services
- * have not been started (I6, FR-27).
+ * The lower half is proof of something no unit test can give — that the browser reaches
+ * the frontend container, the frontend container reaches the API container, and the API
+ * container reaches Postgres. It renders whatever /health actually says, including
+ * "degraded", which is the correct state on a machine where the model services have not
+ * been started.
  *
- * m7 put a way in above it. Until this milestone the only entry point to the product was
- * a URL somebody had to know, which made "a person who is not the author can hold a
- * conversation without instructions" false on the first screen.
+ * Above it is the way in: without it the only entry point to the product would be a URL
+ * somebody had to know.
  */
 
 export const dynamic = "force-dynamic";
 
-/** What each model service is for, and which milestone builds it. */
+/** What each model service is for. */
 const MODEL_SERVICES = [
   {
     name: "asr",
-    milestone: "m4",
     role: "Transcript with word timestamps and per-word logprobs",
   },
-  { name: "tts", milestone: "m5", role: "The persona's spoken reply" },
+  { name: "tts", role: "The persona's spoken reply" },
   {
     name: "pron",
-    milestone: "m8",
     role: "Forced alignment and per-phoneme GOP",
   },
 ] as const;
@@ -122,25 +119,20 @@ export default async function Home() {
             <code className="font-mono text-xs">asr</code> and{" "}
             <code className="font-mono text-xs">tts</code> are what a conversation needs;
             the stack still serves everything that is not speech while they are absent or
-            still loading their weights (FR-27). Conversation also needs Ollama on the
+            still loading their weights. Conversation also needs Ollama on the
             host — it is deliberately not a Compose service, because Docker on macOS
             cannot pass the GPU through.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
-          {MODEL_SERVICES.map(({ name, milestone, role }, index) => {
+          {MODEL_SERVICES.map(({ name, role }, index) => {
             const probe = health?.models?.[name];
             return (
               <div key={name} className="flex flex-col gap-3">
                 {index > 0 ? <Separator /> : null}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-mono font-medium">
-                      {name}{" "}
-                      <span className="text-muted-foreground font-sans text-xs">
-                        · arrives in {milestone}
-                      </span>
-                    </span>
+                    <span className="font-mono font-medium">{name}</span>
                     <span className="text-muted-foreground">{role}</span>
                   </div>
                   <StatusBadge status={probe?.status ?? "unknown"} />
@@ -151,9 +143,6 @@ export default async function Home() {
         </CardContent>
       </Card>
 
-      <p className="text-muted-foreground text-xs">
-        Milestone m7 — the conversation interface. Pronunciation scoring arrives in m8.
-      </p>
     </main>
   );
 }

@@ -95,7 +95,7 @@ export function makeReport(overrides: Partial<SessionReportShape> = {}): Session
   };
 }
 
-// ── Read-aloud (m8) ─────────────────────────────────────────────────────────
+// ── Read-aloud ──────────────────────────────────────────────────────────────
 
 export function makePassage(overrides: Partial<PassageDetail> = {}): PassageDetail {
   return {

@@ -1,7 +1,7 @@
 """The phone map, against the model's real vocabulary and against this API's phone set.
 
-**This is the test handoff trap 1 exists for**, and it is worth being explicit about what
-it can and cannot catch. A wrong entry in `ARPABET_TO_IPA` does not raise, does not fail
+**This is the test that guards against a silent phone-set mismatch**, and it is worth
+being explicit about what it can and cannot catch. A wrong entry in `ARPABET_TO_IPA` does not raise, does not fail
 a request, and does not look wrong in a heatmap. It produces a GOP number for every
 recording forever, and that number measures the speaker's production of a sound they were
 never asked to make. There is no downstream assertion that fails. So the check has to be
@@ -11,10 +11,10 @@ here, on the table itself, against the two things it has to agree with:
    with the id the map thinks it has. `infra/pron/phone_map.py` asserts this at import;
    these tests assert that the assertion is real, by breaking it.
 2. **`models/common.ARPABET_PHONES`** — the 39 symbols this API validates
-   `passages.phoneme_focus` against. That tuple's own comment demands this: *"That module
-   must assert its own keys equal this tuple: two copies of a phone set that drift apart
-   is handoff trap 1, and a phone missing from one of them is a pronunciation error that
-   is never scored and never reported as unscored."* This is where the two meet.
+   `passages.phoneme_focus` against. That tuple's own comment demands this: two copies of
+   a phone set that drift apart mean a phone missing from one of them, and that is a
+   pronunciation error which is never scored and never reported as unscored. This is
+   where the two meet.
 
 It runs with **no torch, no network and no 1.2 GB download**, which is the reason
 `vocab.json` is vendored into the repository rather than fetched during the image build.
@@ -109,7 +109,7 @@ def test_every_phone_resolves_to_real_vocabulary_ids(phone_map):
             ), f"{symbol}{stress} names an id not in the vocabulary"
 
 
-# ── The two traps m0 found, asserted as facts about this vocabulary ─────────
+# ── The two encoding traps, asserted as facts about this vocabulary ─────────
 
 
 def test_g_is_the_script_g_and_ascii_g_is_absent(phone_map):

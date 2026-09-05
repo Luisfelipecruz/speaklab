@@ -1,7 +1,6 @@
 """Talking to the asr service.
 
-The API holds no weights and no media library (invariant I5); it holds an address and
-this client. Everything about transcription that is not a model lives here: the timeout,
+The API holds no weights and no media library; it holds an address and this client. Everything about transcription that is not a model lives here: the timeout,
 the error taxonomy, and the parse of the response into the same `Word` shape the
 database column stores.
 

@@ -42,7 +42,7 @@ from models.scenario import ScenarioSeed
 # resolves identically in all three places the loader runs: the container, where api/ is
 # /app; CI, which runs from the api/ directory; and a host shell. A root-level seeds/
 # would need a bind mount in one of them and a different relative path in another, and
-# the day those disagree the seed loads an empty directory and reports success. D20.
+# the day those disagree the seed loads an empty directory and reports success.
 SEEDS_DIR = Path(__file__).resolve().parent.parent / "seeds"
 
 

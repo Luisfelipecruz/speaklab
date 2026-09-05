@@ -2,8 +2,7 @@
 
 **This is the most dangerous file in the pronunciation path**, and it is dangerous in a
 specific way: a wrong entry here does not raise. It produces a confident GOP number that
-measures nothing, for every recording, forever. Handoff §9 trap 1 exists because of this
-file, and the m0 spike existed largely to prove the table is right.
+measures nothing, for every recording, forever.
 
 Two live traps in this particular vocabulary, both confirmed present:
 
@@ -24,11 +23,9 @@ holds two safety properties, and both are load-bearing:
    skips. A skipped phone is a pronunciation error that silently never gets scored, which
    is worse than a crash because it looks like success.
 
-Carried over from ``spike/phone_map.py`` nearly as written (plan §7 m8). The differences
-are that the vocabulary is the file vendored into the image rather than the spike's dump,
-and that the reverse id→token index is built here rather than assigned by the caller —
-in the spike ``gop.py`` set ``pm.ID_TO_TOK`` from outside, and a module whose correctness
-depends on a caller remembering to initialise it is one import away from silence.
+The vocabulary is the file vendored into the image, and the reverse id→token index is
+built here rather than assigned by the caller: a module whose correctness depends on a
+caller remembering to initialise it is one import away from silence.
 """
 
 from __future__ import annotations
@@ -101,10 +98,9 @@ STRESS_OVERRIDES: dict[str, list[str]] = {
 }
 
 # eSpeak emits these r-coloured composites as SINGLE tokens where g2p_en emits two
-# ARPAbet phones. Every *symbol* maps; *segmentation* can differ around rhotics. m0 saw
-# no harm from it and deferred the question here — gop.py reports the affected rows so
-# the decision can be made on measurement rather than on this comment. See
-# docs/decisions/0005 §5.
+# ARPAbet phones. Every *symbol* maps; *segmentation* can differ around rhotics. No harm
+# from it has been measured — gop.py reports the affected rows so the decision can be
+# made on a count rather than on this comment.
 R_COMPOSITES: list[str] = ["ɑːɹ", "ɔːɹ", "oːɹ", "ɛɹ", "ɪɹ", "ʊɹ", "aɪɚ", "aɪə"]
 
 
@@ -130,8 +126,8 @@ def load_vocab(path: str = VOCAB_PATH) -> dict[str, int]:
     """
     with open(path, encoding="utf-8") as handle:
         vocab = json.load(handle)
-    # The spike wrapped the vocabulary in an envelope; the hub file is the bare mapping.
-    # Accept the envelope so a dump from spike/out/ can still be pointed at in a test.
+    # The hub file is the bare mapping, but a dumped vocabulary may be wrapped in an
+    # envelope. Accept either, so a local dump can be pointed at in a test.
     if "vocab" in vocab and isinstance(vocab["vocab"], dict):
         vocab = vocab["vocab"]
     if not isinstance(vocab, dict) or not vocab:

@@ -11,8 +11,8 @@ gets slower every week for no reader.
 
 The one that is *not* dropped is `recognized_phone`, and it is the whole reason this
 feature is worth building: "your /θ/ is weak" is a grade, and "you are producing /s/ where
-English wants /θ/" is an instruction. m0 measured that the model names the produced phone
-correctly in 10 cases out of 10 — including the one case the threshold itself missed.
+English wants /θ/" is an instruction. On the probe set the model named the produced
+phone correctly in 10 cases out of 10 — including the one case the threshold missed.
 """
 
 from datetime import datetime
@@ -39,8 +39,8 @@ class PhoneScore(BaseModel):
     phone_idx: int = Field(ge=0)
     canonical_phone: str
 
-    # Nullable, and the nullability is invariant I2 in a type. If the aligner reports a
-    # segment with no phone that won it, the honest answer is "nothing", not a guess.
+    # Nullable, and the nullability is the point: if the aligner reports a segment with
+    # no phone that won it, the honest answer is "nothing", not a guess.
     recognized_phone: str | None = None
 
     start_ms: int | None = Field(default=None, ge=0)
@@ -62,11 +62,10 @@ class PhoneScore(BaseModel):
 class PronSummary(BaseModel):
     """The per-attempt aggregates, computed once by the service.
 
-    `percentile_5` is m0's answer to Q2 in the shape Q2 asked for: the GOP below which
-    5 % of *this reading's* phones fall, so it carries a stated false-positive rate
-    rather than being a constant somebody wrote down. It is reported per attempt and
-    used as a threshold nowhere — calibration is m8's own open work and needs more than
-    one speaker (handoff Q2).
+    `percentile_5` is the GOP below which 5 % of *this reading's* phones fall, so it
+    carries a stated false-positive rate rather than being a constant somebody wrote
+    down. It is reported per attempt and used as a threshold nowhere: calibrating a
+    pass mark needs recordings from more than one speaker.
     """
 
     phones: int = Field(ge=0)
@@ -121,9 +120,9 @@ class PhonemeScoreOut(ORMModel):
 class AttemptOut(ORMModel):
     """An attempt without its phones — the list view, and the poll response.
 
-    `status` is the lifecycle the client polls on (FR-15): `pending` → `scoring` →
-    `scored` or `failed`. `error_message` is FR-16 and is why a failure is a state rather
-    than an absence: an attempt that failed must be able to say why and be retried.
+    `status` is the lifecycle the client polls on: `pending` → `scoring` → `scored` or
+    `failed`. `error_message` is why a failure is a state rather than an absence: an
+    attempt that failed must be able to say why and be retried.
     """
 
     id: int
@@ -179,8 +178,8 @@ class AttemptDetail(AttemptOut):
     # ok | unavailable | rejected | protocol | misconfigured
     #
     # Separate from `status`, because "the reading was processed and the pronunciation
-    # scorer was switched off" is a different fact from "the reading failed". PRD R6: an
-    # attempt with `pron` down still returns its transcript and WER, and says so.
+    # scorer was switched off" is a different fact from "the reading failed". An attempt
+    # with `pron` down still returns its transcript and WER, and says so.
     pronunciation: str = "ok"
     pronunciation_detail: str | None = None
 

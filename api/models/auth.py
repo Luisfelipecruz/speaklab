@@ -28,9 +28,9 @@ from pydantic import (
 from models.common import CEFRBand, ORMModel
 
 # ISO 639-1, optionally with a region: `es`, `pt-BR`. Constrained where it is defined
-# rather than checked where it is used, like `Slug`. It selects the L1 phoneme priors at
-# m8 (PRD §7.4, FR-3), so a free-text language field would mean a prior keyed on
-# "Spanish", "spanish" and "es" as three different first languages.
+# rather than checked where it is used, like `Slug`. It selects the L1 phoneme priors, so
+# a free-text language field would mean a prior keyed on "Spanish", "spanish" and "es" as
+# three different first languages.
 LanguageCode = Annotated[
     str, StringConstraints(pattern=r"^[a-z]{2}(-[A-Z]{2})?$", max_length=5)
 ]
@@ -39,11 +39,11 @@ Password = Annotated[str, Field(min_length=8, max_length=128)]
 
 
 class RegisterRequest(BaseModel):
-    """FR-1 and FR-3 in one body.
+    """Account creation: credentials and the speaker's first language in one body.
 
     Native language is captured here rather than being offered later in a settings page
-    because m8 needs it to say anything useful the first time, and a preference nobody
-    is ever prompted for is a column full of defaults.
+    because pronunciation scoring needs it to say anything useful the first time, and a
+    preference nobody is ever prompted for is a column full of defaults.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -66,8 +66,8 @@ class ProfileUpdate(BaseModel):
 
     `extra="forbid"` matters more here than anywhere else in the file: a PATCH that
     silently ignores `retain_audioo` returns 200 with the old value, and the user is
-    told their audio will be deleted while it is being kept. FR-26 is a promise about
-    data, so the endpoint that changes it fails loudly or not at all.
+    told their audio will be deleted while it is being kept. Audio retention is a promise
+    about data, so the endpoint that changes it fails loudly or not at all.
     """
 
     model_config = ConfigDict(extra="forbid")

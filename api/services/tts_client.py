@@ -13,12 +13,10 @@ never succeed.
 - `TtsProtocolError` — a 200 whose body is not a WAV, or whose headers do not carry the
   metadata the API records on the `audio_assets` row.
 
-**Two functions, because the milestone that built the service measured why.** `speak`
-returns the finished WAV and is what m6 stores. `speak_stream` yields one sentence at a
-time, and its first chunk arrives in about 90 ms against roughly 380 ms for the whole
-reply — PRD §9.1's first prescribed fallback, and the reason the 400 ms budget is
-reachable for a long reply at all. The measurements are in
-`docs/decisions/0002-tts-model-choice.md`.
+**Two functions, and the difference was measured.** `speak` returns the finished WAV and
+is what the turn writer stores. `speak_stream` yields one sentence at a time, and its
+first chunk arrives in about 90 ms against roughly 380 ms for the whole reply — which is
+what keeps the 400 ms budget reachable for a long reply at all.
 """
 
 from __future__ import annotations

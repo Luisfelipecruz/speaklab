@@ -3,8 +3,8 @@
 `phoneme_focus` is a promise about the text: a passage declaring `["TH"]` is engineered
 so a speaker who substitutes /s/ for /θ/ cannot get through it unnoticed. That is the
 difference between a passage that contains "think" once and one that scores a phoneme
-with enough samples to mean something (PRD P4 — no phoneme trend under 5 attempts, and
-a passage with two instances of its target sound wastes an attempt).
+with enough samples to mean something: no phoneme trend is shown under 5 attempts, and
+a passage with only two instances of its target sound wastes an attempt.
 
 `word_count` is stored rather than computed on read because it is a property of the
 seed content that a test can check against `body`, which is how a passage that was
@@ -29,7 +29,7 @@ class Passage(Base):
     cefr_band: Mapped[str] = mapped_column(Text, nullable=False)
 
     # ARPAbet, uppercase, unstressed — ["TH", "V", "IH"]. The 39-symbol set is named in
-    # api/models/common.py, and m8's phone_map.py must assert its keys equal it.
+    # api/models/common.py, and infra/pron/phone_map.py asserts its keys equal it.
     phoneme_focus: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )

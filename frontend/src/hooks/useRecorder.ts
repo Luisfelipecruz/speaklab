@@ -7,9 +7,9 @@
  * page is not on a secure origin, the browser has no `MediaRecorder`, permission was
  * refused, or there is no input device — and the default behaviour of each is a promise
  * that rejects into a console nobody has open. Every one of them is a named state here,
- * carrying a sentence about what to do next. PRD §9.2 asks for keyboard-operable
- * recording and a browser support floor of Safari 16; an unsupported browser has to say
- * so rather than render a button that does nothing.
+ * carrying a sentence about what to do next. Recording is keyboard-operable and the
+ * browser support floor is Safari 16; an unsupported browser has to say so rather than
+ * render a button that does nothing.
  *
  * **Push and hold, not click to toggle.** Voice-activity detection guesses wrong, and
  * cutting somebody off mid-sentence is worse than making them hold a button. `start`
@@ -77,8 +77,8 @@ export interface UseRecorder {
  * list at all and why the list is not just Opus. The empty string is the deliberate last
  * resort — it tells `MediaRecorder` to pick its own default, which is better than
  * refusing to record on a browser whose container this project has not heard of. The API
- * decodes whatever ffmpeg reads, so being liberal here costs nothing (trap 3: normalise
- * at the service boundary, not in the browser).
+ * decodes whatever ffmpeg reads, so being liberal here costs nothing: normalisation
+ * belongs at the service boundary, not in the browser.
  */
 const MIME_CANDIDATES = [
   "audio/webm;codecs=opus",

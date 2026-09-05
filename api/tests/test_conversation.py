@@ -125,6 +125,29 @@ def test_the_guardrails_travel_with_the_persona(scenario):
     assert scenario.goal in content
 
 
+def test_the_persona_is_told_it_does_not_know_the_speakers_name(scenario):
+    """The fix for a bug found in a real standup, and the reason it is a guardrail.
+
+    `daily-standup` produced "Good morning, [User Name]." in **4 of 7** stored replies,
+    where every other scenario produced none. The persona says "Greet the user", and a
+    greeting in a standup is a template slot in most of the text this model was trained
+    on — so the model supplied one. **Nothing in any prompt ever contained a placeholder.**
+
+    Measured against the live model on the opening turn, n = 12 per arm: **12/12 without
+    this instruction, 0/12 with it.** `test_conversation_live.py` re-runs that.
+
+    It is a guardrail rather than a fix to one seed because the cause is not that
+    scenario's wording — it is that the system has no name to give, and any persona asked
+    to greet somebody can reach for a placeholder. `users` has an email and a native
+    language and nothing a character could say out loud.
+    """
+    content = system_message(scenario, None).content
+
+    assert "do not know the speaker's name" in content
+    assert "[Name]" in content, "the placeholder shape is named explicitly, not implied"
+    assert "never invent a name" in content
+
+
 def test_a_turn_with_no_transcript_is_not_sent_as_an_empty_message(scenario):
     """A recording the recogniser returned nothing for is a real row. Sent as an empty
     user message it reads to the model as the speaker having said nothing, which is a

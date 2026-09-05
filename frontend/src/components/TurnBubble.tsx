@@ -7,14 +7,14 @@
  * where the easy version would be dishonest.
  *
  * **A missing player is never silent.** An assistant turn with no audio means synthesis
- * failed, and a user turn with no audio means audio retention is off (FR-26) — two
+ * failed, and a user turn with no audio means audio retention is off — two
  * different facts with two different sentences. Simply omitting the player would make
  * both of them look like a UI bug, and the second one look like data loss.
  *
- * **A low-confidence turn says so.** PRD §7.5 and risk R2: a mishearing scored as a
- * grammar error is a correction the speaker cannot act on. The threshold is the server's
- * (`ASR_CONFIDENCE_FLOOR`, still a placeholder — Q11), and the flag is read from the
- * response rather than recomputed here, so there is one number and not two.
+ * **A low-confidence turn says so.** A mishearing scored as a grammar error is a
+ * correction the speaker cannot act on. The threshold is the server's
+ * (`ASR_CONFIDENCE_FLOOR`, still an uncalibrated placeholder), and the flag is read from
+ * the response rather than recomputed here, so there is one number and not two.
  *
  * **The pending bubble contains no words.** It says the turn is being transcribed and
  * shows how long the recording was. The browser does not know what was said — the

@@ -1,7 +1,7 @@
 /**
- * The scenario catalogue. FR-5.
+ * The scenario catalogue.
  *
- * A server component, and it is the one screen in this milestone that can be: the
+ * A server component, and one of the few screens that can be: the
  * scenario endpoints take no session, so there is no cookie to forward and no reason to
  * ship a fetch to the browser. The filters are links rather than a client-side control
  * for the same reason — a band is part of the address, so a filtered catalogue can be

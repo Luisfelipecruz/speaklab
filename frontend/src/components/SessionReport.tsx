@@ -1,7 +1,7 @@
 /**
- * The end-of-session debrief. FR-9.
+ * The end-of-session debrief.
  *
- * **The three-way split is the design, and it is invariant I1 made visible.** The report
+ * **The three-way split is the design.** The report
  * arrives from the API already separated by where each number came from — `measured`
  * counted from stored rows, `narrative` written by a language model, `pending` naming
  * the parts that need analysers which do not exist yet — and this component's one job is
@@ -13,9 +13,9 @@
  * analyses are listed rather than omitted, because a report that silently leaves out
  * "errors" reads as a session that had none.
  *
- * When the narrative failed, the reason is printed. m6's `narrate_report` returns its
- * own failure rather than raising — ending a session must not depend on Ollama being up
- * — and "the model was unavailable" is a fact worth showing, not a section to hide.
+ * When the narrative failed, the reason is printed. The API returns that failure rather
+ * than raising — ending a session must not depend on Ollama being up — and "the model was
+ * unavailable" is a fact worth showing, not a section to hide.
  */
 
 import { BarChart3, Bot, Hourglass } from "lucide-react";
@@ -141,9 +141,8 @@ export function SessionReport({ report }: { report: SessionReportShape }) {
             Not measured yet
           </h3>
           <p className="text-xs text-muted-foreground">
-            FR-9 asks for these and the analysers that produce them are not built. Listed
-            rather than omitted: a report with no errors section reads like a session with
-            no errors.
+            The analysers that produce these are not built yet. Listed rather than
+            omitted: a report with no errors section reads like a session with no errors.
           </p>
           <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
             {Object.entries(pending).map(([name, note]) => (

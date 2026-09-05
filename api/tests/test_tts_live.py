@@ -9,7 +9,8 @@ because the health tests need an absent model layer. To run these:
 
 or `make tts-latency`, which does both.
 
-What is asserted against what is merely reported is the same split m4 settled on:
+What is asserted against what is merely reported follows the same split as the other
+live suites:
 
 - **Asserted:** the bytes are a WAV that a `wave` reader can open, its declared duration
   matches the audio actually in it, its length is plausible for the number of words sent,
@@ -17,8 +18,8 @@ What is asserted against what is merely reported is the same split m4 settled on
   whole-reply endpoint returns.
 - **Reported, not asserted:** latency. It is measured on whatever machine is running,
   and a laptop with a build going would fail a millisecond threshold while the code is
-  perfect. The controlled numbers are in `docs/decisions/0002-tts-model-choice.md`, and
-  m11 is where a measurement becomes a gate with a recorded baseline.
+  perfect. Turning a measurement into a gate needs a recorded baseline on known
+  hardware, which is the eval harness's job rather than this file's.
 
 There is no golden set here and that is not an oversight. WER measures a recogniser
 against a reference transcript; the equivalent for a synthesiser is a listening test,
@@ -37,8 +38,8 @@ import pytest
 from config import TTS_URL
 from services.tts_client import TtsRejected, speak, speak_stream
 
-# ~80 output tokens, which is what PRD §9.1 budgets a persona reply at. Four sentences,
-# so the streaming endpoint has something to stream.
+# ~80 output tokens, which is what a persona reply is budgeted at. Four sentences, so
+# the streaming endpoint has something to stream.
 TYPICAL_REPLY = (
     "I understand your concern, and I think it is worth raising with the team. "
     "The delivery window we agreed on was always going to be tight given the "
@@ -49,7 +50,7 @@ TYPICAL_REPLY = (
 
 SHORT_REPLY = "Sure, I can help with that. What time works for you?"
 
-# PRD §9.1. Reported against, never asserted on — see the module docstring.
+# The synthesis budget. Reported against, never asserted on — see the module docstring.
 BUDGET_MS = 400
 
 
@@ -173,15 +174,15 @@ async def test_text_that_produces_no_speech_is_refused_rather_than_returning_sil
 
 @needs_tts
 async def test_synthesis_is_not_deterministic_and_that_is_a_property_not_a_bug():
-    """The same text twice is not the same audio, and m6 has to know it.
+    """The same text twice is not the same audio, and callers have to know it.
 
     Piper is VITS, whose duration predictor samples from a learned distribution — that
     stochasticity is what stops synthetic prosody sounding metronomic, and it is on by
     default because the voice was trained with it. The consequences are concrete:
 
     - A synthesised reply must be **stored**, never re-derived. `audio_assets` is keyed
-      by sha256 (m4), and two syntheses of one sentence hash differently, so text is not
-      a cache key here the way it would be for a deterministic model.
+      by sha256, and two syntheses of one sentence hash differently, so text is not a
+      cache key here the way it would be for a deterministic model.
     - There is no golden WAV to diff against. A regression test for a synthesiser has to
       assert properties — length, format, sentence count — never bytes.
     - `duration_ms` genuinely varies for the same reply, so a stored value describes the
@@ -200,7 +201,7 @@ async def test_synthesis_is_not_deterministic_and_that_is_a_property_not_a_bug()
 
 @needs_tts
 async def test_the_stream_carries_the_same_reply_as_the_whole_endpoint():
-    """The contract m6 depends on to store one asset however the audio arrived.
+    """The contract the turn writer depends on to store one asset however it arrived.
 
     Compared by structure and approximate length, NOT byte-for-byte — see the test
     above: two syntheses of one text differ by a few percent, so a sample-exact
@@ -252,5 +253,5 @@ async def test_the_first_chunk_arrives_well_before_the_whole_reply(capsys):
         assert chunks[0].latency_ms <= chunks[-1].latency_ms
 
     with capsys.disabled():
-        print(f"\n  PRD §9.1 budget: {BUDGET_MS} ms. Reported, not asserted.")
+        print(f"\n  budget: {BUDGET_MS} ms. Reported, not asserted.")
         print(f"  {json.dumps(latencies, indent=2)}")

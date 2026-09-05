@@ -1,7 +1,6 @@
 """SpeakLab pronunciation — audio plus the text it was meant to be, per-phone GOP out.
 
-This is the service PRD G2 is about, and the only one whose *method* had to be proved
-before it was worth writing: the m0 spike exists in `docs/decisions/0005` because a
+The only service whose *method* had to be proved before it was worth writing: a
 forced-alignment pipeline with a wrong phone map returns confident numbers that measure
 nothing, and nothing downstream can tell.
 
@@ -16,8 +15,8 @@ and that is not an oversight.
 
 **It is profiled — `docker compose --profile pron up -d`.** This is the only image with
 torch in it, about 2 GB, and the stack has to stay usable by someone who never wants to
-download that (D10). With it down, `POST /attempts` still returns a transcript and a WER;
-the phoneme scores report `unavailable` rather than failing the request (PRD R6).
+download that. With it down, `POST /attempts` still returns a transcript and a WER; the
+phoneme scores report `unavailable` rather than failing the request.
 """
 
 from __future__ import annotations

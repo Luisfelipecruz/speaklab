@@ -3,12 +3,11 @@
  *
  * The transport lives in `lib/api.ts` now, and this module is the auth vocabulary on top
  * of it: the profile shape, the five calls, and the one place that decides a 401 is not
- * an error. m3 wrote `request` here because auth was the only thing calling the API from
- * a browser; m7 added scenarios, sessions and turns, and a second copy of "attach the
- * cookie, normalise the failure" is how the two would eventually disagree about what a
- * 422 body looks like.
+ * an error. The transport is shared because a second copy of "attach the cookie,
+ * normalise the failure" is how two callers eventually disagree about what a 422 body
+ * looks like.
  *
- * `ApiError` is re-exported rather than moved-and-forgotten: every m3 caller imports it
+ * `ApiError` is re-exported rather than moved-and-forgotten: the auth callers import it
  * from here, and a rename across files is churn that reviews nothing.
  */
 

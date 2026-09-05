@@ -1,4 +1,4 @@
-"""Pronunciation scoring as a background job. FR-15, FR-16.
+"""Pronunciation scoring as a background job.
 
 **Only the phoneme half is asynchronous, and the split is deliberate.** A read-aloud
 attempt does two things: transcribe the recording, and align it against the passage. The
@@ -8,9 +8,9 @@ decoded (`services/audio.ingest_recording` says the same thing from the other si
 The second can, and should: it needs a 2 GB service that is off by default.
 
 So `POST /attempts` returns 201 with a transcript and a WER already on it, and the phones
-arrive afterwards. That ordering also makes PRD R6 fall out rather than be implemented: an
-attempt whose `pron` never answers is an attempt that still has everything the recogniser
-produced, because the recogniser ran first and in a different request.
+arrive afterwards. That ordering is also what makes an attempt survive a missing scorer:
+an attempt whose `pron` never answers still has everything the recogniser produced,
+because the recogniser ran first and in a different request.
 
 **The job holds no database connection while the models work**, in the same three phases
 as `routers/turns.py`:
@@ -28,8 +28,8 @@ the worse of the two failure modes. Here the factory arrives as an argument, and
 
 **A job never raises.** It is a task nobody awaits; an exception escaping it would be
 logged by asyncio as an unretrieved future and the attempt would sit in `scoring`
-forever. Every failure becomes a row state with a reason on it, which is what FR-16
-needs in order to offer a retry that means something.
+forever. Every failure becomes a row state with a reason on it, which is what a retry
+needs in order to mean something.
 """
 
 from __future__ import annotations
@@ -143,8 +143,8 @@ async def _score(attempt_id: int, session_factory: async_sessionmaker) -> None:
     try:
         scoring = await pron_score(data, body, filename=f"attempt-{attempt_id}")
     except PronUnavailable as exc:
-        # The ordinary case on a laptop: the profile was never started. PRD R6 — the
-        # attempt keeps its transcript and its WER, and says the phones are missing.
+        # The ordinary case on a laptop: the profile was never started. The attempt
+        # keeps its transcript and its WER, and says the phones are missing.
         log.info("pron unavailable for attempt %s: %s", attempt_id, exc)
         reason = "The pronunciation scorer is not running, so this reading has a transcript but no phoneme scores."
     except PronRejected as exc:

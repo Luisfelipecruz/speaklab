@@ -2,7 +2,7 @@
  * One turn, and the four things it must not get wrong.
  *
  * Three of them are about silence. A turn with no audio has two entirely different
- * causes — the voice failed, or the account has audio retention switched off (FR-26) —
+ * causes — the voice failed, or the account has audio retention switched off —
  * and rendering nothing in both cases turns a working privacy setting into what looks
  * like data loss.
  */
@@ -30,7 +30,7 @@ test("a reply with audio mounts a player captioned with its own text", () => {
   );
 
   expect(screen.getByText("Dana")).toBeInTheDocument();
-  // PRD §9.2 requires captions on all synthesised speech.
+  // Synthesised speech is always captioned.
   expect(screen.getAllByText("Over what period?")).toHaveLength(2);
   expect(screen.getByRole("button", { name: /Play Dana's reply/ })).toBeInTheDocument();
 });

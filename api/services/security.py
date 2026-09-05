@@ -4,8 +4,7 @@ Two primitives, no framework. Nothing in this module imports FastAPI or touches 
 database, which is what lets the hashing tests run without a request and the token tests
 run without a user.
 
-**Argon2id, via argon2-cffi.** PRD FR-1 requires it; `infra/api/requirements.txt`
-explains why the wrapper that m1 shipped went away with it. Library defaults are used
+**Argon2id, via argon2-cffi.** Library defaults are used
 deliberately rather than pinned here: argon2-cffi's `PasswordHasher` defaults track the
 current RFC 9106 guidance and are raised by its maintainers over time, and
 `check_needs_rehash` plus the rehash-on-login in `routers/auth.py` is the mechanism that

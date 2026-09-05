@@ -37,10 +37,10 @@ class CEFRBand(str, Enum):
 # The 39 ARPAbet phones, unstressed, as g2p_en emits them. `passages.phoneme_focus` is
 # validated against this at seed time.
 #
-# m8's phone_map.py carries the ARPAbet -> eSpeak-IPA table from the m0 spike, where all
-# 39 mapped with no residue. That module must assert its own keys equal this tuple: two
-# copies of a phone set that drift apart is handoff trap 1, and a phone missing from one
-# of them is a pronunciation error that is never scored and never reported as unscored.
+# `infra/pron/phone_map.py` carries the ARPAbet -> eSpeak-IPA table; all 39 map with no
+# residue. That module asserts its own keys equal this tuple, because two copies of a
+# phone set that drift apart mean a phone missing from one of them — and that is a
+# pronunciation error that is never scored and never reported as unscored.
 # fmt: off
 ARPABET_PHONES = (
     "AA", "AE", "AH", "AO", "AW", "AY", "B",  "CH", "D",  "DH",

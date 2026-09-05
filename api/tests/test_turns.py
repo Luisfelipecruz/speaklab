@@ -1,4 +1,4 @@
-"""`POST /sessions/{id}/turns` — the endpoint the product is about. FR-7.
+"""`POST /sessions/{id}/turns` — the endpoint the product is about.
 
 Audio in, transcript, persona reply, speech out, persisted. The recogniser, the voice and
 the model are all stubbed: what is being tested is the orchestration, which is the part
@@ -57,7 +57,7 @@ def conversing(seeded, client, account, provider, voice, recogniser, audio_root)
 async def test_a_turn_returns_the_transcript_the_reply_and_the_audio(
     conversing, client
 ):
-    """FR-7, in one assertion block.
+    """The whole exchange, in one assertion block.
 
     Both turns come back, not only the reply. The client sent audio and has no
     transcript of its own — the recogniser is the only thing that knows what was said —
@@ -105,9 +105,9 @@ async def test_the_turn_reports_where_its_time_went(conversing, client):
 
 
 async def test_the_word_timings_are_stored_on_the_turn(conversing, client, db_session):
-    """`turns.words` is the raw material for every §7.1 fluency metric, and m9 is a long
-    way from here. A stub that stored an empty array would leave the column untested
-    until the milestone that reads it discovers it was never filled."""
+    """`turns.words` is the raw material for every fluency metric, and nothing computes
+    those yet. A stub that stored an empty array would leave the column untested until
+    whatever reads it next discovers it was never filled."""
     session = await start(client)
     conversing["heard"].append("One two three four five.")
 
@@ -349,9 +349,9 @@ async def test_a_recogniser_answering_nonsense_is_a_502(
 async def test_a_turn_the_recogniser_was_unsure_of_is_flagged_not_hidden(
     seeded, client, account, provider, voice, audio_root, monkeypatch
 ):
-    """PRD §7.5 and R2. The turn is still stored and still answered — the speaker said
-    something and deserves a reply — but it is marked so m9 keeps it out of accuracy
-    trends. An ASR error scored as a grammar error is a correction nobody can act on."""
+    """The turn is still stored and still answered — the speaker said something and
+    deserves a reply — but it is marked so the analysers keep it out of accuracy trends.
+    An ASR error scored as a grammar error is a correction nobody can act on."""
     from models.audio import DecoderSettings, SourceMedia, Transcription, Word
     from routers import turns as turns_router
 
@@ -389,8 +389,8 @@ async def test_a_turn_the_recogniser_was_unsure_of_is_flagged_not_hidden(
     assert body["user_turn"]["low_confidence"] is True
     assert body["reply_turn"]["low_confidence"] is False
 
-    # And it survives a reload. FR-10 reads the transcript back through a different
-    # endpoint, and a marker that exists only on the response that created it is one the
+    # And it survives a reload. A page reload reads the transcript back through a
+    # different endpoint, and a marker that exists only on the response that created it is one the
     # interface can show during a conversation and never again — so a page refresh would
     # quietly upgrade a turn the recogniser was unsure of into one it was sure of.
     reloaded = (await client.get(f"/sessions/{session['id']}")).json()
@@ -398,17 +398,14 @@ async def test_a_turn_the_recogniser_was_unsure_of_is_flagged_not_hidden(
     assert [turn["low_confidence"] for turn in spoken] == [True]
 
 
-# ── Retention (FR-26) ───────────────────────────────────────────────────────
+# ── Audio retention ─────────────────────────────────────────────────────────
 
 
 async def test_retention_off_keeps_the_transcript_and_drops_the_waveform(
     conversing, client, db_session, audio_root
 ):
-    """FR-26, and m6 is the first milestone where the setting means anything: it has
-    been changeable since m3 and nothing stored a waveform until now.
-
-    The setting drops the audio and keeps everything derived from it — transcript, word
-    timings, confidence — which is exactly what the requirement asks for.
+    """The setting drops the audio and keeps everything derived from it — transcript,
+    word timings, confidence — which is exactly what it promises.
     """
     assert (
         await client.patch("/auth/me", json={"retain_audio": False})
@@ -466,8 +463,8 @@ async def test_another_accounts_session_cannot_be_spoken_into(
 async def test_a_read_aloud_session_is_not_a_conversation(
     conversing, client, db_session, account
 ):
-    """A session with no scenario has no persona to reply as. m8's `POST /attempts` is
-    where those go, and saying so is a better error than a generic 404."""
+    """A session with no scenario has no persona to reply as. `POST /attempts` is where
+    those go, and saying so is a better error than a generic 404."""
     user = await db_session.scalar(select(User).where(User.email == account["email"]))
     session = PracticeSession(user_id=user.id, mode="read_aloud", status="active")
     db_session.add(session)
@@ -479,7 +476,7 @@ async def test_a_read_aloud_session_is_not_a_conversation(
     assert "no scenario" in response.json()["detail"]
 
 
-# ── Summarisation, end to end (FR-8) ────────────────────────────────────────
+# ── Summarisation, end to end ───────────────────────────────────────────────
 
 
 async def test_a_long_conversation_grows_a_digest_and_uses_it(
@@ -493,8 +490,8 @@ async def test_a_long_conversation_grows_a_digest_and_uses_it(
     db_session,
     monkeypatch,
 ):
-    """The FR-8 loop closed against the real endpoint: turns fall out of the window, a
-    digest is written, and the digest comes back in the next prompt.
+    """The summarisation loop closed against the real endpoint: turns fall out of the
+    window, a digest is written, and the digest comes back in the next prompt.
 
     The budget is squeezed rather than the conversation being made enormous — a hundred
     real turns would be a slow test that proved the same thing.

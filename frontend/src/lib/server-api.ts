@@ -9,11 +9,10 @@
  * It exists for one reason: **there is no shared cookie jar between the browser and the
  * Next.js server.** A server component that fetches `/sessions/12` is a different HTTP
  * client from the browser that has the session cookie, so it gets a 401 unless the
- * incoming request's own `Cookie` header is forwarded explicitly. m3's `lib/auth.ts`
- * wrote that down as a warning; this is the milestone that needed it.
+ * incoming request's own `Cookie` header is forwarded explicitly.
  *
- * Why bother, when a client component could fetch the same thing? FR-10 — a session
- * survives a page reload — is about what is on the screen after the reload, and a client
+ * Why bother, when a client component could fetch the same thing? A session surviving a
+ * page reload is about what is on the screen after the reload, and a client
  * fetch means the transcript arrives one round trip *after* the first paint. Rendering a
  * spinner over a conversation the server already had is a worse answer to the
  * requirement than rendering the conversation.
