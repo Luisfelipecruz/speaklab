@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
+from routers.attempts import router as attempts_router
 from routers.audio import router as audio_router
 from routers.auth import router as auth_router
 from routers.health import router as health_router
@@ -56,8 +57,13 @@ app.include_router(sessions_router)
 # OpenAPI schema, which is a worse table of contents than it is a routing decision.
 app.include_router(turns_router)
 
+# Read-aloud. A sibling of the conversation loop rather than a child of it: an attempt
+# belongs to a session, but it is addressed by its own id because the client polls it
+# (FR-15) and `/sessions/{id}/attempts/{id}` would make a poll carry a session id the
+# poller has no other use for.
+app.include_router(attempts_router)
+
 # Routers arriving with their milestones:
-#   m8  attempts
 #   m10 progress
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel

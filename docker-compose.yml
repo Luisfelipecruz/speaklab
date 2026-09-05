@@ -335,6 +335,17 @@ services:
       # eval into a passing one with nobody noticing (invariant I7). Mounted into the
       # test service and nowhere else. The directory arrives with m11.
       - ./eval:/app/eval:ro
+      # The pron service's source, read-only, so that `api/tests/test_phone_map.py` and
+      # `api/tests/test_g2p.py` can import the modules they are about. Those two tests
+      # guard handoff trap 1 — a phone that maps to the wrong acoustic target produces
+      # confident numbers that measure nothing — and a test that can only run inside a
+      # 5 GB torch image is a test that stops being run. Neither module imports torch,
+      # which is what makes this possible: `phone_map` needs only its vendored
+      # vocab.json, and `g2p` takes its converter as an argument.
+      #
+      # Read-only for the same reason eval/ is: the tests assert *against* this source,
+      # and a suite that could edit what it is asserting on is not a check.
+      - ./infra/pron:/pron:ro
     networks:
       - speaklab
 

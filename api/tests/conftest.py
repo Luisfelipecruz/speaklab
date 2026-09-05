@@ -472,3 +472,182 @@ def recogniser(monkeypatch):
 
     monkeypatch.setattr(turns_router, "transcribe", fake_transcribe)
     return heard
+
+
+# ── Read-aloud (m8) ─────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def reader(monkeypatch):
+    """Replace the recogniser on the *attempt* path.
+
+    A separate fixture from `recogniser` because they patch different modules, and the
+    difference is not incidental. `POST /sessions/{id}/turns` calls `transcribe` directly,
+    so that fixture patches the router. `POST /attempts` goes through
+    `services.audio.ingest_recording`, which needs the decoder's account of the file
+    before an `audio_assets` row can exist — so the name to replace is the one *that*
+    module bound at import.
+
+    The default transcript is the passage read correctly. A test that wants a misreading
+    appends the words it wants heard instead, which is how the WER assertions get a WER
+    that is not zero.
+    """
+    from models.audio import DecoderSettings, SourceMedia, Transcription, Word
+    from services import audio as audio_service
+
+    heard: list[str] = []
+
+    async def fake_transcribe(data, filename="recording", content_type=None):
+        text = (
+            heard.pop(0) if heard else "the theatre on third street is worth the trip"
+        )
+        words = [
+            Word(w=word, start_ms=i * 400, end_ms=i * 400 + 350, logprob=-0.2)
+            for i, word in enumerate(text.split())
+        ]
+        return Transcription(
+            text=text,
+            words=words,
+            confidence=0.95,
+            timestamp_fixups=0,
+            language="en",
+            model="stub-whisper",
+            decoder=DecoderSettings(beam_size=5, vad_filter=True, compute_type="int8"),
+            source=SourceMedia(
+                format="wav",
+                codec="pcm_s16le",
+                sample_rate=16000,
+                channels=1,
+                duration_ms=max(400, len(words) * 400),
+            ),
+            latency_ms=12,
+        )
+
+    monkeypatch.setattr(audio_service, "transcribe", fake_transcribe)
+    return heard
+
+
+def phone_scoring(phones=None, **overrides):
+    """A `PronScoring` shaped like a real one. Two phones unless told otherwise.
+
+    Built through the real pydantic models rather than as a dict, so a test cannot assert
+    against a shape the wire types would have rejected — including `gop <= 0`, which is
+    true by construction of the metric and enforced by the model.
+    """
+    from models.attempt import PhoneScore, PronScoring, PronSummary
+    from models.audio import SourceMedia
+
+    if phones is None:
+        phones = [
+            PhoneScore(
+                word="the",
+                word_idx=0,
+                phone_idx=0,
+                canonical_phone="DH",
+                recognized_phone="ð",
+                start_ms=0,
+                end_ms=60,
+                gop=0.0,
+                posterior=0.91,
+                frames=3,
+            ),
+            PhoneScore(
+                word="theatre",
+                word_idx=1,
+                phone_idx=0,
+                canonical_phone="TH",
+                recognized_phone="s",
+                start_ms=60,
+                end_ms=140,
+                gop=-9.4,
+                posterior=0.0001,
+                frames=4,
+            ),
+        ]
+    gops = sorted(p.gop for p in phones)
+    return PronScoring(
+        phones=phones,
+        summary=PronSummary(
+            phones=len(phones),
+            mean_gop=round(sum(gops) / len(gops), 4) if gops else None,
+            median_gop=gops[len(gops) // 2] if gops else None,
+            percentile_5=gops[0] if gops else None,
+        ),
+        words=overrides.get("words", 2),
+        source=SourceMedia(
+            format="wav",
+            codec="pcm_s16le",
+            sample_rate=16000,
+            channels=1,
+            duration_ms=3400,
+        ),
+        model="facebook/wav2vec2-lv-60-espeak-cv-ft",
+        latency_ms=99,
+    )
+
+
+@pytest.fixture
+def aligner(monkeypatch):
+    """Replace the pron service. Returns a controllable stub.
+
+    `.result` is what the next call returns; `.error` is an exception it raises instead.
+    Set one or the other — the four ways `pron` can decline are each a different row
+    state, and they are the point of most of these tests.
+
+    `.texts` records the reference text each call was given. That is the assertion that
+    matters most: scoring the wrong passage's words against this recording would produce
+    a full set of plausible numbers about nothing.
+    """
+    from services import scoring as scoring_service
+
+    class Aligner:
+        def __init__(self):
+            self.result = phone_scoring()
+            self.error: Exception | None = None
+            self.texts: list[str] = []
+            self.calls = 0
+
+        async def __call__(self, data, text, filename="recording", **kwargs):
+            self.calls += 1
+            self.texts.append(text)
+            if self.error is not None:
+                raise self.error
+            return self.result
+
+    stub = Aligner()
+    monkeypatch.setattr(scoring_service, "pron_score", stub)
+    return stub
+
+
+@pytest_asyncio.fixture
+async def scorer(db_engine):
+    """The background job, made deterministic.
+
+    `POST /attempts` launches scoring with `asyncio.create_task` and returns immediately,
+    which is right for the product and useless for a test: the assertion would race the
+    job. So the launcher is a FastAPI dependency, and this replaces it with one that
+    records the ids and runs them when the test says `await scorer.drain()`.
+
+    The job itself is not stubbed — `score_attempt` runs in full, against the test
+    database, through the real session factory seam. What changes is *when*, not *what*.
+    """
+    from services.scoring import get_scorer, score_attempt
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    class RecordingScorer:
+        def __init__(self):
+            self.launched: list[int] = []
+
+        def launch(self, attempt_id: int) -> None:
+            self.launched.append(attempt_id)
+
+        async def drain(self) -> None:
+            queued, self.launched = self.launched, []
+            for attempt_id in queued:
+                await score_attempt(attempt_id, factory)
+
+    stub = RecordingScorer()
+    app.dependency_overrides[get_scorer] = lambda: stub
+    yield stub
+    app.dependency_overrides.pop(get_scorer, None)

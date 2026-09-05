@@ -10,6 +10,14 @@
  * The client component below takes that snapshot as its initial state and never refetches
  * on mount, so the first paint and the interactive state are the same conversation and
  * not two.
+ *
+ * **Two kinds of session arrive here, and only one of them is a conversation.** m8 added
+ * read-aloud, which groups several readings of a passage into a sitting — a `sessions` row
+ * with no scenario and no turns. Rendering that through `Conversation` produced a page
+ * with an empty transcript and a record button whose only possible outcome was a 409
+ * saying the session has no conversation to continue. Found by using it, not by a test:
+ * every unit test here builds a conversation, because until m8 there was no other kind.
+ * So the mode is branched on before anything is rendered.
  */
 
 import Link from "next/link";
@@ -17,7 +25,9 @@ import { notFound } from "next/navigation";
 
 import { Conversation } from "@/app/sessions/[id]/Conversation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { SessionDetail } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { AttemptPage, SessionDetail } from "@/lib/api";
 import { serverRequestOrNull } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
@@ -52,5 +62,102 @@ export default async function SessionPage({
     );
   }
 
+  if (session.mode === "read_aloud") {
+    return <ReadingSitting sessionId={sessionId} startedAt={session.started_at} />;
+  }
+
   return <Conversation sessionId={sessionId} initial={session} />;
+}
+
+/**
+ * A read-aloud sitting: the readings taken in it, newest first.
+ *
+ * Deliberately not a second copy of the scoring screen. The place to look at one reading
+ * in detail is the passage page, which has the passage text to tint; this is the index
+ * into a sitting, so each row carries the two numbers that say whether the reading is
+ * worth opening — how far it drifted from the text, and how many sounds were scored.
+ */
+async function ReadingSitting({
+  sessionId,
+  startedAt,
+}: {
+  sessionId: number;
+  startedAt: string;
+}) {
+  const page = await serverRequestOrNull<AttemptPage>(
+    `/attempts?session_id=${sessionId}&limit=50`,
+  );
+  const readings = page?.items ?? [];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">Read aloud</Badge>
+          <span className="text-xs text-muted-foreground">
+            {new Date(startedAt).toLocaleString()}
+          </span>
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {readings.length === 1 ? "One reading" : `${readings.length} readings`}
+        </h1>
+      </header>
+
+      {readings.length === 0 ? (
+        <Alert>
+          <AlertDescription>
+            This sitting has no readings in it. Start one from{" "}
+            <Link href="/read" className="underline">
+              read aloud
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {readings.map((reading) => (
+            <Card key={reading.id}>
+              <CardHeader className="gap-1">
+                <CardTitle className="text-lg">
+                  <Link
+                    href={`/read/${reading.passage_slug}`}
+                    className="hover:underline"
+                  >
+                    {reading.passage_title ?? reading.passage_slug}
+                  </Link>
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(reading.created_at).toLocaleString()}
+                </span>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center gap-4 text-sm">
+                {reading.wer !== null && (
+                  <span className="text-muted-foreground">
+                    Word error rate{" "}
+                    <strong className="text-foreground">
+                      {(reading.wer * 100).toFixed(0)}%
+                    </strong>
+                  </span>
+                )}
+                <span className="text-muted-foreground">
+                  {reading.phoneme_count > 0 ? (
+                    <>
+                      <strong className="text-foreground">
+                        {reading.phoneme_count}
+                      </strong>{" "}
+                      sounds scored
+                    </>
+                  ) : reading.status === "scored" ? (
+                    "not scored — the pronunciation service was not running"
+                  ) : (
+                    reading.status
+                  )}
+                </span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
