@@ -4,8 +4,8 @@ its reply becomes audio while it is still being written.
 Four things live here, and they are together because each one is a constraint on the
 others.
 
-**1. The persona is re-anchored on every turn** (PRD R7). It is never left to survive in
-the history, because it does not: instruction adherence decays with distance, and the
+**1. The persona is re-anchored on every turn.** It is never left to survive in the
+history, because it does not: instruction adherence decays with distance, and the
 system message is the furthest thing from the model's next token in a long conversation.
 
 There is a wrinkle specific to this model, measured rather than assumed. **Gemma 3 has no
@@ -29,15 +29,14 @@ it, then answers with a 200 (see `config.LLM_NUM_CTX` for the measurement). So t
 budget here is not an optimisation, it is the only thing standing between a long
 conversation and a persona that disappears with no error anywhere.
 
-**3. Turns that fall out of the window are summarised, not dropped** (FR-8). A scenario
+**3. Turns that fall out of the window are summarised, not dropped.** A scenario
 that forgets the user's name at turn twelve is not practice. The digest is folded
 **after** the reply has been sent, at a high-water mark below the hard budget, so that
 no turn ever has to choose between dropping content and paying for an extra generation
 call while somebody waits.
 
 **4. A finished sentence goes to the voice while the next one is still being written.**
-PRD §9.1's first prescribed fallback, and the reason a long reply fits the turn budget.
-Generation is the long pole at ~1.5 s; synthesis is ~320 ms for a whole reply. Run in
+This is the reason a long reply fits the turn budget. Generation is the long pole at ~1.5 s; synthesis is ~320 ms for a whole reply. Run in
 series that is 1.8 s of the 3 s budget before ASR has been paid for. Overlapped, all but
 the last sentence's synthesis happens inside time that was already being spent.
 
@@ -84,8 +83,9 @@ from services.wav import WavMismatch, WavUnreadable, concatenate
 #
 # - the length cap keeps a turn inside its latency budget, because reply length is the
 #   one input to generation time this system controls;
-# - "respond to what they meant" is trap 2 from the other side. The transcript arrives
-#   from a recogniser measured at 1.72 % WER, so roughly one word in sixty is wrong. A
+# - "respond to what they meant" guards against the recogniser's own errors. The
+#   transcript arrives from a recogniser measured at 1.72 % WER, so roughly one word in
+#   sixty is wrong. A
 #   persona that queries every odd word turns an ASR error into a conversational dead
 #   end the speaker cannot understand or escape;
 # - the last line is the injection boundary. The speaker's words arrive as a user turn
@@ -192,8 +192,8 @@ def build_messages(
         messages.append(ChatMessage(role="system", content=anchor))
         messages.append(ChatMessage(role="user", content=latest.strip()))
     else:
-        # The opening turn (FR-6). There is no speaker text yet, so the anchor is the
-        # last thing the model reads and it has to carry the instruction to begin.
+        # The opening turn. There is no speaker text yet, so the anchor is the last
+        # thing the model reads and it has to carry the instruction to begin.
         messages.append(
             ChatMessage(
                 role="system",
@@ -268,8 +268,8 @@ def select_history(
 
 # ── Summarisation ───────────────────────────────────────────────────────────
 
-# Entity preservation is not a hope, it is the instruction. FR-8's requirement is that
-# summarising is not dropping, and the way a summary silently becomes a drop is by
+# Entity preservation is not a hope, it is the instruction. Summarising is not dropping,
+# and the way a summary silently becomes a drop is by
 # keeping the gist — "they discussed their experience" — and losing the name, the number
 # and the date that the rest of the conversation refers back to.
 SUMMARY_INSTRUCTION = """
@@ -410,7 +410,7 @@ class Reply(BaseModel):
     speaker can read it — and 502-ing a perfectly good sentence because a container is
     restarting would be the API deciding that no answer is better than a silent one. The
     endpoint returns 200 with `speech_status` set, exactly as `/health` reports degraded
-    rather than dead (invariant I6).
+    rather than dead.
     """
 
     text: str
@@ -586,28 +586,27 @@ def build_report(
     turns: list[Turn],
     narrative: dict | None = None,
 ) -> dict:
-    """FR-9's report, split by **where each number came from**.
+    """The end-of-session report, split by **where each number came from**.
 
     The shape is three keys and the split is the point:
 
     * `measured` — counted from stored rows by the code below. Deterministic, and the
       same numbers on every rebuild of this report.
     * `narrative` — written by the LLM. Prose and a judgement about the scenario goal.
-    * `pending` — the parts of FR-9 that require analysers which do not exist yet, named
-      with the milestone that builds them.
+    * `pending` — the parts of the report that require analysers which do not exist yet,
+      each naming what is missing.
 
-    The nesting is deliberate and it is invariant I1 made structural rather than
-    documented. A flat report with a `goal_met` boolean beside a `turn_count` integer is
+    The nesting is deliberate and it is structural rather than documented. A flat report with a `goal_met` boolean beside a `turn_count` integer is
     one refactor away from something plotting `goal_met` over time — which would be a
-    trend line drawn by a language model, the exact thing P1 forbids. Nested, the
+    trend line drawn by a language model, which this system never does. Nested, the
     provenance travels with the value and a caller has to reach through a key called
     `narrative` to get at it.
 
-    `pending` is not a placeholder for tidiness either. FR-9 asks for errors with
-    corrections and for declared forms that were never elicited, and at m6 there is no
-    grammar analyser and no error taxonomy — they are m9. The honest report says which
-    parts are missing and why; the dishonest one omits the keys and reads as though a
-    session simply had no errors in it.
+    `pending` is not a placeholder for tidiness either. The report is meant to carry
+    errors with corrections and declared forms that were never elicited, and there is as
+    yet no grammar analyser and no error taxonomy. The honest report says which parts are
+    missing; the dishonest one omits the keys and reads as though a session simply had no
+    errors in it.
     """
     user_turns = [turn for turn in turns if turn.role == "user"]
     assistant_turns = [turn for turn in turns if turn.role == "assistant"]
@@ -654,10 +653,10 @@ def build_report(
         "measured": measured,
         "narrative": narrative,
         "pending": {
-            "fluency": "m9 — speech rate, pauses, fillers, from the stored word timings",
-            "errors": "m9 — the closed taxonomy, with corrections",
-            "grammar_usage": "m9 — which declared target forms were actually elicited",
-            "pronunciation": "m8 — per-phoneme GOP, read-aloud only",
+            "fluency": "Speech rate, pauses and fillers, from the stored word timings",
+            "errors": "The closed error taxonomy, with corrections",
+            "grammar_usage": "Which declared target forms were actually elicited",
+            "pronunciation": "Per-phoneme GOP, which read-aloud practice produces",
         },
     }
 

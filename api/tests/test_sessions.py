@@ -230,7 +230,7 @@ async def test_ending_a_session_produces_a_report_and_closes_it(
     assert body["ended_at"] is not None
     assert body["report"]["measured"]["turns"]["total"] == 1
     assert body["report"]["narrative"]["goal_met"] is False
-    assert body["report"]["pending"]["errors"].startswith("m9")
+    assert "taxonomy" in body["report"]["pending"]["errors"]
 
 
 async def test_ending_a_session_twice_returns_the_same_report(

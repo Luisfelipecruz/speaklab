@@ -8,20 +8,20 @@ three containers and an LLM would not be a suite anybody runs on a laptop. To ru
     make up            # postgres, api, asr, tts
     make turn-latency  # this file, against all of them
 
-What is asserted versus what is reported follows the precedent m4 set and for the same
-reason. **Reported:** every latency. They are taken on whatever machine happens to be
+What is asserted versus what is reported follows the same rule as every other live
+suite here. **Reported:** every latency. They are taken on whatever machine happens to be
 running, and a threshold in a unit test fails on a laptop mid-compile while the code is
 perfect. **Asserted:** the things that are true or false regardless of speed — that a
 turn returns a transcript, a reply and playable audio; that the persona is in the prompt;
 that the token budget is respected in the counts the server itself reports.
 
-The numbers this prints are the ones in `docs/decisions/0003-conversation-context-strategy.md`,
-and that document is where the 3-second budget of PRD §9.1 is actually adjudicated.
+The numbers this prints are the ones the turn budget is adjudicated against, under
+stated conditions rather than against whatever else the machine is doing.
 
-**On the audio.** The four shortest clips of the m4 golden set, 4.45 s to 6.82 s, cycled.
+**On the audio.** The four shortest clips of the ASR golden set, 4.45 s to 6.82 s, cycled.
 LibriSpeech read speech is not conversational speech and the substitution is worth naming
 — a real learner's turn is more disfluent and would transcribe slower — but the durations
-land where §9.1's budget assumes (~6 s), which is the property the measurement needs.
+land where the budget assumes (~6 s), which is the property the measurement needs.
 """
 
 import json
@@ -38,7 +38,7 @@ from services.conversation import build_messages, system_message
 from services.llm import ChatMessage, OllamaProvider, estimate_messages
 from tests.conftest import API_ROOT, register_account, unique_email
 
-# The m4 golden set, in whichever layout this is running in: `/app/eval` when the suite
+# The ASR golden set, in whichever layout this is running in: `/app/eval` when the suite
 # runs in the container, and a sibling of `api/` on a CI runner. Copied from
 # `test_asr_golden.py` rather than paraphrased, because paraphrasing it broke twice over:
 #
@@ -119,9 +119,8 @@ def load_average() -> str:
     """The machine's load at the moment of measurement.
 
     Printed beside every table because it is the single most important thing about a
-    latency number taken on a developer's laptop, and because m5's suite established the
-    habit for exactly this reason: the same code measured at load 3 and at load 40
-    produces two numbers that otherwise look like a regression.
+    latency number taken on a developer's laptop: the same code measured at load 3 and
+    at load 40 produces two numbers that otherwise look like a regression.
     """
     one, five, fifteen = os.getloadavg()
     return f"{one:.2f} {five:.2f} {fifteen:.2f}"
@@ -144,9 +143,8 @@ async def test_a_whole_turn_end_to_end(seeded, client, audio_root):
     twenty times, with the stage breakdown printed.
 
     The assertions are the ones that hold on any machine. The latency table is printed
-    rather than asserted and lands in decision 0003, where it is compared against the
-    §9.1 budget under stated conditions instead of against whatever else this laptop is
-    doing.
+    rather than asserted, so it can be compared against the turn budget under stated
+    conditions instead of against whatever else this laptop is doing.
     """
     import config
 
@@ -240,14 +238,14 @@ async def test_a_whole_turn_end_to_end(seeded, client, audio_root):
         f"a prompt of {max(prompt_tokens)} tokens was sent against a budget of "
         f"{config.LLM_MAX_INPUT_TOKENS}; the estimator is under-counting"
     )
-    # No latency assertion, deliberately, and this is m4's precedent rather than a
-    # concession. A threshold here fails on a laptop with a compile going while the code
+    # No latency assertion, deliberately, and it is the same rule the other live suites
+    # follow. A threshold here fails on a laptop with a compile going while the code
     # is perfect — and on the machine this was written on it did exactly that, at load 23
     # with an Android emulator and two other Docker stacks running. What this suite
     # asserts is what is true at any speed: a turn returns a transcript, a reply and
     # playable audio, and the prompt stayed inside the budget. The p95 line above is
-    # printed for a human, and decision 0003 is where it is adjudicated against §9.1
-    # with the machine's load stated beside it.
+    # printed for a human, to be adjudicated against the turn budget with the machine's
+    # load stated beside it.
 
 
 # ── The fallback, measured against its control ──────────────────────────────
@@ -322,14 +320,14 @@ async def test_persona_adherence_over_a_long_conversation(seeded, db_session):
     """Does anchoring the persona twice do anything on a model with no system role?
 
     Measured with two **deterministic** proxies rather than a judge, because a language
-    model grading a language model's persona adherence is exactly the shape invariant I1
-    forbids, and m11 is where adherence gets evaluated properly. The seeded personas ask
+    model grading a language model's persona adherence is exactly the shape this system
+    avoids, and adherence deserves a proper evaluation harness. The seeded personas ask
     for two or three sentences and for a reply that ends with a question, so both are
     checkable by counting.
 
     **The history has to be long or this measures nothing.** The first version of this
     ran both arms against an empty conversation and returned 100 % on every cell — which
-    is the correct answer to a question nobody was asking. R7 is about drift *over a long
+    is the correct answer to a question nobody was asking. The question is drift *over a long
     conversation*, and the whole reason for the tail anchor is that the front anchor ends
     up far from where the reply is written. So the arms differ only in whether the
     persona is repeated near the end, and both carry thirty turns of history.

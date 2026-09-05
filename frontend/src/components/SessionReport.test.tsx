@@ -67,8 +67,8 @@ test("the analyses that do not exist yet are listed rather than omitted", () => 
   render(<SessionReport report={makeReport()} />);
 
   expect(screen.getByText("Not measured yet")).toBeInTheDocument();
-  expect(screen.getByText(/m9 — the closed taxonomy/)).toBeInTheDocument();
-  expect(screen.getByText(/m8 — per-phoneme GOP/)).toBeInTheDocument();
+  expect(screen.getByText(/closed error taxonomy/)).toBeInTheDocument();
+  expect(screen.getByText(/Per-phoneme GOP/)).toBeInTheDocument();
 });
 
 test("a session short of its rubric minimum says so plainly", () => {

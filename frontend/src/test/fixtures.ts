@@ -88,8 +88,8 @@ export function makeReport(overrides: Partial<SessionReportShape> = {}): Session
       note: "You gave concrete numbers when challenged, which is what made it convincing.",
     },
     pending: {
-      errors: "m9 — the closed taxonomy, with corrections",
-      pronunciation: "m8 — per-phoneme GOP, read-aloud only",
+      errors: "The closed error taxonomy, with corrections",
+      pronunciation: "Per-phoneme GOP, which read-aloud practice produces",
     },
     ...overrides,
   };
