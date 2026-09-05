@@ -585,6 +585,7 @@ def build_report(
     scenario: Scenario | None,
     turns: list[Turn],
     narrative: dict | None = None,
+    analysis: dict | None = None,
 ) -> dict:
     """The end-of-session report, split by **where each number came from**.
 
@@ -593,8 +594,11 @@ def build_report(
     * `measured` — counted from stored rows by the code below. Deterministic, and the
       same numbers on every rebuild of this report.
     * `narrative` — written by the LLM. Prose and a judgement about the scenario goal.
-    * `pending` — the parts of the report that require analysers which do not exist yet,
-      each naming what is missing.
+    * `analysis` — counted from the analysis rows: fluency arithmetic, the forms the
+      parser found, and the error rows a model proposed and the taxonomy accepted. The
+      errors are the one part of this report an LLM had a hand in, and they sit under
+      their own key with the suspect ones held apart rather than folded into a total.
+    * `pending` — the parts that still have no analyser, each naming what is missing.
 
     The nesting is deliberate and it is structural rather than documented. A flat report with a `goal_met` boolean beside a `turn_count` integer is
     one refactor away from something plotting `goal_met` over time — which would be a
@@ -602,11 +606,15 @@ def build_report(
     provenance travels with the value and a caller has to reach through a key called
     `narrative` to get at it.
 
-    `pending` is not a placeholder for tidiness either. The report is meant to carry
-    errors with corrections and declared forms that were never elicited, and there is as
-    yet no grammar analyser and no error taxonomy. The honest report says which parts are
-    missing; the dishonest one omits the keys and reads as though a session simply had no
-    errors in it.
+    `pending` is not a placeholder for tidiness either. A report that omits a section
+    because nothing produced it reads as though the session had nothing to report there —
+    a session with no errors section reads like a session with no errors. What is missing
+    is named.
+
+    `analysis` may be absent or incomplete, and says which. Analysis runs behind the
+    conversation, so a session ended the moment its last turn was spoken can be a turn
+    ahead of its own analysis; the report records how many turns it is missing rather
+    than presenting a partial count as a whole one.
     """
     user_turns = [turn for turn in turns if turn.role == "user"]
     assistant_turns = [turn for turn in turns if turn.role == "assistant"]
@@ -646,18 +654,24 @@ def build_report(
         "min_turns": min_turns,
     }
 
+    pending = {
+        "pronunciation": "Per-phoneme GOP, which read-aloud practice produces",
+    }
+    if analysis is None:
+        pending["fluency"] = (
+            "Speech rate, pauses and fillers, from the stored word timings"
+        )
+        pending["errors"] = "The closed error taxonomy, with corrections"
+        pending["grammar_usage"] = "Which declared target forms were actually elicited"
+
     return {
-        "schema": 1,
+        "schema": 2,
         "scenario": scenario.slug if scenario else None,
         "goal": scenario.goal if scenario else None,
         "measured": measured,
+        "analysis": analysis,
         "narrative": narrative,
-        "pending": {
-            "fluency": "Speech rate, pauses and fillers, from the stored word timings",
-            "errors": "The closed error taxonomy, with corrections",
-            "grammar_usage": "Which declared target forms were actually elicited",
-            "pronunciation": "Per-phoneme GOP, which read-aloud practice produces",
-        },
+        "pending": pending,
     }
 
 

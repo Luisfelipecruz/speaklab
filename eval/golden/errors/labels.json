@@ -1,0 +1,98 @@
+{
+  "written": "2026-09-05",
+  "labelled_by": "agent, by reading the transcripts before any detector existed",
+  "note": "Quotes, not offsets. build.py resolves each quote against the stored transcript and fails if it is absent or appears twice, so a label can never point at the wrong words.",
+  "kinds": {
+    "error": "A learner error. Counts in the gold set.",
+    "borderline": "Defensible either way, or too garbled to grade. Neither credited nor penalised.",
+    "asr_artifact": "The text is wrong but the speaker probably is not. Neither credited nor penalised."
+  },
+  "turns": {
+    "6": [
+      {
+        "kind": "error",
+        "category": "PRONOUN",
+        "subcategory": "omitted_subject",
+        "quote": "looks amazing",
+        "correction": "it looks amazing",
+        "note": "Spanish drops the subject pronoun; English does not."
+      },
+      {
+        "kind": "error",
+        "category": "VERB_TENSE",
+        "subcategory": "non_finite_complement",
+        "quote": "appreciate to be here",
+        "correction": "appreciate being here",
+        "note": "appreciate governs a gerund, not an infinitive."
+      },
+      {
+        "kind": "asr_artifact",
+        "category": "PREPOSITION",
+        "subcategory": "missing",
+        "quote": "let's look department",
+        "correction": "let's look at the apartment",
+        "note": "'department' is 'the apartment' misheard, at word probability 0.41."
+      }
+    ],
+    "8": [
+      {
+        "kind": "error",
+        "category": "WORD_ORDER",
+        "subcategory": "adverb_placement",
+        "quote": "the amenities also?",
+        "correction": "also tell me more about the amenities?",
+        "note": "Sentence-final 'also' in a question is Spanish word order."
+      },
+      {
+        "kind": "error",
+        "category": "ARTICLE",
+        "subcategory": "missing_indefinite",
+        "quote": "with possible renewal",
+        "correction": "with a possible renewal"
+      },
+      {
+        "kind": "asr_artifact",
+        "category": "NUMBER_COUNTABILITY",
+        "subcategory": "plural_marking",
+        "quote": "The term some conditions",
+        "correction": "the terms and conditions",
+        "note": "Two words under 0.50; the phrase is a mishearing, not a construction."
+      },
+      {
+        "kind": "asr_artifact",
+        "category": "PRONOUN",
+        "subcategory": "reference",
+        "quote": "in my? Unit",
+        "correction": "in my unit",
+        "note": "The question mark and the capital are the recogniser, not the speaker."
+      },
+      {
+        "kind": "asr_artifact",
+        "category": "LEXICAL_CHOICE",
+        "subcategory": "collocation",
+        "quote": "or premises to have one?",
+        "correction": "or permission to have one?"
+      }
+    ],
+    "10": [
+      {
+        "kind": "borderline",
+        "category": "ARTICLE",
+        "subcategory": "missing_definite",
+        "quote": "all about amenities",
+        "correction": "all about the amenities",
+        "note": "Defensible as a generic plural."
+      },
+      {
+        "kind": "error",
+        "category": "PRONOUN",
+        "subcategory": "omitted_subject",
+        "quote": "or is not possible",
+        "correction": "or is it not possible",
+        "note": "A real error that the per-word confidence gate hides: 'is' scores 0.59, just under the floor."
+      }
+    ],
+    "24": []
+  },
+  "scope": "The apartment-viewing role-play, plus one closing turn from the standup that says nothing about anybody's work. The rest of the standup is real speech about a real job and is labelled in labels.local.json, which is not in this repository. build.py writes manifest.local.json when that file is present, and the measurement suite prefers it and says which set it used."
+}

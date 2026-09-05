@@ -1,0 +1,903 @@
+{
+  "written": "2026-09-05",
+  "labelled_by": "agent, by reading the transcripts before any detector existed",
+  "kinds": {
+    "error": "A learner error. Counts in the gold set.",
+    "borderline": "Defensible either way, or too garbled to grade. Neither credited nor penalised.",
+    "asr_artifact": "The text is wrong but the speaker probably is not. Neither credited nor penalised."
+  },
+  "turn_count": 4,
+  "word_count": 123,
+  "label_counts": {
+    "error": 5,
+    "asr_artifact": 4,
+    "borderline": 1
+  },
+  "items": [
+    {
+      "turn_id": 6,
+      "session_id": 3,
+      "idx": 1,
+      "scenario": "apartment-viewing",
+      "asr_confidence": 0.899,
+      "transcript": "yes looks amazing I appreciate to be here and let's look department I know it's a very popular area and it's difficult to have a really good unit right here",
+      "words": [
+        {
+          "w": "yes",
+          "end_ms": 1590,
+          "logprob": -1.1796,
+          "start_ms": 850
+        },
+        {
+          "w": "looks",
+          "end_ms": 2110,
+          "logprob": -0.2741,
+          "start_ms": 1590
+        },
+        {
+          "w": "amazing",
+          "end_ms": 2750,
+          "logprob": -0.0027,
+          "start_ms": 2110
+        },
+        {
+          "w": "I",
+          "end_ms": 5070,
+          "logprob": -0.3727,
+          "start_ms": 2750
+        },
+        {
+          "w": "appreciate",
+          "end_ms": 5570,
+          "logprob": -0.1397,
+          "start_ms": 5070
+        },
+        {
+          "w": "to",
+          "end_ms": 7530,
+          "logprob": -0.2872,
+          "start_ms": 5570
+        },
+        {
+          "w": "be",
+          "end_ms": 7690,
+          "logprob": -0.0037,
+          "start_ms": 7530
+        },
+        {
+          "w": "here",
+          "end_ms": 8010,
+          "logprob": -0.0012,
+          "start_ms": 7690
+        },
+        {
+          "w": "and",
+          "end_ms": 8370,
+          "logprob": -0.0652,
+          "start_ms": 8010
+        },
+        {
+          "w": "let's",
+          "end_ms": 9090,
+          "logprob": -0.011,
+          "start_ms": 8370
+        },
+        {
+          "w": "look",
+          "end_ms": 9350,
+          "logprob": -0.0262,
+          "start_ms": 9090
+        },
+        {
+          "w": "department",
+          "end_ms": 9990,
+          "logprob": -0.9,
+          "start_ms": 9350
+        },
+        {
+          "w": "I",
+          "end_ms": 12010,
+          "logprob": -0.3131,
+          "start_ms": 9990
+        },
+        {
+          "w": "know",
+          "end_ms": 12190,
+          "logprob": -0.0031,
+          "start_ms": 12010
+        },
+        {
+          "w": "it's",
+          "end_ms": 12450,
+          "logprob": -0.1066,
+          "start_ms": 12190
+        },
+        {
+          "w": "a",
+          "end_ms": 12530,
+          "logprob": -0.0043,
+          "start_ms": 12450
+        },
+        {
+          "w": "very",
+          "end_ms": 12790,
+          "logprob": -0.0031,
+          "start_ms": 12530
+        },
+        {
+          "w": "popular",
+          "end_ms": 13510,
+          "logprob": -0.0025,
+          "start_ms": 12790
+        },
+        {
+          "w": "area",
+          "end_ms": 15350,
+          "logprob": -0.0131,
+          "start_ms": 13510
+        },
+        {
+          "w": "and",
+          "end_ms": 16510,
+          "logprob": -0.0165,
+          "start_ms": 15350
+        },
+        {
+          "w": "it's",
+          "end_ms": 16670,
+          "logprob": -0.0945,
+          "start_ms": 16510
+        },
+        {
+          "w": "difficult",
+          "end_ms": 16970,
+          "logprob": -0.0025,
+          "start_ms": 16670
+        },
+        {
+          "w": "to",
+          "end_ms": 17410,
+          "logprob": -0.0003,
+          "start_ms": 16970
+        },
+        {
+          "w": "have",
+          "end_ms": 17810,
+          "logprob": -0.0006,
+          "start_ms": 17410
+        },
+        {
+          "w": "a",
+          "end_ms": 18210,
+          "logprob": -0.2067,
+          "start_ms": 17810
+        },
+        {
+          "w": "really",
+          "end_ms": 18730,
+          "logprob": -0.0028,
+          "start_ms": 18210
+        },
+        {
+          "w": "good",
+          "end_ms": 19250,
+          "logprob": -0.0006,
+          "start_ms": 18730
+        },
+        {
+          "w": "unit",
+          "end_ms": 19850,
+          "logprob": -0.0045,
+          "start_ms": 19250
+        },
+        {
+          "w": "right",
+          "end_ms": 20890,
+          "logprob": -0.004,
+          "start_ms": 19850
+        },
+        {
+          "w": "here",
+          "end_ms": 21230,
+          "logprob": -0.0011,
+          "start_ms": 20890
+        }
+      ],
+      "labels": [
+        {
+          "kind": "error",
+          "category": "PRONOUN",
+          "subcategory": "omitted_subject",
+          "span_start": 4,
+          "span_end": 17,
+          "original": "looks amazing",
+          "correction": "it looks amazing",
+          "note": "Spanish drops the subject pronoun; English does not."
+        },
+        {
+          "kind": "error",
+          "category": "VERB_TENSE",
+          "subcategory": "non_finite_complement",
+          "span_start": 20,
+          "span_end": 41,
+          "original": "appreciate to be here",
+          "correction": "appreciate being here",
+          "note": "appreciate governs a gerund, not an infinitive."
+        },
+        {
+          "kind": "asr_artifact",
+          "category": "PREPOSITION",
+          "subcategory": "missing",
+          "span_start": 46,
+          "span_end": 67,
+          "original": "let's look department",
+          "correction": "let's look at the apartment",
+          "note": "'department' is 'the apartment' misheard, at word probability 0.41."
+        }
+      ]
+    },
+    {
+      "turn_id": 8,
+      "session_id": 3,
+      "idx": 3,
+      "scenario": "apartment-viewing",
+      "asr_confidence": 0.9012,
+      "transcript": "Can you tell me more about the amenities also? I want to know more about the price The term some conditions of the contract is going to be long term with possible renewal in one year Can I have pets in my? Unit or do I need a special license or premises to have one?",
+      "words": [
+        {
+          "w": "Can",
+          "end_ms": 1050,
+          "logprob": -0.2716,
+          "start_ms": 530
+        },
+        {
+          "w": "you",
+          "end_ms": 1210,
+          "logprob": -0.002,
+          "start_ms": 1050
+        },
+        {
+          "w": "tell",
+          "end_ms": 1370,
+          "logprob": -0.0092,
+          "start_ms": 1210
+        },
+        {
+          "w": "me",
+          "end_ms": 1550,
+          "logprob": -0.006,
+          "start_ms": 1370
+        },
+        {
+          "w": "more",
+          "end_ms": 2050,
+          "logprob": -0.0114,
+          "start_ms": 1550
+        },
+        {
+          "w": "about",
+          "end_ms": 2690,
+          "logprob": -0.0055,
+          "start_ms": 2050
+        },
+        {
+          "w": "the",
+          "end_ms": 2930,
+          "logprob": -0.0783,
+          "start_ms": 2690
+        },
+        {
+          "w": "amenities",
+          "end_ms": 3470,
+          "logprob": -0.0021,
+          "start_ms": 2930
+        },
+        {
+          "w": "also?",
+          "end_ms": 4490,
+          "logprob": -0.4416,
+          "start_ms": 3470
+        },
+        {
+          "w": "I",
+          "end_ms": 5190,
+          "logprob": -0.0071,
+          "start_ms": 5170
+        },
+        {
+          "w": "want",
+          "end_ms": 5350,
+          "logprob": -0.0021,
+          "start_ms": 5190
+        },
+        {
+          "w": "to",
+          "end_ms": 5490,
+          "logprob": -0.0006,
+          "start_ms": 5350
+        },
+        {
+          "w": "know",
+          "end_ms": 5690,
+          "logprob": -0.0017,
+          "start_ms": 5490
+        },
+        {
+          "w": "more",
+          "end_ms": 5950,
+          "logprob": -0.0027,
+          "start_ms": 5690
+        },
+        {
+          "w": "about",
+          "end_ms": 6170,
+          "logprob": -0.0032,
+          "start_ms": 5950
+        },
+        {
+          "w": "the",
+          "end_ms": 6350,
+          "logprob": -0.0902,
+          "start_ms": 6170
+        },
+        {
+          "w": "price",
+          "end_ms": 6830,
+          "logprob": -0.0283,
+          "start_ms": 6350
+        },
+        {
+          "w": "The",
+          "end_ms": 7890,
+          "logprob": -0.6962,
+          "start_ms": 7370
+        },
+        {
+          "w": "term",
+          "end_ms": 8350,
+          "logprob": -0.7882,
+          "start_ms": 7890
+        },
+        {
+          "w": "some",
+          "end_ms": 8650,
+          "logprob": -0.0636,
+          "start_ms": 8350
+        },
+        {
+          "w": "conditions",
+          "end_ms": 9210,
+          "logprob": -0.0067,
+          "start_ms": 8650
+        },
+        {
+          "w": "of",
+          "end_ms": 9510,
+          "logprob": -0.0072,
+          "start_ms": 9210
+        },
+        {
+          "w": "the",
+          "end_ms": 9650,
+          "logprob": -0.0012,
+          "start_ms": 9510
+        },
+        {
+          "w": "contract",
+          "end_ms": 10170,
+          "logprob": -0.001,
+          "start_ms": 9650
+        },
+        {
+          "w": "is",
+          "end_ms": 11210,
+          "logprob": -0.3216,
+          "start_ms": 10170
+        },
+        {
+          "w": "going",
+          "end_ms": 11370,
+          "logprob": -0.0067,
+          "start_ms": 11210
+        },
+        {
+          "w": "to",
+          "end_ms": 11530,
+          "logprob": -0.0004,
+          "start_ms": 11370
+        },
+        {
+          "w": "be",
+          "end_ms": 11650,
+          "logprob": -0.0043,
+          "start_ms": 11530
+        },
+        {
+          "w": "long",
+          "end_ms": 11910,
+          "logprob": -0.2594,
+          "start_ms": 11650
+        },
+        {
+          "w": "term",
+          "end_ms": 12550,
+          "logprob": -0.2934,
+          "start_ms": 11910
+        },
+        {
+          "w": "with",
+          "end_ms": 13170,
+          "logprob": -0.0766,
+          "start_ms": 12550
+        },
+        {
+          "w": "possible",
+          "end_ms": 13930,
+          "logprob": -0.3377,
+          "start_ms": 13170
+        },
+        {
+          "w": "renewal",
+          "end_ms": 14390,
+          "logprob": -0.1059,
+          "start_ms": 13930
+        },
+        {
+          "w": "in",
+          "end_ms": 15230,
+          "logprob": -0.0074,
+          "start_ms": 14390
+        },
+        {
+          "w": "one",
+          "end_ms": 15450,
+          "logprob": -0.0208,
+          "start_ms": 15230
+        },
+        {
+          "w": "year",
+          "end_ms": 15930,
+          "logprob": -0.6568,
+          "start_ms": 15450
+        },
+        {
+          "w": "Can",
+          "end_ms": 17570,
+          "logprob": -0.4013,
+          "start_ms": 17090
+        },
+        {
+          "w": "I",
+          "end_ms": 17670,
+          "logprob": -0.014,
+          "start_ms": 17570
+        },
+        {
+          "w": "have",
+          "end_ms": 17950,
+          "logprob": -0.0018,
+          "start_ms": 17670
+        },
+        {
+          "w": "pets",
+          "end_ms": 18470,
+          "logprob": -0.0337,
+          "start_ms": 17950
+        },
+        {
+          "w": "in",
+          "end_ms": 19250,
+          "logprob": -0.0065,
+          "start_ms": 18470
+        },
+        {
+          "w": "my?",
+          "end_ms": 19590,
+          "logprob": -0.0067,
+          "start_ms": 19250
+        },
+        {
+          "w": "Unit",
+          "end_ms": 21210,
+          "logprob": -0.59,
+          "start_ms": 20770
+        },
+        {
+          "w": "or",
+          "end_ms": 21730,
+          "logprob": -0.0744,
+          "start_ms": 21210
+        },
+        {
+          "w": "do",
+          "end_ms": 22430,
+          "logprob": -0.0044,
+          "start_ms": 21730
+        },
+        {
+          "w": "I",
+          "end_ms": 22530,
+          "logprob": -0.003,
+          "start_ms": 22430
+        },
+        {
+          "w": "need",
+          "end_ms": 22750,
+          "logprob": -0.0004,
+          "start_ms": 22530
+        },
+        {
+          "w": "a",
+          "end_ms": 22910,
+          "logprob": -0.1117,
+          "start_ms": 22750
+        },
+        {
+          "w": "special",
+          "end_ms": 23370,
+          "logprob": -0.0423,
+          "start_ms": 22910
+        },
+        {
+          "w": "license",
+          "end_ms": 23970,
+          "logprob": -0.0264,
+          "start_ms": 23370
+        },
+        {
+          "w": "or",
+          "end_ms": 24410,
+          "logprob": -0.0031,
+          "start_ms": 23970
+        },
+        {
+          "w": "premises",
+          "end_ms": 25130,
+          "logprob": -0.5481,
+          "start_ms": 24410
+        },
+        {
+          "w": "to",
+          "end_ms": 25750,
+          "logprob": -0.0097,
+          "start_ms": 25130
+        },
+        {
+          "w": "have",
+          "end_ms": 26890,
+          "logprob": -0.2176,
+          "start_ms": 25750
+        },
+        {
+          "w": "one?",
+          "end_ms": 27170,
+          "logprob": -0.0098,
+          "start_ms": 26890
+        }
+      ],
+      "labels": [
+        {
+          "kind": "error",
+          "category": "WORD_ORDER",
+          "subcategory": "adverb_placement",
+          "span_start": 27,
+          "span_end": 46,
+          "original": "the amenities also?",
+          "correction": "also tell me more about the amenities?",
+          "note": "Sentence-final 'also' in a question is Spanish word order."
+        },
+        {
+          "kind": "error",
+          "category": "ARTICLE",
+          "subcategory": "missing_indefinite",
+          "span_start": 149,
+          "span_end": 170,
+          "original": "with possible renewal",
+          "correction": "with a possible renewal",
+          "note": null
+        },
+        {
+          "kind": "asr_artifact",
+          "category": "NUMBER_COUNTABILITY",
+          "subcategory": "plural_marking",
+          "span_start": 83,
+          "span_end": 107,
+          "original": "The term some conditions",
+          "correction": "the terms and conditions",
+          "note": "Two words under 0.50; the phrase is a mishearing, not a construction."
+        },
+        {
+          "kind": "asr_artifact",
+          "category": "PRONOUN",
+          "subcategory": "reference",
+          "span_start": 199,
+          "span_end": 210,
+          "original": "in my? Unit",
+          "correction": "in my unit",
+          "note": "The question mark and the capital are the recogniser, not the speaker."
+        },
+        {
+          "kind": "asr_artifact",
+          "category": "LEXICAL_CHOICE",
+          "subcategory": "collocation",
+          "span_start": 242,
+          "span_end": 266,
+          "original": "or premises to have one?",
+          "correction": "or permission to have one?",
+          "note": null
+        }
+      ]
+    },
+    {
+      "turn_id": 10,
+      "session_id": 3,
+      "idx": 5,
+      "scenario": "apartment-viewing",
+      "asr_confidence": 0.9285,
+      "transcript": "Amazing. That's all about amenities, but I want to know more about the pets, if I can have one pet, like a dog or a cat, in the unit or is not possible.",
+      "words": [
+        {
+          "w": "Amazing.",
+          "end_ms": 1340,
+          "logprob": -0.6713,
+          "start_ms": 620
+        },
+        {
+          "w": "That's",
+          "end_ms": 3100,
+          "logprob": -0.0485,
+          "start_ms": 2500
+        },
+        {
+          "w": "all",
+          "end_ms": 3440,
+          "logprob": -0.0097,
+          "start_ms": 3100
+        },
+        {
+          "w": "about",
+          "end_ms": 3760,
+          "logprob": -0.006,
+          "start_ms": 3440
+        },
+        {
+          "w": "amenities,",
+          "end_ms": 4140,
+          "logprob": -0.0528,
+          "start_ms": 3760
+        },
+        {
+          "w": "but",
+          "end_ms": 4740,
+          "logprob": -0.0083,
+          "start_ms": 4540
+        },
+        {
+          "w": "I",
+          "end_ms": 5020,
+          "logprob": -0.0136,
+          "start_ms": 4740
+        },
+        {
+          "w": "want",
+          "end_ms": 5220,
+          "logprob": -0.0181,
+          "start_ms": 5020
+        },
+        {
+          "w": "to",
+          "end_ms": 5400,
+          "logprob": -0.0019,
+          "start_ms": 5220
+        },
+        {
+          "w": "know",
+          "end_ms": 5700,
+          "logprob": -0.0053,
+          "start_ms": 5400
+        },
+        {
+          "w": "more",
+          "end_ms": 6040,
+          "logprob": -0.0088,
+          "start_ms": 5700
+        },
+        {
+          "w": "about",
+          "end_ms": 6340,
+          "logprob": -0.0028,
+          "start_ms": 6040
+        },
+        {
+          "w": "the",
+          "end_ms": 6840,
+          "logprob": -0.052,
+          "start_ms": 6340
+        },
+        {
+          "w": "pets,",
+          "end_ms": 7180,
+          "logprob": -0.0934,
+          "start_ms": 6840
+        },
+        {
+          "w": "if",
+          "end_ms": 7820,
+          "logprob": -0.0331,
+          "start_ms": 7760
+        },
+        {
+          "w": "I",
+          "end_ms": 7980,
+          "logprob": -0.0276,
+          "start_ms": 7820
+        },
+        {
+          "w": "can",
+          "end_ms": 8380,
+          "logprob": -0.0156,
+          "start_ms": 7980
+        },
+        {
+          "w": "have",
+          "end_ms": 8740,
+          "logprob": -0.1965,
+          "start_ms": 8380
+        },
+        {
+          "w": "one",
+          "end_ms": 9100,
+          "logprob": -0.0173,
+          "start_ms": 8740
+        },
+        {
+          "w": "pet,",
+          "end_ms": 9500,
+          "logprob": -0.0082,
+          "start_ms": 9100
+        },
+        {
+          "w": "like",
+          "end_ms": 9840,
+          "logprob": -0.0074,
+          "start_ms": 9780
+        },
+        {
+          "w": "a",
+          "end_ms": 10000,
+          "logprob": -0.1896,
+          "start_ms": 9840
+        },
+        {
+          "w": "dog",
+          "end_ms": 10200,
+          "logprob": -0.0121,
+          "start_ms": 10000
+        },
+        {
+          "w": "or",
+          "end_ms": 10420,
+          "logprob": -0.0528,
+          "start_ms": 10200
+        },
+        {
+          "w": "a",
+          "end_ms": 10540,
+          "logprob": -0.0862,
+          "start_ms": 10420
+        },
+        {
+          "w": "cat,",
+          "end_ms": 10820,
+          "logprob": -0.0005,
+          "start_ms": 10540
+        },
+        {
+          "w": "in",
+          "end_ms": 11940,
+          "logprob": -0.0146,
+          "start_ms": 11540
+        },
+        {
+          "w": "the",
+          "end_ms": 12060,
+          "logprob": -0.022,
+          "start_ms": 11940
+        },
+        {
+          "w": "unit",
+          "end_ms": 12340,
+          "logprob": -0.1222,
+          "start_ms": 12060
+        },
+        {
+          "w": "or",
+          "end_ms": 12620,
+          "logprob": -0.298,
+          "start_ms": 12340
+        },
+        {
+          "w": "is",
+          "end_ms": 12920,
+          "logprob": -0.5354,
+          "start_ms": 12620
+        },
+        {
+          "w": "not",
+          "end_ms": 13120,
+          "logprob": -0.1344,
+          "start_ms": 12920
+        },
+        {
+          "w": "possible.",
+          "end_ms": 13520,
+          "logprob": -0.0019,
+          "start_ms": 13120
+        }
+      ],
+      "labels": [
+        {
+          "kind": "borderline",
+          "category": "ARTICLE",
+          "subcategory": "missing_definite",
+          "span_start": 16,
+          "span_end": 35,
+          "original": "all about amenities",
+          "correction": "all about the amenities",
+          "note": "Defensible as a generic plural."
+        },
+        {
+          "kind": "error",
+          "category": "PRONOUN",
+          "subcategory": "omitted_subject",
+          "span_start": 133,
+          "span_end": 151,
+          "original": "or is not possible",
+          "correction": "or is it not possible",
+          "note": "A real error that the per-word confidence gate hides: 'is' scores 0.59, just under the floor."
+        }
+      ]
+    },
+    {
+      "turn_id": 24,
+      "session_id": 13,
+      "idx": 7,
+      "scenario": "daily-standup",
+      "asr_confidence": 0.7748,
+      "transcript": "That was amazing. Thank you.",
+      "words": [
+        {
+          "w": "That",
+          "end_ms": 1340,
+          "logprob": -1.2909,
+          "start_ms": 880
+        },
+        {
+          "w": "was",
+          "end_ms": 1400,
+          "logprob": -0.3973,
+          "start_ms": 1340
+        },
+        {
+          "w": "amazing.",
+          "end_ms": 1660,
+          "logprob": -0.0658,
+          "start_ms": 1400
+        },
+        {
+          "w": "Thank",
+          "end_ms": 2060,
+          "logprob": -0.0036,
+          "start_ms": 2020
+        },
+        {
+          "w": "you.",
+          "end_ms": 2240,
+          "logprob": -0.006,
+          "start_ms": 2060
+        }
+      ],
+      "labels": []
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import type {
   PassageDetail,
   PhonemeScore,
   ScenarioSummary,
+  SessionAnalysis,
   SessionDetail,
   SessionReportShape,
   Turn,
@@ -65,9 +66,73 @@ export function makeScenario(overrides: Partial<ScenarioSummary> = {}): Scenario
   };
 }
 
+export function makeAnalysis(overrides: Partial<SessionAnalysis> = {}): SessionAnalysis {
+  return {
+    complete: true,
+    turns_analysed: 6,
+    turns_outstanding: 0,
+    fluency: {
+      words_spoken: 318,
+      speech_rate_wpm: 118.4,
+      articulation_rate_wpm: 141.2,
+      pause_ratio: 0.16,
+      mean_length_run: 9.3,
+      filler_count: 2,
+      fillers_per_100_words: 0.63,
+      mean_pause_before_speaking_ms: 640,
+    },
+    grammar_usage: { past_simple: 7, present_perfect: 2, main_clause: 11 },
+    target_forms: {
+      declared: ["present_perfect", "past_simple", "conditional_2"],
+      elicited: ["present_perfect", "past_simple"],
+      not_elicited: ["conditional_2"],
+    },
+    errors: {
+      total: 2,
+      counted: 1,
+      asr_suspect: 1,
+      low_confidence: 0,
+      per_100_words: 0.31,
+      by_category: { VERB_TENSE: 1 },
+      items: [
+        {
+          turn_id: 6,
+          category: "VERB_TENSE",
+          subcategory: "missing_past_marker",
+          span_start: 10,
+          span_end: 28,
+          original: "I complete the user story",
+          correction: "I completed the user story",
+          explanation: "Yesterday needs the past simple.",
+          confidence: 0.9,
+          asr_suspect: false,
+          counted: true,
+        },
+        {
+          turn_id: 8,
+          category: "PREPOSITION",
+          subcategory: "wrong",
+          span_start: 4,
+          span_end: 20,
+          original: "look department",
+          correction: "look at the apartment",
+          explanation: "This may be a mishearing.",
+          confidence: 0.7,
+          asr_suspect: true,
+          counted: false,
+        },
+      ],
+      rejected: 1,
+      rejection_rate: 0.3333,
+      rejected_reasons: { unknown_category: 1 },
+    },
+    ...overrides,
+  };
+}
+
 export function makeReport(overrides: Partial<SessionReportShape> = {}): SessionReportShape {
   return {
-    schema: 1,
+    schema: 2,
     scenario: "job-interview-backend",
     goal: "Explain a project you led and answer two challenges to your timeline.",
     measured: {
@@ -87,8 +152,8 @@ export function makeReport(overrides: Partial<SessionReportShape> = {}): Session
       goal_met: true,
       note: "You gave concrete numbers when challenged, which is what made it convincing.",
     },
+    analysis: makeAnalysis(),
     pending: {
-      errors: "The closed error taxonomy, with corrections",
       pronunciation: "Per-phoneme GOP, which read-aloud practice produces",
     },
     ...overrides,

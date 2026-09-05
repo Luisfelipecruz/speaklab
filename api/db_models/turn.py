@@ -24,10 +24,20 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ENUM, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db_models.base import Base
+
+# create_type=False: the Alembic revision owns it, as with the other three enums here.
+ANALYSIS_STATUS = ENUM(
+    "pending",
+    "analyzing",
+    "analyzed",
+    "failed",
+    name="analysis_status",
+    create_type=False,
+)
 
 
 class Turn(Base):
@@ -77,6 +87,25 @@ class Turn(Base):
     # and these two columns are what say afterwards how close that estimate was.
     prompt_tokens: Mapped[int | None] = mapped_column(Integer)
     completion_tokens: Mapped[int | None] = mapped_column(Integer)
+
+    # ── What the analysers have done with this turn ─────────────────────────
+    #
+    # NULL on an assistant turn, and that is the fact rather than a gap: only what the
+    # learner said is analysed. On a user turn the value is a claim as much as a record —
+    # `analyzing` is what stops a backfill and a live job writing the same rows twice.
+    #
+    # It also separates "analysed, and there were no mistakes" from "not analysed yet",
+    # which are otherwise the same empty result set and mean opposite things to a report.
+    analysis_status: Mapped[str | None] = mapped_column(ANALYSIS_STATUS)
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    analysis_error: Mapped[str | None] = mapped_column(Text)
+
+    # Proposals the taxonomy refused, with a reason each. Kept because the rejection rate
+    # is how the labelling model's quality is measured, and because the text of a refused
+    # label says whether the taxonomy is missing a category rather than the model being
+    # weak — two different problems with two different fixes, and neither is recoverable
+    # from the proposals that passed.
+    analysis_rejects: Mapped[list[dict] | None] = mapped_column(JSONB)
 
     # Wall clock for the whole turn — upload to stored reply, not just the model call.
     # Recorded from the first turn ever served, because latency regressions are felt

@@ -63,12 +63,78 @@ test("a model that ignored the format is reported as that, not salvaged", () => 
   expect(screen.getByText(/did not answer in the format/)).toBeInTheDocument();
 });
 
-test("the analyses that do not exist yet are listed rather than omitted", () => {
+test("the analyses nothing has produced are listed rather than omitted", () => {
   render(<SessionReport report={makeReport()} />);
 
   expect(screen.getByText("Not measured yet")).toBeInTheDocument();
-  expect(screen.getByText(/closed error taxonomy/)).toBeInTheDocument();
   expect(screen.getByText(/Per-phoneme GOP/)).toBeInTheDocument();
+});
+
+test("fluency separates speech rate from articulation rate", () => {
+  // The two are on screen together because a speaker who gets faster only by pausing
+  // less has not learned to articulate any faster, and one number reports that as
+  // progress.
+  render(<SessionReport report={makeReport()} />);
+
+  expect(screen.getByText("How you spoke")).toBeInTheDocument();
+  expect(screen.getByText("118")).toBeInTheDocument();
+  expect(screen.getByText("141")).toBeInTheDocument();
+  expect(screen.getByText("16%")).toBeInTheDocument();
+});
+
+test("a declared form that was never used is shown as not used", () => {
+  // The whole point of counting forms rather than only errors: a learner reaches a zero
+  // error rate by only ever using the present simple.
+  render(<SessionReport report={makeReport()} />);
+
+  expect(screen.getByText("present perfect")).toBeInTheDocument();
+  expect(screen.getByText(/conditional 2 — not used/)).toBeInTheDocument();
+});
+
+test("a correction shows what was said and what it should have been", () => {
+  render(<SessionReport report={makeReport()} />);
+
+  expect(screen.getByText("I complete the user story")).toBeInTheDocument();
+  expect(screen.getByText("I completed the user story")).toBeInTheDocument();
+  expect(screen.getByText(/verb tense · missing past marker/)).toBeInTheDocument();
+});
+
+test("an error on words the recogniser was unsure of is shown and marked", () => {
+  // Hiding it would leave the transcript with a hole in it; counting it would let a
+  // mishearing move a number about the speaker.
+  render(<SessionReport report={makeReport()} />);
+
+  expect(screen.getByText("look at the apartment")).toBeInTheDocument();
+  expect(screen.getByText("may be a mishearing")).toBeInTheDocument();
+  expect(screen.getByText(/1 not counted — the recogniser was unsure/)).toBeInTheDocument();
+});
+
+test("a report written before its turns were analysed says how many are missing", () => {
+  const report = makeReport();
+  render(
+    <SessionReport
+      report={{
+        ...report,
+        analysis: {
+          ...report.analysis!,
+          complete: false,
+          turns_analysed: 4,
+          turns_outstanding: 2,
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText(/2 of your turns have not been analysed yet/)).toBeInTheDocument();
+});
+
+test("a report from before the analysers existed still renders", () => {
+  // Reports are stored as they were written. One from an earlier version carries no
+  // analysis at all, and a screen that assumed the key would be a blank page.
+  render(<SessionReport report={makeReport({ analysis: null })} />);
+
+  expect(screen.getByText("Session report")).toBeInTheDocument();
+  expect(screen.queryByText("How you spoke")).not.toBeInTheDocument();
 });
 
 test("a session short of its rubric minimum says so plainly", () => {

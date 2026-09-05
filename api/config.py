@@ -17,10 +17,10 @@ import os
 # ── Application ─────────────────────────────────────────────────────────────
 
 # Moves with `docs/changelog.md`, and the two must be bumped in the same commit. They
-# had already drifted by the end of m2 — the changelog said 0.2.0 while /health said
-# 0.1.0 — which is a small instance of exactly what invariant I9 is about: a number
-# that is written down rather than reported by the thing it describes.
-VERSION = "0.8.0"
+# drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
+# which is the small version of the rule this project runs on: a number is reported by
+# the thing it describes, never written down beside it.
+VERSION = "0.9.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -37,14 +37,14 @@ DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://speaklab:speaklab_dev@localhost:5433/speaklab",
 )
 
-# Alembic (m2) runs migrations synchronously and psycopg2 cannot parse the `+asyncpg`
+# Alembic runs migrations synchronously and psycopg2 cannot parse the `+asyncpg`
 # dialect suffix. Derived rather than configured separately so the two URLs cannot
 # drift apart and point at different databases.
 SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
 
 # ── Model services ──────────────────────────────────────────────────────────
 #
-# Three URLs, no client objects. The API holds no weights (I5); it holds addresses.
+# Three URLs, no client objects. The API holds no weights; it holds addresses.
 
 ASR_URL = os.environ.get("ASR_URL", "http://asr:8101")
 TTS_URL = os.environ.get("TTS_URL", "http://tts:8102")
@@ -58,7 +58,7 @@ MODEL_SERVICES = {"asr": ASR_URL, "tts": TTS_URL, "pron": PRON_URL}
 # probe at all.
 HEALTH_PROBE_TIMEOUT_S = float(os.environ.get("HEALTH_PROBE_TIMEOUT_S", "1.5"))
 
-# ── Generation (m6) ─────────────────────────────────────────────────────────
+# ── Generation ──────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
@@ -81,11 +81,11 @@ LLM_MAX_OUTPUT_TOKENS = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "400"))
 
 # Characters per token, used to size a prompt *before* sending it. There is no Gemma
 # tokenizer in this image and there is not going to be one: it would mean transformers,
-# which means torch, which is exactly what invariant I5 keeps out of the API.
+# which means torch, and torch is what this image exists without.
 #
 # 4.0 is not folklore here — it was measured. `tests/test_conversation_live.py` compares
 # this estimate against Ollama's own `prompt_eval_count` on real assembled prompts and
-# prints the error; decision 0003 records what it was. The estimate only ever decides
+# prints the error. The estimate only ever decides
 # *what to send*, never what is reported: `turns.prompt_tokens` stores the count Ollama
 # returned, so a drifting constant shows up as a widening gap between two stored numbers
 # rather than as a silently over-full context.
@@ -114,7 +114,7 @@ LLM_ESTIMATOR_MARGIN = float(os.environ.get("LLM_ESTIMATOR_MARGIN", "1.25"))
 # There is no error, no warning and no field in the response that says it happened; the
 # reply comes back 200 and reads perfectly well. The discarded half is the *front* of
 # the conversation, which is where a system message lives — so on a host whose default
-# is small, the persona would vanish from exactly the long conversations R7 is about,
+# is small, the persona would vanish from exactly the long conversations it is for,
 # and the symptom would be "the AI drifts out of character after turn twelve".
 #
 # So the window is stated rather than inherited, and it is the whole budget **scaled by
@@ -142,17 +142,16 @@ LLM_DIGEST_MAX_TOKENS = int(os.environ.get("LLM_DIGEST_MAX_TOKENS", "200"))
 # instead of while somebody is waiting for it.
 LLM_HISTORY_HIGH_WATER = float(os.environ.get("LLM_HISTORY_HIGH_WATER", "0.7"))
 
-# PRD §9.1's first prescribed fallback: stream the reply out of the LLM and hand each
-# finished sentence to the voice while the next one is still being written. On by
-# default because it is the only reason the 3 s turn budget is reachable at all —
-# measured at m6, and the whole of decision 0003 §3.
+# Stream the reply out of the LLM and hand each finished sentence to the voice while the
+# next one is still being written. On by default because it is the only reason the 3 s
+# turn budget is reachable at all, which was measured rather than assumed.
 #
 # It exists as a switch rather than as the only code path so that the two can be
 # measured against each other on demand (`make turn-latency`) rather than compared
 # against a number somebody wrote down once.
 LLM_STREAM_TO_TTS = os.environ.get("LLM_STREAM_TO_TTS", "1") != "0"
 
-# ── Sessions (m6) ───────────────────────────────────────────────────────────
+# ── Sessions ────────────────────────────────────────────────────────────────
 
 # `GET /sessions` is paginated where `GET /scenarios` is not, and the difference is that
 # this list grows. The ceiling is a ceiling on the *server*, not a suggestion to the
@@ -160,7 +159,7 @@ LLM_STREAM_TO_TTS = os.environ.get("LLM_STREAM_TO_TTS", "1") != "0"
 SESSION_PAGE_SIZE = int(os.environ.get("SESSION_PAGE_SIZE", "20"))
 SESSION_PAGE_MAX = int(os.environ.get("SESSION_PAGE_MAX", "100"))
 
-# ── Speech synthesis (m5) ───────────────────────────────────────────────────
+# ── Speech synthesis ────────────────────────────────────────────────────────
 
 # Shorter than ASR_TIMEOUT_S by an order of magnitude, and the asymmetry is the point.
 # A cold recogniser is downloading 746 MB and the first transcription after a restart
@@ -169,42 +168,42 @@ SESSION_PAGE_MAX = int(os.environ.get("SESSION_PAGE_MAX", "100"))
 # a synthesis that has not returned in 30 s is a stuck process, not a slow one.
 TTS_TIMEOUT_S = float(os.environ.get("TTS_TIMEOUT_S", "30"))
 
-# The voice this system speaks with. Read here as well as by the service because m6
-# records it on the turn: a reply synthesised by lessac and one synthesised by some
+# The voice this system speaks with. Read here as well as by the service because the
+# conversation loop records it on the turn: a reply synthesised by lessac and one synthesised by some
 # later voice are different audio for the same text, and "we changed the voice in
 # March" should not be something only the container's environment remembers.
 PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
 
-# ── Pronunciation (m8) ──────────────────────────────────────────────────────
+# ── Pronunciation ───────────────────────────────────────────────────────────
 
 # Generous, like ASR_TIMEOUT_S and for the same reason: a cold pron container is
 # downloading 1.2 GB of wav2vec2 weights, and the first alignment after a restart waits
-# for that. The *work* is not slow — m0 measured 99 ms on 3.4 s of audio against a
-# 10 000 ms budget, and the cost of this service is memory and image size, not latency —
+# for that. The *work* is not slow — 819 ms on 3.4 s of audio against a 10 000 ms
+# budget, and the cost of this service is memory and image size, not latency —
 # so a call that has not returned in two minutes is a stuck process, not a busy one.
 PRON_TIMEOUT_S = float(os.environ.get("PRON_TIMEOUT_S", "120"))
 
 # The GOP below which a phone is worth showing the learner, per ARPAbet symbol.
 #
-# **Empty by default, and that is the honest state.** m0 settled the *method* — set each
+# **Empty by default, and that is the honest state.** The *method* is settled — set each
 # threshold as a percentile of the correct-speech GOP distribution, so it carries a
-# stated false-positive rate — and settled that it must be per phone: consonant
+# stated false-positive rate — and so is the fact that it must be per phone: consonant
 # mismatches dropped ~9.0 nats where vowels dropped ~4.2, and a single global cut-off
-# would either miss every vowel or drown in false positives. What m0 could not settle is
-# the numbers, because it had one speaker, 35 phones and 10 probes.
+# would either miss every vowel or drown in false positives. What is not settled is the
+# numbers, because the only measurement so far had one speaker, 35 phones and 10 probes.
 #
 # So this map is empty until it is calibrated, and `GET /attempts/{id}` reports each
-# reading's own 5th percentile rather than pretending a line exists. The spike's −3.119
-# is one native speaker's number and is deliberately NOT the default here: a threshold
-# that looks calibrated and is not would silently decide which sounds a learner is told
-# to work on. Handoff Q2.
+# reading's own 5th percentile rather than pretending a line exists. The −3.119 measured
+# during the feasibility work is one native speaker's number and is deliberately NOT the
+# default here: a threshold that looks calibrated and is not would silently decide which
+# sounds a learner is told to work on.
 #
 # Format: PRON_GOP_THRESHOLDS='{"TH": -3.2, "IH": -1.8}'
 PRON_GOP_THRESHOLDS: dict[str, float] = json.loads(
     os.environ.get("PRON_GOP_THRESHOLDS", "{}")
 )
 
-# ── Auth (m3) ───────────────────────────────────────────────────────────────
+# ── Auth ────────────────────────────────────────────────────────────────────
 
 # The signing key, and the one constant here whose default is not simply "the value that
 # works on a laptop" — it is also a value that must never reach a deployment. It is a
@@ -227,14 +226,14 @@ JWT_SECRET_IS_DEV = JWT_SECRET == DEV_JWT_SECRET
 # key pair would add key distribution to solve a problem this system does not have.
 JWT_ALGORITHM = "HS256"
 
-# Seven days. There is no refresh token and no server-side revocation list (D24), so
+# Seven days. There is no refresh token and no server-side revocation list, so
 # this is the whole story: it is how long a stolen cookie stays useful, and how long
 # after logout a token copied out beforehand would still verify. Shortening it without
 # a refresh endpoint means signing people out mid-practice, which is the trade being
 # made here in favour of the longer window.
 ACCESS_TOKEN_TTL_HOURS = int(os.environ.get("ACCESS_TOKEN_TTL_HOURS", "168"))
 
-# The token travels in an httpOnly cookie, so the frontend never reads it (D24).
+# The token travels in an httpOnly cookie, so the frontend never reads it.
 SESSION_COOKIE_NAME = "speaklab_session"
 
 # False by default because the laptop stack is http://localhost — a `Secure` cookie
@@ -249,11 +248,11 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "0") == "1"
 # different domains, which needs `none` and therefore also `secure`.
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "lax")
 
-# ── Audio and ASR (m4) ──────────────────────────────────────────────────────
+# ── Audio and ASR ───────────────────────────────────────────────────────────
 
 # Where recordings live. A named Docker volume mounted here, never a bind mount and
 # never a path inside the repository: a recording that can appear in `git status` is a
-# recording that can end up in the history (trap 4). Every path the API serves is
+# recording that can end up in the history. Every path the API serves is
 # resolved and checked to be inside this directory before a byte is read.
 AUDIO_ROOT = os.environ.get("AUDIO_ROOT", "/audio")
 
@@ -270,15 +269,77 @@ MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024))
 # call, and failing it early would turn a slow start into a lost recording.
 ASR_TIMEOUT_S = float(os.environ.get("ASR_TIMEOUT_S", "120"))
 
-# Below this mean per-word probability, a turn is still stored, still replied to, and
-# still shown — and is flagged so that m9 keeps it out of accuracy trends. PRD §7.5 and
-# R2: a mishearing scored as a grammar error is a correction the speaker cannot act on,
-# and a trend line that moves for a reason that is not them.
+# The confidence gate, applied per word. Below this probability a word is still stored,
+# still replied to and still shown, and is marked so that an error overlapping it does
+# not reach an accuracy trend: a mishearing scored as a grammar error is a correction the
+# speaker cannot act on, and a trend line that moves for a reason that is not them.
 #
-# **0.60 is a placeholder, not a finding**, in the same sense as the five-attempt gate in
-# Q5. Nothing has yet measured where learner speech actually sits on this scale — the
-# golden set is clean read speech by native speakers, which is the wrong distribution to
-# calibrate against. m9 has the labelled corpus that can answer it; until then this
-# number's only job is to exist, be visible, and be wrong in public rather than in
-# private. See handoff Q11.
+# **Per word, not per turn, and that was settled by real speech.** A stored turn scored
+# 0.899 overall while containing "department" where the speaker said "the apartment";
+# that word's own probability was 0.41 and 28 of its 30 neighbours were above 0.69. The
+# turn score is the mean of the per-word scores, so a locally wrong word is averaged away
+# and no turn-level threshold can reach it.
+#
+# **0.60 is a placeholder, not a finding.** Across the whole stored corpus it marks 10.3 %
+# of words (28 of 272), and most of those are transcribed correctly — it is a wide net,
+# not a precise instrument. Calibrating it needs learner speech with a reference
+# transcript, which this project does not yet have.
 ASR_CONFIDENCE_FLOOR = float(os.environ.get("ASR_CONFIDENCE_FLOOR", "0.60"))
+
+
+# ── Analysis (grammar, errors, fluency) ─────────────────────────────────────
+
+# The parser behind deterministic grammar usage. The small English pipeline: ~12 MB of
+# model, no torch, and the only component this system asks for is the dependency parse
+# and morphology. A larger pipeline would buy accuracy on entities and coreference, which
+# nothing here reads.
+SPACY_MODEL = os.environ.get("SPACY_MODEL", "en_core_web_sm")
+
+# What counts as a pause. Gaps below this are treated as continuous speech, because word
+# boundaries out of the recogniser are accurate to a few tens of milliseconds and summing
+# every small gap would measure its timestamp granularity rather than the speaker.
+#
+# 250 ms is the conventional boundary in the fluency literature and is used unchanged
+# here. It is one number feeding three metrics — articulation rate, pause ratio and mean
+# length of run — so they cannot disagree about what a pause is.
+FLUENCY_PAUSE_MS = int(os.environ.get("FLUENCY_PAUSE_MS", "250"))
+
+# The reply budget for one turn's error labelling. Larger than the conversational cap
+# because the answer is JSON carrying a quote and a correction per error, and a truncated
+# JSON object is a whole turn's analysis lost rather than a sentence cut short.
+ANALYSIS_MAX_TOKENS = int(os.environ.get("ANALYSIS_MAX_TOKENS", "800"))
+
+# Zero, and it is not a tuning preference. Labelling is a measurement: the same utterance
+# must produce the same errors on a re-run, or re-running a backfill would rewrite a
+# learner's history. A conversation keeps the provider's own default, where variety is
+# the point.
+ANALYSIS_TEMPERATURE = float(os.environ.get("ANALYSIS_TEMPERATURE", "0"))
+
+# The longest quote that can be an error. A model asked to point at a mistake will quote
+# the whole sentence given the chance, and a whole-sentence quote is three problems at
+# once: an underline nobody can read, a span that collides with every other error in the
+# turn, and — covering more words — one far likelier to touch a word the recogniser was
+# unsure of and be kept out of the trend it belonged in. Longer proposals are refused and
+# counted, so the cost of the rule is visible rather than assumed.
+ERROR_MAX_SPAN_WORDS = int(os.environ.get("ERROR_MAX_SPAN_WORDS", "12"))
+
+# Below this self-reported confidence an error is stored and shown but kept out of
+# accuracy trends. It is the model's own number and it is not calibrated — a 4B model
+# asked how sure it is answers 0.9 most of the time — so this floor is deliberately low.
+# Its job is to catch the proposals the model itself hedged on, not to rank the rest.
+ERROR_CONFIDENCE_FLOOR = float(os.environ.get("ERROR_CONFIDENCE_FLOOR", "0.50"))
+
+# How many turns one backfill pass claims at a time. Small because each turn is a model
+# call of a second or more, and a crash halfway through a large batch should cost one
+# batch of work, not all of it.
+ANALYSIS_BATCH_SIZE = int(os.environ.get("ANALYSIS_BATCH_SIZE", "20"))
+
+# How long ending a session will wait for the analysis of its own turns before writing
+# the report without them. Analysis runs behind each turn, so by the time somebody stops
+# talking the only outstanding turn is usually the last one — a second or two.
+#
+# The budget exists for the case where it is not: a session recorded while the labelling
+# model was down has every turn outstanding, and an unbounded wait would turn "end the
+# session" into a request that hangs for minutes. A report written short says how many
+# turns it is missing, and ending the session again picks up where it left off.
+ANALYSIS_SESSION_BUDGET_S = float(os.environ.get("ANALYSIS_SESSION_BUDGET_S", "60"))

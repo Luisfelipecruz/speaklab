@@ -120,7 +120,7 @@ def estimate_tokens(text: str) -> int:
 
     The ratio is measured rather than folklore — `tests/test_conversation_live.py`
     compares this against Ollama's own `prompt_eval_count` on real assembled prompts and
-    prints the error, and decision 0003 records it. It errs high on purpose: English
+    prints the error. It errs high on purpose: English
     prose runs nearer 4.6 characters per token on this model, so assuming 4.0 over-counts,
     and over-counting spends context that was available while under-counting walks off
     the cliff in `config.LLM_NUM_CTX` — where the penalty is not a rejected request but
@@ -173,13 +173,25 @@ class LlmProvider(ABC):
 
     @abstractmethod
     async def complete(
-        self, messages: list[ChatMessage], max_tokens: int | None = None
+        self,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> Completion:
-        """The whole reply, in one call."""
+        """The whole reply, in one call.
+
+        `temperature` is passed through only when a caller sets it, so a conversation
+        keeps whatever the provider's default is. Analysis sets it to zero: labelling is
+        a measurement, and a measurement that gives different answers to the same
+        utterance on a second run cannot be re-derived from the stored turns.
+        """
 
     @abstractmethod
     def stream(
-        self, messages: list[ChatMessage], max_tokens: int | None = None
+        self,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> AsyncIterator[str | Completion]:
         """Deltas as they arrive, then exactly one `Completion` as the final item.
 

@@ -1,11 +1,13 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.5 — **m0 passed; m1 through m8 are merged into `main`, CI green.** The
-persona-placeholder fix and a repo-wide comment-hygiene pass are also merged (PR #9).
-**m9 is next and nothing blocks it.** The repository exists at `Luisfelipecruz/speaklab`;
-every git command is still prepared in `GIT-COMMANDS.md` for the human to run, never by
-an agent.
-**Date:** 2026-08-29, last revised 2026-09-05 (m8 merged; comment hygiene)
+**Status:** v1.6 — **m0 passed; m1 through m8 are merged into `main`, CI green** (plus the
+persona fix and the comment sweep, PRs #9 and #10). **m9 is CODE COMPLETE and uncommitted**
+— 426 API tests and 99 frontend tests green, and **criterion S5 is not met: error
+detection measures 0.500 precision against a 0.70 bar, on a sample too small to settle
+it.** That is the milestone's real finding and it is published. **m10 is next.** The
+repository exists at `Luisfelipecruz/speaklab`; every git command is still prepared in
+`GIT-COMMANDS.md` for the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-09-05 (m9 built)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1056,35 +1058,39 @@ the job), `frontend/src/components/{PhonemeHeatmap,PhonemeTable,PassageReader}.t
 
 ---
 
-### m9 — Error taxonomy and grammar analysis · **NEXT**
+### m9 — Error taxonomy and grammar analysis · **BUILT (2026-09-05)**
 
 **Goal.** Every user turn yields deterministic grammar usage and validated error records.
 
 **Why here.** Needs a corpus of real turns to develop against — m6 and m7 produce it.
 
-> **Start here next session.** `main` is clean, both suites are green (**303 passed, 29
-> skipped** API; **93 across 13 suites** frontend), and there is nothing outstanding from
-> m8 that m9 depends on. Three corrections to the deliverables below, found on 2026-09-05
-> and not yet folded into the file lists:
+> **Built, and here is what it cost.** 426 API tests (up from 303) and 99 frontend tests,
+> all green; lint, `tsc` and `eslint` clean. The full writeup is
+> `docs/decisions/0006-error-taxonomy.md`. What a reader needs before touching it:
 >
-> 1. **The decision doc is `0006-error-taxonomy.md`, not `0005`.** m8 took `0005`
->    (`0005-gop-pipeline.md`).
-> 2. **The migration is `0003_analysis.py`, not `0006_analysis.py`.** Revisions are
->    numbered in the order they exist, not per milestone: only `0001` and `0002` exist,
->    because m3, m4, m5 and m8 each needed no schema change.
-> 3. **The confidence gate is per *word*, not per turn** — this changes what m9 builds.
->    Real learner speech settled it: a stored turn scored `asr_confidence` **0.899**,
->    comfortably above the 0.60 floor, while containing "department" where the speaker
->    said "the apartment". That word's own probability was **0.41**, and 28 of its 30
->    neighbours were above 0.69. The turn score *is* the mean of the per-word scores, so
->    a locally wrong word is averaged away and **no turn-level threshold can catch it**;
->    a per-word gate at 0.60 flags exactly the two suspect words and nothing else.
->    `turns.words` already stores the logprobs, so the data is there. Build the exclusion
->    rule per word and feed it to the accuracy trend.
->
-> Also worth knowing before writing prompts: the `pending` block in the session report
-> (`services/conversation.py`) is what m9 replaces, key by key — `fluency`, `errors`,
-> `grammar_usage`. Each currently carries a sentence naming what is missing.
+> 1. **The three corrections below were right and are applied.** The decision doc is
+>    `0006`; the migration is `0003` and adds **columns only** — `fluency_metrics`,
+>    `grammar_usage` and `language_errors` were created complete by `0001`; the confidence
+>    gate is per **word**.
+> 2. **Criterion S5 is not met.** Detection precision **0.500** against a 0.70 bar, over
+>    six scored proposals. `gemma3:4b` finds roughly the right words and files them under
+>    the wrong category three times in six; `mistral:7b` measured **worse** (0.333, with
+>    47 % of its proposals refused); `gpt-oss:20b` could not be measured at all, because
+>    `services/llm/ollama.py` reads `message.content` and a reasoning model's answer is in
+>    `message.thinking`. **Q4 is answered and the answer is not "use a bigger model".**
+> 3. **The figure is not decidable on this corpus either way.** Six scored proposals put a
+>    95 % interval on 0.500 roughly half the width of the scale, so
+>    `tests/test_error_precision.py` prints its numbers and asserts none of them. It
+>    asserts the machinery instead. The set grows by somebody using the product.
+> 4. **The golden set is split, on a privacy call the human made.** Four turns ship;
+>    three are the speaker's real standup at work and are gitignored as
+>    `labels.local.json` / `manifest.local.json`. The suite prefers the local set and
+>    prints which one it read.
+> 5. **The API image went from 425 MB to 811 MB** for the dependency parser. Still no
+>    torch and no speech weights.
+> 6. **The obvious next lever is a rule layer.** `language_errors.detector` allows
+>    `'rule'` and every row is `'llm'`. Subject–verb agreement and article omission are
+>    where the parse is reliable enough to propose errors on its own.
 
 **Deliverables.**
 ```
@@ -1092,12 +1098,17 @@ api/services/{grammar.py,errors.py,fluency.py}
 api/services/taxonomy.py               the closed taxonomy as code
 api/models/analysis.py
 api/db_models/metrics.py               (extended)
-api/alembic/versions/0006_analysis.py
+api/alembic/versions/0003_analysis.py  columns only; the tables exist from 0001
 api/scripts/analyze_backfill.py
-api/tests/{test_grammar.py,test_errors.py,test_fluency.py,test_taxonomy.py}
-eval/golden/errors/                    hand-labelled turns
-docs/decisions/0005-error-taxonomy.md
+api/tests/{test_grammar.py,test_errors.py,test_fluency.py,test_taxonomy.py,
+           test_analysis.py,test_error_precision.py}
+eval/golden/errors/                    hand-labelled turns, half of it gitignored
+docs/decisions/0006-error-taxonomy.md
 ```
+
+**Also built, and not in the list above:** `api/services/analysis.py` (the background job
+and the session summary), a `temperature` argument on the LLM provider, and the session
+report's new sections in `frontend/src/components/SessionReport.tsx`.
 
 **Decisions.**
 - **Two detectors, deliberately.** spaCy morphology gives tense/aspect/modality/clause counts — deterministic, fast, and the source of every *trend* (PRD P1). Gemma proposes *errors*, which is a judgement call no rule set makes well.
@@ -1111,8 +1122,9 @@ docs/decisions/0005-error-taxonomy.md
 invented categories; span validation against tampered offsets; precision on the golden
 labelled set; filler and pause arithmetic against hand-computed timings.
 
-**Done when.** Backfill over all existing turns completes; error detection precision on
-the golden set is ≥ 0.70 (criterion S5) and reported in `docs/decisions/0005`.
+**Done when.** Backfill over all existing turns completes — **done**, 7 of 7; error
+detection precision on the golden set is ≥ 0.70 (criterion S5) and reported in
+`docs/decisions/0006` — **reported, and not met: 0.500.**
 
 **Branch** `feature/m9-analysis` · **PR** `feat: add grammar analysis and closed-taxonomy error detection`
 
@@ -1130,12 +1142,12 @@ api/services/{progress.py,rollup.py,recommend.py}
 api/routers/progress.py
 api/scripts/rollup.py                  scheduled aggregation
 api/db_models/progress.py              (extended)
-api/alembic/versions/0007_progress.py
+api/alembic/versions/0004_progress.py
 frontend/src/app/progress/page.tsx
 frontend/src/components/{TrendChart,MetricPanel,PhonemeTrend,
                          RepertoireChart,NextUpCard}.tsx
 api/tests/{test_progress.py,test_rollup.py,test_recommend.py,test_zscore.py}
-docs/decisions/0006-progress-metrics.md
+docs/decisions/0007-progress-metrics.md
 ```
 
 **Decisions.**
@@ -1292,20 +1304,24 @@ below.
 
 ### The next three actions
 
-1. **Read §7 m9 above**, including the three corrections in the note — the decision-doc
-   number, the migration number, and the per-word confidence gate.
-2. **Build the closed taxonomy first** (`services/taxonomy.py`), before any prompt. It is
-   what makes an LLM proposal rejectable, and the rejection *rate* is the metric that
-   answers whether `gemma3:4b` is strong enough for this job at all.
-3. **Write `analyze_backfill.py` early and run it over the stored turns.** The corpus
-   already exists — real conversations, real transcripts, real word logprobs — and it is
-   the only way to develop a detector against speech rather than against fixtures.
+1. **Commit m9 and open its PR.** `GIT-COMMANDS.md` §A.9 is the sheet. The uncommitted
+   tree is the whole milestone; nothing is half-landed.
+2. **Read `docs/decisions/0006` §6 before starting m10.** m10 plots what m9 produces, and
+   what m9 produces is 0.500-precision error labelling. A trend chart built on that
+   without the caveat on the screen would be the exact failure this project exists to
+   avoid — the requirement that nothing on a chart comes from a model is met by *counting*
+   the errors, not by the errors being right.
+3. **Start m10 — progress, trends and recommendations.** Its decision doc is `0007` and
+   its migration is `0004`; both were renumbered above because m9 took `0006` and `0003`.
 
-Two things still need a person, and neither blocks m9:
+Three things still need a person, and none blocks m10:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
   `eval/golden/pron/README.md`. Until they exist, the broken-vs-clean test skips and no
   GOP threshold can be calibrated, so `PRON_GOP_THRESHOLDS` stays empty.
+- **More recorded conversation.** It is the only thing that can settle S5. Seven user
+  turns is the whole corpus, and the measurement suite re-runs against whatever is there:
+  `make analyze` then `python3 eval/golden/errors/build.py` then `make error-precision`.
 - **A product decision on read-aloud with audio retention off.** Today the endpoint
   refuses with a 409 naming the setting, because a reading that cannot be rescored would
   break the promise its schema makes. The alternative worth weighing is a third retention

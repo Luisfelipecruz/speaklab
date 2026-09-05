@@ -61,3 +61,10 @@ speaklab-agent/GIT-COMMANDS.md
 
 # macOS
 .DS_Store
+
+# The half of the error golden set that cannot be published. It is real recorded speech
+# about somebody's real work; the role-play half ships in labels.json and manifest.json.
+# eval/golden/errors/build.py writes the .local files from the database when the labels
+# are there, and the measurement suite prefers them and says which set it used.
+eval/golden/errors/labels.local.json
+eval/golden/errors/manifest.local.json

@@ -5,12 +5,15 @@
 
 Every model runs on your machine. Nothing is sent anywhere.
 
-**Status: milestone 8 of 12.** Both practice modes work end to end. Choose a scenario, hold
-a button, talk, and a persona answers out loud; or choose a passage, read it aloud, and get
-it back with every sound scored against the sound the text asked for — including which
-sound came out instead. See [What does not exist yet](#what-does-not-exist-yet), which is
-still a real list: progress charts, grammar analysis and the evaluation harness are m9–m11,
-and the two things m8 could not finish are named there.
+**Status: milestone 9 of 12.** Both practice modes work end to end, and what you said is
+now analysed. Choose a scenario, hold a button, talk, and a persona answers out loud; or
+choose a passage, read it aloud, and get it back with every sound scored against the sound
+the text asked for — including which sound came out instead. End a conversation and the
+report tells you how fast you spoke, which grammatical forms you actually used against the
+ones the scenario was built to draw out, and what to correct. See
+[What does not exist yet](#what-does-not-exist-yet), which is still a real list: progress
+charts and the evaluation harness are m10–m11, and **error detection does not yet meet its
+own accuracy bar** — that is measured, published below, and named there.
 
 ---
 
@@ -147,18 +150,22 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 
 ## Measured
 
-Counted against the running system on 2026-08-30, not recalled. Anything not listed here
+Counted against the running system on 2026-09-05, not recalled. Anything not listed here
 has not been measured yet and is not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **330** — 302 pass with no model services running; the other 28 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **93** across 13 suites, Jest and React Testing Library, no services needed |
-| API image | 424 MB, with no torch — asserted by a test, not by a comment |
+| API test suite | **458** — 426 pass with no model services running; the other 32 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **99** across 13 suites, Jest and React Testing Library, no services needed |
+| API image | **811 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
-| API operations implemented | 22 of the 30 forecast — m8 added the four `/attempts` routes |
+| API operations implemented | 22 of the 30 forecast — m9 added no routes, because analysis surfaces inside the session report |
+| **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size** |
+| Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
+| Grammar forms detected in the stored corpus | **11 distinct**, over 31 counted instances in 7 turns |
+| Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
 | **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
 | **ASR latency, ~6 s of audio** | **1231 ms** against a 700 ms budget — **missed, deliberately** |
 | **TTS latency, ~80-token reply** | **320 ms** whole against a 400 ms budget — **78 ms** to the first sentence |
@@ -235,6 +242,34 @@ move by a factor of two or more with what else is busy. At m1 the same `/health`
 the *ratios* — the register/login pair above is a claim about the code, and it holds
 whatever the machine is doing.
 
+### Grammar and errors (m9)
+
+**Two detectors, and the split is the whole design.** A dependency parse counts which
+grammatical forms you actually produced — twenty-seven closed feature names, deterministic,
+the same counts on every rebuild. A language model proposes corrections, which is a
+judgement no rule set makes well. Only the first is ever plotted.
+
+A learner reaches a zero error rate by only ever using the present simple. Counting only
+errors calls that improvement; counting forms shows it for what it is. And because
+scenarios declare the forms they were built to draw out **in the same vocabulary the
+parser counts in**, "the scenario asked for comparatives and you did not use any" is a set
+difference rather than an opinion.
+
+**Every model proposal has to survive a gate**, and the refusals are counted rather than
+dropped. The category must be in a closed list of nine; the words must be findable in your
+own transcript — the model quotes, the system locates, so a correction cannot point at
+something you did not say; a "correction" that only moves a comma is refused, because the
+recogniser wrote the punctuation and you did not. **25 % of proposals are currently
+refused**, and that rate is the measurement that says whether the model behind this is good
+enough.
+
+**An error sitting on a word the recogniser was unsure of is shown and marked, and counts
+towards nothing.** The gate is per word, not per turn, and that was settled by real speech:
+a stored turn scored 0.899 overall while containing "department" where the speaker said
+"the apartment" — that word alone scored 0.41, and the turn score is the *mean*, so no
+turn-level threshold could ever reach it. See
+[decision 0006 §4](docs/decisions/0006-error-taxonomy.md).
+
 ### Pronunciation scoring (m0 spike, m8 in production)
 
 Pronunciation is the risky part of this product, so it was proved before anything was
@@ -270,7 +305,10 @@ Named explicitly so nothing here reads as a claim.
 | m7 | Time-to-first-audio. The turn returns one concatenated WAV, so the first sound arrives at whole-turn latency — streaming it sentence by sentence to the browser needs an endpoint that does not exist, and giving up the atomic turn. See [decision 0004 §3](docs/decisions/0004-browser-recording-and-playback.md) |
 | m8 | **The golden pairs.** Criterion S4 — that deliberately broken readings score measurably worse than clean ones — is not met, and cannot be met by what exists: perturbing the reference proves the arithmetic, not that a *learner* error is detected. The test is written and skips. It needs five minutes of a person's voice ([`spike/RECORD.md`](spike/RECORD.md)) |
 | m8 | **A calibrated GOP threshold.** m0 settled the method — a percentile of the correct-speech distribution, per phone — and not the numbers, so `PRON_GOP_THRESHOLDS` is empty and the heatmap says its bands are relative to the reading rather than a pass mark. See [decision 0005 §7](docs/decisions/0005-gop-pipeline.md) |
-| m9 | Error taxonomy and grammar analysis |
+| m9 | **Error detection is not accurate enough yet, and the number is published.** Detection precision measures **0.500** against a 0.70 bar. `gemma3:4b` finds roughly the right words and files them under the wrong category three times out of six; `mistral:7b` measured worse. The sample is six scored proposals, so the figure cannot yet decide the question either way. [Decision 0006 §6](docs/decisions/0006-error-taxonomy.md) has the table and the comparison arms |
+| m9 | **A rule-based detector.** `language_errors.detector` allows `'rule'` and every row so far is `'llm'`. Subject–verb agreement and article omission are where the parse is reliable enough to propose errors on its own, and that is the way to raise precision without a bigger model |
+| m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
+| m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |
 | m10 | Progress charts and recommendations |
 | m11 | The evaluation harness |
 | m12 | Documentation and a demo |

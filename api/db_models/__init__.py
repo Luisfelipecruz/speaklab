@@ -23,10 +23,11 @@ from db_models.passage import Passage
 from db_models.phoneme import PhonemeScore
 from db_models.scenario import Scenario
 from db_models.session import SESSION_MODE, SESSION_STATUS, PracticeSession
-from db_models.turn import Turn
+from db_models.turn import ANALYSIS_STATUS, Turn
 from db_models.user import AudioAsset, User
 
 __all__ = [
+    "ANALYSIS_STATUS",
     "ATTEMPT_STATUS",
     "SESSION_MODE",
     "SESSION_STATUS",
