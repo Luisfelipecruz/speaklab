@@ -399,3 +399,57 @@ async def test_persona_adherence_over_a_long_conversation(seeded, db_session):
     for arm, (cap, question) in results.items():
         print(f"  {arm:20} {cap:>15.0%} {question:>13.0%}")
     print()
+
+
+@live
+async def test_the_persona_never_addresses_the_speaker_by_a_placeholder():
+    """The name guardrail, against the real model, on the scenario that reproduced it.
+
+    **Found by using the product, not by a test.** A real nine-turn standup on 2026-08-30
+    (session 13) had the scrum master say "Good morning, [User Name]." — three times in
+    five replies. Across every session stored at that point the rate was 4 of 7 assistant
+    turns on `daily-standup` and **0 on every other scenario**: the persona says "Greet the
+    user", and a greeting in a standup is a template slot in most of the text gemma3:4b was
+    trained on. No prompt in this system has ever contained a placeholder.
+
+    The opening turn is where it is near-deterministic, which is why this measures that
+    rather than a mid-conversation reply. Measured on 2026-08-30: **12/12 without the
+    instruction, 0/12 with it.** The gate here is 0 out of 12 rather than "fewer than
+    before", because a persona that addresses somebody as [User Name] is not a degraded
+    experience, it is a broken one.
+    """
+    import re
+    from types import SimpleNamespace
+
+    from services import conversation as conversation_module
+
+    placeholder = re.compile(r"\[[A-Za-z][A-Za-z ]*\]")
+    persona = (
+        "You are Marcus, the scrum master running a daily standup for a five-person team. "
+        "Greet the user and ask for their update. Listen for three things — yesterday, "
+        "today, blockers — and ask for whichever one they leave out."
+    )
+    scenario = SimpleNamespace(
+        persona_prompt=persona, goal="Run a crisp standup and surface any blocker."
+    )
+
+    provider = OllamaProvider()
+    n = 12
+    hits: list[str] = []
+    for _ in range(n):
+        messages = conversation_module.build_messages(scenario, None, [], None)
+        completion = await provider.complete(messages, max_tokens=120)
+        found = placeholder.search(completion.text)
+        if found:
+            hits.append(completion.text.strip().splitlines()[0][:90])
+
+    print(f"\n  opening turn, daily-standup persona, n = {n}")
+    print(f"  replies containing a placeholder: {len(hits)}")
+    for example in hits[:3]:
+        print(f"    {example}")
+    print("  measured 2026-08-30: 12/12 without the name guardrail, 0/12 with it")
+
+    assert not hits, (
+        f"{len(hits)}/{n} replies addressed the speaker by a placeholder. The name "
+        f"guardrail in services/conversation.GUARDRAILS has stopped working."
+    )

@@ -16,12 +16,12 @@ returns one flat list for the whole text and the result has to be attributed bac
 individual words for the heatmap to tint anything. That is what desyncs, and it desynced
 here:
 
-    The spike's rule — a surface word is a whitespace token with ``.,!?;:`` stripped —
+    The obvious rule — a surface word is a whitespace token with ``.,!?;:`` stripped —
     fails on **2 of the 12 seeded passages**. Both contain a standalone em dash, which
-    survives that strip, counts as a word, and produces no phones. 79 surface words
-    against 78 phone groups, and `spike/gop.py` raises ValueError on it. Read-aloud
-    would have been broken on a sixth of the shipped corpus, and the failure would have
-    looked like a bug in alignment rather than in tokenisation.
+    survives that strip, counts as a word, and produces no phones: 79 surface words
+    against 78 phone groups, which is a hard alignment failure. Read-aloud would have
+    been broken on a sixth of the shipped corpus, and the failure would have looked like
+    a bug in alignment rather than in tokenisation.
 
 The rule here is instead: **a surface word is a token containing at least one letter.**
 That is the same rule `g2p_en` effectively applies when it decides whether to emit

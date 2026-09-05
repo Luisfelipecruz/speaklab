@@ -6,7 +6,7 @@ system that calls three services and holds a transaction across them, and buryin
 under four pieces of CRUD would misrepresent how much of this milestone it is.
 
 Every route here is scoped with `get_owned_or_404`, so a session belonging to somebody
-else is **404 and never 403** (D25). Session ids are sequential integers, which makes
+else is **404 and never 403**. Session ids are sequential integers, which makes
 `GET /sessions/41` a guess anybody can make; a 403 would confirm the guess was right.
 
 **Where the database connection is held.** `POST /sessions` generates an opening turn,
@@ -106,7 +106,7 @@ async def start_session(
     db: AsyncSession = Depends(get_db),
     provider: LlmProvider = Depends(get_provider),
 ) -> SessionDetail:
-    """Start a conversation and return the persona's opening turn. FR-6.
+    """Start a conversation and return the persona's opening turn.
 
     The opening line is generated rather than seeded, because a scenario that always
     opens with the same sentence is a scenario you have already heard. It costs a model
@@ -191,7 +191,7 @@ async def get_session(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SessionDetail:
-    """One session with its whole transcript. FR-10 — this is what a page reload reads."""
+    """One session with its whole transcript. This is what a page reload reads."""
     session = await get_owned_or_404(db, PracticeSession, session_id, user)
 
     turns = list(
@@ -224,7 +224,7 @@ async def end_session(
     db: AsyncSession = Depends(get_db),
     provider: LlmProvider = Depends(get_provider),
 ) -> SessionDetail:
-    """Close the session and produce its report. FR-9.
+    """Close the session and produce its report.
 
     **Idempotent.** Ending an already-ended session returns the stored report rather
     than writing a new one. Regenerating would spend a model call to produce a

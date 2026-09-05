@@ -1,11 +1,7 @@
 /**
- * The player m5 shipped without tests, on purpose, with a date on the gap: "the Jest and
- * React Testing Library harness arrives with m7, which is also the milestone that first
- * mounts this component." This is that.
- *
- * The properties under test are the three its own docstring calls requirements rather
- * than polish — keyboard operation, a caption slot, and a visible error state — plus the
- * two props m7 added.
+ * The properties under test are the three the component's own docstring calls
+ * requirements rather than polish — keyboard operation, a caption slot, and a visible
+ * error state — plus `autoPlay` and `onPlayingChange`.
  */
 
 import { fireEvent, render, screen } from "@testing-library/react";

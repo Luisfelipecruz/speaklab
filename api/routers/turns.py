@@ -1,4 +1,4 @@
-"""One spoken turn: audio in, transcript, persona reply, speech out, persisted. FR-7.
+"""One spoken turn: audio in, transcript, persona reply, speech out, persisted.
 
 This is the endpoint the product is about, and the only one in the system that talks to
 three services inside a single request. Almost everything unusual in it follows from
@@ -87,7 +87,7 @@ async def add_turn(
     db: AsyncSession = Depends(get_db),
     provider: LlmProvider = Depends(get_provider),
 ) -> TurnResponse:
-    """Speak; be heard; be answered. FR-7."""
+    """Speak; be heard; be answered."""
     started = time.perf_counter()
 
     # ── Phase A: reads ──────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ async def add_turn(
             detail=f"This session is {session.status}; it cannot take another turn.",
         )
     if session.scenario_id is None:
-        # A read-aloud session has no persona to reply as. m8's `POST /attempts` is the
+        # A read-aloud session has no persona to reply as. `POST /attempts` is the
         # endpoint for those; answering here with a generic 404 would be a worse error
         # than saying which endpoint this session belongs to.
         raise HTTPException(
@@ -172,7 +172,7 @@ async def add_turn(
     # Serialised once and read twice. `low_confidence` is on the envelope as well as on
     # the turn, and deriving it here a second time from `transcription.confidence` would
     # be a second copy of the comparison — which is how the envelope and the turn come to
-    # disagree the day the threshold moves (Q11).
+    # disagree the day the threshold moves.
     spoken = TurnOut.of(user_turn)
 
     return TurnResponse(
@@ -249,11 +249,10 @@ async def _persist_user_turn(
 ) -> Turn:
     """The speaker's half of the exchange.
 
-    **FR-26 is honoured here, and m6 is the first milestone where it means anything.**
-    `users.retain_audio` has been settable since m3 and nothing has stored a waveform
-    until now. When it is off the recording is transcribed and then not kept: no file is
-    written, no `audio_assets` row is created, and the turn carries the transcript, the
-    word timings and the confidence — everything every later metric is computed from.
+    **This is where `users.retain_audio` takes effect.** When it is off the recording is
+    transcribed and then not kept: no file is written, no `audio_assets` row is created,
+    and the turn carries the transcript, the word timings and the confidence — everything
+    every later metric is computed from.
     The setting drops the audio and keeps the derived data, which is exactly what the
     requirement asks for.
 
@@ -289,7 +288,7 @@ async def _persist_user_turn(
 async def _fold_digest(
     db: AsyncSession, session_id: int, provider: LlmProvider
 ) -> None:
-    """Summarise the oldest turns into the running digest. FR-8.
+    """Summarise the oldest turns into the running digest.
 
     Runs after the turn has been committed, on the request's own session, and never
     raises. Three things are deliberate about that sentence.
@@ -312,10 +311,9 @@ async def _fold_digest(
 
     It is awaited rather than fired into the background, and that is a stated limitation:
     the response is a few hundred milliseconds later on roughly one turn in ten.
-    `BackgroundTasks` would hide that cost from the caller and the failure from the log,
-    and m9 is where the background-job machinery is actually built (Q3). Two answers to
-    the same question in one codebase is worse than one answer that is honest about what
-    it costs.
+    `BackgroundTasks` would hide that cost from the caller and the failure from the log.
+    Two answers to the same question in one codebase is worse than one answer that is
+    honest about what it costs.
     """
     try:
         session = await db.get(PracticeSession, session_id)

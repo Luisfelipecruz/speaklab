@@ -1,9 +1,9 @@
 """SpeakLab ASR — audio in, transcript with per-word timings and logprobs out.
 
-This service exists because of one line in PRD §7.1: every fluency metric in the
-product is derived from word-level timings, and every accuracy metric is gated on
-word-level confidence. Nothing else in the system can produce either. So
-`word_timestamps=True` is not a feature flag here, it is the reason the service exists.
+Every fluency metric in the product is derived from word-level timings, and every
+accuracy metric is gated on word-level confidence. Nothing else in the system can produce
+either. So `word_timestamps=True` is not a feature flag here, it is the reason the
+service exists.
 
 Three things it does, in order:
 
@@ -257,9 +257,9 @@ def _transcribe(audio: np.ndarray, duration_ms: int) -> dict[str, Any]:
                     "start_ms": start_ms,
                     "end_ms": end_ms,
                     # Stored as a logprob, not a probability, because that is what the
-                    # confidence gate in PRD §7.5 thresholds on and what `turns.words`
-                    # declares. `max(p, 1e-9)` keeps a zero-probability word from
-                    # becoming -inf and taking the JSON serialiser with it.
+                    # confidence gate thresholds on and what `turns.words` declares.
+                    # `max(p, 1e-9)` keeps a zero-probability word from becoming -inf and
+                    # taking the JSON serialiser with it.
                     "logprob": round(math.log(max(word.probability, 1e-9)), 4),
                 }
             )

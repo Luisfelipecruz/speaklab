@@ -1,25 +1,22 @@
 """conversation context and turn provenance
 
-Six columns, no tables. `sessions` and `turns` were both created complete by 0001 —
-plan §5 designed them a milestone before the loop that fills them — so m6 adds only what
-the loop turned out to need and could not have been sure of in advance:
+Six columns, no tables. `sessions` and `turns` were both created complete by 0001, so
+this revision adds only what the conversation loop turned out to need:
 
-* **`sessions.context_digest` / `digest_through_idx`** — FR-8 says the history is bounded
-  in tokens and the turns that fall out of the window are *summarised, not dropped*. The
+* **`sessions.context_digest` / `digest_through_idx`** — the history is bounded in tokens
+  and the turns that fall out of the window are *summarised, not dropped*. The
   digest is that summary and the index is how far it reaches, which is what makes
   summarising incremental rather than a full re-read every turn.
 
 * **`turns.llm_model` / `tts_voice`** — the same provenance `asr_model` already records,
-  for the two components m6 introduced. Synthesis is non-deterministic (decision 0002),
-  so a voice not recorded at the moment it spoke is not recoverable afterwards.
+  for the reply writer and the voice. Synthesis is non-deterministic, so a voice not
+  recorded at the moment it spoke is not recoverable afterwards.
 
 * **`turns.prompt_tokens` / `completion_tokens`** — Ollama's own counts, so the token
-  budget in FR-8 is a measured bound rather than an asserted one.
+  budget is a measured bound rather than an asserted one.
 
-This is revision **0002**, not 0004 as the plan's deliverable list guessed. m3, m4 and m5
-each turned out to need no schema change at all (D23, D27), and numbering migrations after
-milestones rather than after migrations would leave two gaps in the history that never
-existed. Alembic's chain is what it is: the revision after 0001.
+Revisions are numbered in the order they exist, not against any external list: this is
+simply the revision after 0001.
 
 Every column is nullable and none has a server default. There is no data to backfill —
 `turns` and `sessions` are empty until this milestone writes the first row — and a

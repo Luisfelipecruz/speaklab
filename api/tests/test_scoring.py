@@ -1,14 +1,14 @@
 """Read-aloud end to end: the endpoint, the job, and every way `pron` can decline.
 
-The through-line of this file is one requirement, PRD R6: **an attempt with the
-pronunciation service switched off is still a useful attempt.** It has a transcript, it
+The through-line of this file: **an attempt with the pronunciation service switched off
+is still a useful attempt.** It has a transcript, it
 has a WER against the passage, and it says in words why there are no phones. That is not
 graceful degradation as a nicety — `pron` is profiled and 5 GB, so "switched off" is the
 *default* state of a fresh clone, and an endpoint that 500s there would make read-aloud
 look broken to everybody who had not read the Makefile.
 
-The other half is FR-16: a failure is a row state with a reason on it, and it can be run
-again without asking the user to read anything twice.
+The other half: a failure is a row state with a reason on it, and it can be run again
+without asking the user to read anything twice.
 """
 
 import pytest
@@ -43,7 +43,7 @@ async def test_a_reading_returns_a_transcript_before_it_is_scored(
     This is the two-clock design in one assertion. Transcription cannot be deferred — the
     `audio_assets` row needs a decoder's account of the file — so it happens in the
     request. Alignment can be, and is. The client gets something to show immediately and
-    polls for the rest (FR-15).
+    polls for the rest.
     """
     attempt = await read_aloud(client)
 
@@ -117,8 +117,7 @@ async def test_the_summary_is_recomputed_from_the_stored_rows(
 
     # Interpolated, not "the worst one": with two phones at 0.0 and -9.4 the 5th
     # percentile sits 5 % of the way up from the bottom, at -8.93. It is the same linear
-    # interpolation `spike/analyze.py` used to set m0's threshold and the same one
-    # `infra/pron/gop.py` computes, which is the point — three places, one definition of
+    # interpolation `infra/pron/gop.py` computes, which is the point — one definition of
     # what a percentile means here.
     assert full["summary"]["percentile_5"] == pytest.approx(-8.93)
 
@@ -145,14 +144,14 @@ async def test_reading_something_else_scores_a_wer_near_one(
 
     A WER near 1.0 means the speaker read some other text, and per-phone GOP against the
     wrong words is noise with decimal places. The number is stored so that a screen — or
-    m10's trend — can decline to draw conclusions from it.
+    a trend — can decline to draw conclusions from it.
     """
     reader.append("I would like to order a coffee please")
     attempt = await read_aloud(client)
     assert attempt["wer"] > 0.8
 
 
-# ── PRD R6: the service is off, which is the default ────────────────────────
+# ── The service is off, which is the default ────────────────────────────────
 
 
 async def test_with_pron_down_the_reading_keeps_its_transcript_and_says_why(
@@ -230,7 +229,7 @@ async def test_every_other_way_pron_declines_is_also_a_reason_not_a_500(
     assert fragment in detail["pronunciation_detail"]
 
 
-# ── FR-16: rescore ──────────────────────────────────────────────────────────
+# ── Rescore ─────────────────────────────────────────────────────────────────
 
 
 async def test_a_reading_can_be_scored_again_without_being_read_again(
@@ -364,13 +363,13 @@ async def test_the_list_shows_only_this_accounts_readings(
 async def test_an_account_with_retention_off_is_refused_and_told_which_setting(
     client, account, seeded, audio_root, reader, aligner, scorer
 ):
-    """FR-26 and FR-16 genuinely conflict, and this is the resolution.
+    """Audio retention and rescoring genuinely conflict, and this is the resolution.
 
     Read-aloud needs the recording to survive the request — `audio_asset_id` is NOT NULL
     so that a reading can be scored again — and an account with retention off has asked
     for exactly the opposite. Quietly storing it anyway would break a promise the user
     made a deliberate choice about, so the endpoint refuses, says why, and names the
-    setting and the mode that does work. See handoff Q14.
+    setting and the mode that does work.
     """
     await client.patch("/auth/me", json={"retain_audio": False})
 
@@ -400,7 +399,7 @@ async def test_an_unknown_passage_is_a_404(client, account, seeded, audio_root, 
 async def test_readings_join_a_sitting_when_one_is_named(
     client, account, seeded, audio_root, reader, aligner, scorer
 ):
-    """Two readings, one read-aloud session. The sitting is what m10 aggregates over."""
+    """Two readings, one read-aloud session. The sitting is what trends aggregate over."""
     first = await read_aloud(client)
     second = await read_aloud(client, session_id=first["session_id"])
     assert second["session_id"] == first["session_id"]
@@ -412,7 +411,7 @@ async def test_a_reading_cannot_be_filed_under_a_conversation(
     """A conversation session has a persona and turns; it is not a place for attempts.
 
     `provider` and `voice` are here because opening a conversation session generates and
-    speaks an opening line — the one place in this file that needs m6's stubs at all.
+    speaks an opening line — the one place in this file that needs those stubs at all.
     """
     created = await client.post(
         "/sessions", json={"scenario_slug": "job-interview-backend"}
@@ -436,7 +435,7 @@ async def test_the_list_can_be_filtered_to_one_sitting(
     Added after using the product: a read-aloud session appeared in History, opened the
     conversation screen, and offered a record button whose only possible outcome was a 409.
     The page now branches on `mode` and needs the sitting's readings, which needs this
-    filter. Every unit test in this file built a conversation until m8, because until m8
+    filter. Every unit test in this file built a conversation, because for a long time
     there was no other kind of session — which is exactly why nothing caught it.
     """
     first = await read_aloud(client)

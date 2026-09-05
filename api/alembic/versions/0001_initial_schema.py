@@ -1,7 +1,6 @@
 """initial schema
 
-The whole data model of plan §5 in one revision: three enum types, twelve tables, four
-indexes. One revision rather than twelve because there is no deployed database to
+The whole data model in one revision: three enum types, twelve tables, four indexes. One revision rather than twelve because there is no deployed database to
 migrate — this is the schema the project starts with, and splitting it would produce a
 history that tells a story that never happened.
 

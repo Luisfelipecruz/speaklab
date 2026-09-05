@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Sign in. FR-2.
+ * Sign in.
  *
  * A client component because it owns form state and calls the API from the browser —
  * the session cookie is set by that response, and a server-side fetch would set it on
@@ -12,7 +12,7 @@
  * forwarded, and without the refresh they would render from the client-side cache as
  * though nobody had signed in.
  *
- * **`?next=` is honoured.** m7 sends people here from the middle of something — a
+ * **`?next=` is honoured.** People arrive here from the middle of something — a
  * scenario they were about to start, a conversation they opened from a bookmark — and
  * landing them on the home page afterwards makes them find their way back by hand. The
  * value is checked by `safeNext` before it is used: an unchecked `next` is an open

@@ -1,20 +1,17 @@
-"""FR-4: no endpoint returns another user's data.
+"""No endpoint returns another user's data.
 
-The first test in this file is the one that matters, and it is the reason the file
-exists at m3 rather than at m6 when the first user-scoped resource is built. It does not
-test a route — it enumerates *every* route the application has registered and asserts
+The first test in this file is the one that matters. It does not test a route — it enumerates *every* route the application has registered and asserts
 that each one either depends on `current_user` or appears in an explicit table of public
 paths, with a written reason.
 
 That shape was chosen over a per-endpoint check because per-endpoint checks test the
-endpoints somebody remembered. FR-4 is a claim about all of them, including the one
-added at m6 by somebody moving quickly, and the only test that can make that claim is
-one that reads the router table. When `POST /sessions` arrives unauthenticated, this
-fails and names it.
+endpoints somebody remembered. The claim is about all of them, including the one added by
+somebody moving quickly, and the only test that can make that claim is one that reads the
+router table. An endpoint that arrives unauthenticated fails here and is named.
 
-The second half tests the guard itself — `get_owned_or_404` — against `audio_assets`,
-the one user-scoped table that exists at m3. m6 and m8 build on that function, so it is
-tested by the milestone that wrote it rather than by the ones that inherit it.
+The second half tests the guard itself — `get_owned_or_404` — against `audio_assets`.
+Every user-scoped route builds on that function, so it is tested directly rather than
+only through its callers.
 """
 
 import pytest
@@ -50,8 +47,8 @@ def _depends_on(dependant: Dependant, target) -> bool:
     """Walk a route's dependency tree looking for `target`.
 
     Recursive rather than a scan of the top level, because a route that depends on
-    something which itself depends on `current_user` is still scoped — and at m6 the
-    session routes are expected to be written exactly that way.
+    something which itself depends on `current_user` is still scoped — and the session
+    routes are written exactly that way.
     """
     if dependant.call is target:
         return True
@@ -76,12 +73,12 @@ def _api_routes() -> list[tuple[str, str, APIRoute]]:
 
 
 def test_every_route_is_either_scoped_to_a_user_or_declared_public():
-    """FR-4, asserted over the router table rather than route by route.
+    """Scoping asserted over the router table rather than route by route.
 
     Set equality in both directions, on purpose:
 
-    * a route that is neither scoped nor listed fails — the m6 case, an endpoint
-      shipped without authentication;
+    * a route that is neither scoped nor listed fails — an endpoint shipped without
+      authentication;
     * a route that is listed but *is* scoped also fails — which catches the stale
       entry left behind after an endpoint was correctly locked down, so the table
       cannot quietly become a list of things that used to be public.
@@ -104,25 +101,24 @@ def test_every_route_is_either_scoped_to_a_user_or_declared_public():
     ), f"declared public but actually scoped; remove them from PUBLIC_ROUTES: {sorted(stale)}"
 
 
-def test_the_user_scoped_routes_are_the_ones_expected_at_m8():
+def test_the_user_scoped_routes_are_the_ones_expected():
     """A companion to the test above, which would also pass if *nothing* were scoped and
     everything were listed as public. This one names the routes that must be locked.
 
-    It is meant to be edited by each milestone that adds a scoped route — m4 added
-    `GET /audio/{asset_id}`, m6 added the six session routes, m8 added the four attempt
-    routes — and the edit is the point. A route arriving in this set without somebody
-    typing it here is a route nobody decided should be private.
+    It is meant to be edited whenever a scoped route is added, and the edit is the point.
+    A route arriving in this set without somebody typing it here is a route nobody decided
+    should be private.
 
-    **m8's four are the case this test was written for.** `attempts` has no `user_id`
-    column: it reaches its owner through `sessions`, so `get_owned_or_404` does not apply
-    and `routers/attempts._owned_attempt` does the join itself. A hand-written ownership
-    check is exactly the kind that gets written once and forgotten on the fifth endpoint,
-    and this list is what notices.
+    **The attempt routes are the case this test was written for.** `attempts` has no
+    `user_id` column: it reaches its owner through `sessions`, so `get_owned_or_404` does
+    not apply and `routers/attempts._owned_attempt` does the join itself. A hand-written
+    ownership check is exactly the kind that gets written once and forgotten on the fifth
+    endpoint, and this list is what notices.
 
-    m6 is the milestone where this stopped being a formality. Everything scoped before it
-    was one row deep: a profile, or a recording read by id. A session is a tree — turns,
-    word timings, transcripts, and audio of somebody's actual voice — and it is reached
-    through a sequential integer, so `GET /sessions/41` is a guess anybody can make. The
+    Sessions are why this is not a formality. Everything scoped before them was one row
+    deep: a profile, or a recording read by id. A session is a tree — turns, word timings,
+    transcripts, and audio of somebody's actual voice — and it is reached through a
+    sequential integer, so `GET /sessions/41` is a guess anybody can make. The
     other half of that guarantee is `get_owned_or_404` folding existence and ownership
     into one WHERE, tested below and again in test_sessions.py against a second account.
     """
@@ -135,7 +131,7 @@ def test_the_user_scoped_routes_are_the_ones_expected_at_m8():
         ("GET", "/auth/me"),
         ("PATCH", "/auth/me"),
         ("GET", "/audio/{asset_id}"),
-        # Read-aloud (m8). Scoped through the session, not through a column.
+        # Read-aloud. Scoped through the session, not through a column.
         ("POST", "/attempts"),
         ("GET", "/attempts"),
         ("GET", "/attempts/{attempt_id}"),

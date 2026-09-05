@@ -37,8 +37,8 @@ async def start(client, slug: str = SLUG):
 async def test_starting_a_session_returns_the_personas_opening_turn(
     seeded, client, account, provider, voice, audio_root
 ):
-    """FR-6. The opening line is generated rather than seeded: a scenario that always
-    opens with the same sentence is a scenario you have already heard."""
+    """The opening line is generated rather than seeded: a scenario that always opens
+    with the same sentence is a scenario you have already heard."""
     response = await start(client)
 
     assert response.status_code == 201, response.text
@@ -101,7 +101,7 @@ async def test_starting_a_session_needs_a_session(seeded, client, provider):
 async def test_the_model_being_down_is_a_503_and_writes_nothing(
     seeded, client, account, broken_provider, voice, audio_root, db_session
 ):
-    """Plan §7 m6: generation degrades explicitly, never a fabricated reply.
+    """Generation degrades explicitly, never a fabricated reply.
 
     And nothing is written. The session row is created in the same transaction as its
     first turn precisely so that a machine with no Ollama does not accumulate empty
@@ -168,7 +168,7 @@ async def test_an_absurd_page_size_is_refused_rather_than_served(
 async def test_a_session_reads_back_with_its_whole_transcript(
     seeded, client, account, provider, voice, audio_root
 ):
-    """FR-10 — this is the request a page reload makes."""
+    """This is the request a page reload makes."""
     created = (await start(client)).json()
 
     body = (await client.get(f"/sessions/{created['id']}")).json()
@@ -212,7 +212,7 @@ async def test_another_accounts_sessions_are_absent_from_the_list(
     assert (await other_client.get("/sessions")).json()["total"] == 0
 
 
-# ── Ending (FR-9) ───────────────────────────────────────────────────────────
+# ── Ending ──────────────────────────────────────────────────────────────────
 
 
 async def test_ending_a_session_produces_a_report_and_closes_it(
@@ -302,8 +302,8 @@ async def test_deleting_a_session_removes_its_turns_and_its_audio(
 async def test_an_asset_another_row_still_needs_survives_the_delete(
     seeded, client, account, provider, voice, audio_root, db_session
 ):
-    """Assets are content-addressed, so one row can be referenced more than once — and
-    from m8 by a read-aloud attempt as well. Deleting on the strength of "this session
+    """Assets are content-addressed, so one row can be referenced more than once —
+    by a read-aloud attempt as well as a turn. Deleting on the strength of "this session
     referenced it" would eventually take a recording out from under something still
     using it."""
     from sqlalchemy import select

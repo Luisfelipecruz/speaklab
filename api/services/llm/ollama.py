@@ -1,8 +1,7 @@
 """The one provider that exists: local Ollama over HTTP.
 
 Ollama runs on the **host**, not in Compose, and that is a measured decision rather than
-a convenience (handoff §2.1): Docker Desktop on macOS cannot pass the Apple GPU into a
-Linux container, so a containerised Ollama runs on CPU while the host's runs on Metal —
+a convenience: Docker Desktop on macOS cannot pass the Apple GPU into a Linux container, so a containerised Ollama runs on CPU while the host's runs on Metal —
 the same model, several times slower, for nothing. `OLLAMA_BASE_URL` defaults to
 `host.docker.internal:11434` and `extra_hosts` in docker-compose.yml makes that resolve
 on Linux too.
@@ -105,7 +104,7 @@ class OllamaProvider(LlmProvider):
             # minutes, which means a user who stops to think for six pays the ~2.6 s
             # load again on their next turn — a cold start wearing the costume of a slow
             # model. It costs host RAM and no container RAM, so it does not count
-            # against the PRD's 8 GB stack ceiling.
+            # against the stack's memory ceiling.
             "keep_alive": OLLAMA_KEEP_ALIVE,
         }
 

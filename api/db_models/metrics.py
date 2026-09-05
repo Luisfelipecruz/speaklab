@@ -1,11 +1,11 @@
 """Everything measured. Four tables, one rule: none of it is written by an LLM.
 
-Invariant I1 — anything that moves on a chart is computed by deterministic code from
-the waveform or the transcript, so the same audio produces the same number every time.
-`language_errors` is the one table an LLM touches, and even there the `detector` column
-records which layer produced the row: an LLM proposal that the rule layer validated, or
-a rule that fired on its own. An out-of-taxonomy label is rejected and counted as a
-model-quality metric — never stored here as if it were a finding (invariant I3).
+Anything that moves on a chart is computed by deterministic code from the waveform or
+the transcript, so the same audio produces the same number every time. `language_errors`
+is the one table an LLM touches, and even there the `detector` column records which layer
+produced the row: an LLM proposal that the rule layer validated, or a rule that fired on
+its own. An out-of-taxonomy label is rejected and counted as a model-quality metric —
+never stored here as if it were a finding.
 
 `fluency_metrics` is keyed by `turn_id` rather than carrying its own id: there is
 exactly one row per turn, forever, and a surrogate key would allow a second.
@@ -39,8 +39,8 @@ class FluencyMetrics(Base):
         primary_key=True,
     )
 
-    # PRD §7.1. Every one of these is a function of the word timings on the turn, which
-    # is why they are stored next to nothing else: recomputing them means re-reading
+    # Every one of these is a function of the word timings on the turn, which is why
+    # they are stored next to nothing else: recomputing them means re-reading
     # `turns.words`, and that array outlives the audio it came from.
     speech_rate_wpm: Mapped[float | None] = mapped_column(Float)
 
@@ -59,7 +59,7 @@ class FluencyMetrics(Base):
 
 
 class GrammarUsage(Base):
-    """Breadth, separately from accuracy (PRD P3).
+    """Breadth, measured separately from accuracy.
 
     A learner reaches a zero error rate by only ever using the present simple. Counting
     which forms were *used* is what makes that visible as the regression it is, instead
@@ -91,10 +91,10 @@ class LanguageError(Base):
         BigInteger, ForeignKey("turns.id", ondelete="CASCADE"), nullable=False
     )
 
-    # The closed taxonomy of PRD §7.2. TEXT here and enforced in the application layer
-    # at m9, because unlike session mode and status this vocabulary is expected to be
-    # revised as real transcripts are read — and a taxonomy revision should be a code
-    # change with a test, not an ALTER TYPE that cannot be run inside a transaction.
+    # The closed error taxonomy. TEXT here and enforced in the application layer,
+    # because unlike session mode and status this vocabulary is expected to be revised
+    # as real transcripts are read — and a taxonomy revision should be a code change
+    # with a test, not an ALTER TYPE that cannot be run inside a transaction.
     category: Mapped[str] = mapped_column(Text, nullable=False)
     subcategory: Mapped[str | None] = mapped_column(Text)
 
@@ -107,8 +107,8 @@ class LanguageError(Base):
     correction: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str | None] = mapped_column(Text)
 
-    # Which layer produced this row. It is what lets m11 report LLM precision against
-    # the rule layer instead of asserting it, and what lets a bad prompt be found by
+    # Which layer produced this row. It is what lets LLM precision be reported against
+    # the rule layer instead of asserted, and what lets a bad prompt be found by
     # querying rather than by reading transcripts.
     detector: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
@@ -125,11 +125,11 @@ class ProgressSnapshot(Base):
     The progress page reads this and nothing else. A chart that aggregated raw turns on
     every page load would get slower every week the user practised, and the rollup is
     also where `sample_counts` is computed — which is what keeps a trend line off the
-    screen until there is enough behind it to mean something (PRD P4: no phoneme trend
-    under 5 scored attempts).
+    screen until there is enough behind it to mean something: no phoneme trend is shown
+    under 5 scored attempts.
 
-    JSONB per family rather than fifty columns: the set of fluency measures will change
-    as m9 and m10 land, and a schema migration per metric added is a tax on exactly the
+    JSONB per family rather than fifty columns: the set of fluency measures is expected
+    to change, and a schema migration per metric added is a tax on exactly the
     experimentation this project is for. Nothing here is queried by key across rows —
     it is read whole, for one user, for one window.
     """
@@ -151,7 +151,7 @@ class ProgressSnapshot(Base):
     complexity: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 
     # Mean GOP per phone, z-scored against this user's own rolling baseline. Raw GOP
-    # moves with the microphone and the room; PRD P4 is why nothing is compared across
+    # moves with the microphone and the room, which is why nothing is compared across
     # users and why the z-scoring happens before anything is plotted.
     pronunciation: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default="{}"
@@ -160,9 +160,9 @@ class ProgressSnapshot(Base):
         JSONB, nullable=False, server_default="{}"
     )
 
-    # An estimate, labelled as one. Out of scope to calibrate against human raters
-    # (PRD §12), and the column exists so the estimate is recorded rather than
-    # recomputed differently by each screen that shows it.
+    # An estimate, labelled as one. It is not calibrated against human raters, and the
+    # column exists so the estimate is recorded rather than recomputed differently by
+    # each screen that shows it.
     cefr_estimate: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (

@@ -3,7 +3,7 @@
 The property under test is not "the endpoint returns 200". It is the asymmetry: the
 database is a hard dependency and the model services are not. Getting that backwards
 is what would make `docker compose up -d` fail on a machine where nobody has built
-`pron` — which, until m8, is every machine.
+`pron`, which is the default state of a fresh clone.
 """
 
 import importlib.util
@@ -35,7 +35,7 @@ async def test_health_returns_200_and_the_documented_shape(client):
 
 
 async def test_unreachable_model_services_are_degraded_not_fatal(client, monkeypatch):
-    """The m1 condition, and the state this repository is actually in until m4.
+    """The state a machine is in before any model service has been started.
 
     Every model service is absent. The API must still answer 200, must name each one,
     and must say `degraded` rather than pretending everything is fine.
@@ -156,9 +156,8 @@ def test_the_api_image_contains_no_torch():
     test in CI.
     """
     assert importlib.util.find_spec("torch") is None, (
-        "torch is installed in the API image. See invariant I5 — model weights and "
-        "torch live in asr/tts/pron, and this image must stay small enough to start "
-        "in seconds."
+        "torch is installed in the API image. Model weights and torch live in "
+        "asr/tts/pron, and this image must stay small enough to start in seconds."
     )
 
 
@@ -166,7 +165,7 @@ def test_the_api_image_contains_no_torch():
 def test_the_api_image_contains_no_model_runtimes(package):
     assert (
         importlib.util.find_spec(package) is None
-    ), f"{package} is installed in the API image. See invariant I5."
+    ), f"{package} is installed in the API image; model runtimes live in asr/tts/pron."
 
 
 # ── Fakes ───────────────────────────────────────────────────────────────────

@@ -3,14 +3,14 @@
 Three properties, on a scratch database of their own so nothing here can disturb the
 suite's seeded one:
 
-1. **`upgrade head` builds the twelve tables of plan §5** and the three enum types.
+1. **`upgrade head` builds all twelve tables** and the three enum types.
 2. **`downgrade base` removes all of it**, types included. A downgrade that leaves an
    enum behind fails on the *next* upgrade, minutes later, as `type already exists` —
    so up, down and up again is run in one test.
 3. **The ORM and the migration describe the same database.** Alembic's own
    `compare_metadata` against a migrated database must return an empty diff. This is
    the one that earns its keep: it is the check that catches a column added to a model
-   at m5 and never migrated, which otherwise surfaces as an `UndefinedColumn` error in
+   and never migrated, which otherwise surfaces as an `UndefinedColumn` error in
    production code that was green in CI.
 """
 
@@ -28,8 +28,8 @@ from tests.conftest import (
     upgrade,
 )
 
-# Plan §5, spelled out rather than derived from Base.metadata — deriving it would make
-# this assertion true by construction and it would stop being a test.
+# Spelled out rather than derived from Base.metadata — deriving it would make this
+# assertion true by construction and it would stop being a test.
 EXPECTED_TABLES = {
     "attempts",
     "audio_assets",

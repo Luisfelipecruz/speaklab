@@ -8,7 +8,7 @@
  *
  * **The optimistic bubble is not decoration.** `POST /sessions/{id}/turns` runs a
  * recogniser, a language model and a voice inside one request — measured at 2353 ms
- * median on a quiet machine and over 6 s on a busy one (decision 0003 §3) — and three
+ * median on a quiet machine and over 6 s on a busy one — and three
  * seconds of an unchanged screen after you stop speaking reads as a broken button. So a
  * bubble appears the moment recording stops, saying it is being transcribed, and is
  * replaced by the real pair when the server answers. It never shows invented text: the

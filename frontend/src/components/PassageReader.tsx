@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Read a passage aloud, then see it scored sound by sound. FR-12 … FR-16.
+ * Read a passage aloud, then see it scored sound by sound.
  *
  * The second practice mode, and it has a different shape from a conversation: nobody
  * answers, there is a right answer on the screen the whole time, and the interesting part
@@ -10,7 +10,7 @@
  * **The two-clock design is visible here, deliberately.** `POST /attempts` returns as soon
  * as the recogniser is done — a transcript and a WER, in about as long as a conversational
  * turn — and the phones are still being aligned. So the screen has something real to show
- * immediately, and then fills in. That is why there is a poll (FR-15) rather than one long
+ * immediately, and then fills in. That is why there is a poll rather than one long
  * request that leaves the button spinning for ten seconds.
  *
  * **Polling stops.** Three ways: the attempt reaches a terminal state, the component

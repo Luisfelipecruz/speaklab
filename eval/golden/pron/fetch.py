@@ -2,7 +2,7 @@
 
 **Unlike `eval/golden/asr/fetch.py`, this script is not optional.** The ASR golden set
 commits its ten `.flac` files and that script exists to *audit* them. Here `.gitignore`
-covers `*.wav` — trap 4, recordings of a human voice must never be able to appear in
+covers `*.wav` — recordings of a human voice must never be able to appear in
 `git status` — so nothing in this directory is versioned except the manifest and this
 file. Running it is how the audio gets onto a machine at all.
 
@@ -85,8 +85,8 @@ def main() -> int:
 
     if not manifest["pairs"]:
         print()
-        print("The clean/broken PAIRS are still empty, so criterion S4 has nothing to")
-        print("measure. They need a person: see spike/RECORD.md, about five minutes.")
+        print("The clean/broken PAIRS are still empty, so there is nothing to measure.")
+        print("They need a person: see the README beside this script, ~5 minutes.")
     return 0
 
 

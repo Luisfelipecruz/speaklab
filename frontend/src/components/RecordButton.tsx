@@ -10,8 +10,8 @@
  * machine agree about when speech ended, and this product is for learners who pause
  * mid-sentence more than most.
  *
- * **The keyboard is not a fallback here, it is the same control.** PRD §9.2 requires
- * keyboard-operable recording, so Space is bound to keydown and keyup — press and hold,
+ * **The keyboard is not a fallback here, it is the same control.** Recording has to be
+ * keyboard-operable, so Space is bound to keydown and keyup — press and hold,
  * exactly like the pointer — rather than to a click that would have no held state at
  * all. The browser's own "Space activates a button on keyup" behaviour is suppressed,
  * because it would fire a second, empty gesture at the end of every recording.

@@ -1,9 +1,9 @@
-"""Browsing the seeded scenarios. FR-5.
+"""Browsing the seeded scenarios.
 
 Two operations, three filters, no pagination. Eight rows do not need a cursor, and an
 envelope with `total` and `next` on a list that fits on one screen is a promise about
-growth that nothing here is going to keep — `GET /sessions` at m6 is paginated because
-session history actually grows.
+growth that nothing here is going to keep — `GET /sessions` is paginated because session
+history actually grows.
 
 The filters are `AND`ed. `?band=B2&category=workplace` means both, which is what a
 sentence in a UI would mean.

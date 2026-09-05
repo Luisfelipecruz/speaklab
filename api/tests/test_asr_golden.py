@@ -16,9 +16,8 @@ What is asserted here versus what is merely reported matters:
   the service reports having repaired nothing.
 - **Reported, not asserted:** latency. It is measured on whatever machine happens to be
   running, and a laptop with a compile going will fail a millisecond threshold while
-  the code is perfect. The real numbers are in `docs/decisions/0001-asr-model-choice.md`,
-  taken under controlled conditions, and m11 is where a measurement becomes a gate with
-  a recorded baseline.
+  the code is perfect. Turning a measurement into a gate needs a recorded baseline on
+  known hardware, which is the eval harness's job rather than this file's.
 
 Ten utterances is 232 reference words, so **one word is 0.43% of WER**. That is enough
 to tell a working pipeline from a broken one and enough to separate `small.en` from
@@ -41,7 +40,7 @@ from tests.conftest import API_ROOT
 
 # In the container `eval/` is mounted read-only at /app/eval; on a host it is beside
 # api/. Read-only is a property worth having: the corpus a system is evaluated on must
-# not be writable by the system being evaluated (invariant I7).
+# not be writable by the system being evaluated.
 GOLDEN = next(
     (
         candidate
@@ -153,7 +152,7 @@ async def test_word_error_rate_on_the_golden_set(manifest, capsys):
 async def test_word_timestamps_satisfy_the_contract_the_wire_format_promises(manifest):
     """Monotonic, non-negative, ordered, and inside the audio.
 
-    Every fluency metric in PRD §7.1 is arithmetic on these numbers. A word ending
+    Every fluency metric is arithmetic on these numbers. A word ending
     before it starts produces a negative duration, and a negative duration in a
     speech-rate calculation produces a number that is not wrong so much as meaningless.
     """

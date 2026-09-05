@@ -1,11 +1,11 @@
-"""Passage browsing, FR-11, and the integrity of the passage content itself.
+"""Passage browsing, and the integrity of the passage content itself.
 
 A passage makes a promise its text has to keep. `phoneme_focus: ["TH"]` says the text
 was engineered to force /θ/ repeatedly, not to mention it once — a passage with two
-instances of its target sound wastes an attempt, and PRD P4 will not plot a phoneme
-trend until five attempts are behind it. The density check below is deliberately crude,
-because the honest version needs G2P and that arrives with m8; what it can catch today
-is a passage that does not exercise its focus at all.
+instances of its target sound wastes an attempt, and no phoneme trend is plotted until
+five attempts are behind it. The density check below is deliberately crude, because the
+honest version needs G2P, which is not in this image; what it can catch is a passage that
+does not exercise its focus at all.
 """
 
 import re
@@ -78,8 +78,8 @@ async def test_an_unknown_band_is_rejected(client):
 
 
 async def test_phoneme_focus_filter_finds_the_passages_for_one_sound(client):
-    """The query FR-24's recommendation is built on: give me something that exercises
-    the phone this user is worst at."""
+    """The query a recommendation is built on: give me something that exercises the
+    phone this user is worst at."""
     body = (await client.get("/passages", params={"phoneme_focus": "TH"})).json()
 
     assert {row["slug"] for row in body} == {"third-street-theatre"}
@@ -127,7 +127,7 @@ async def test_stored_word_count_matches_the_body(seeded):
 
 
 async def test_every_phoneme_focus_is_a_phone_the_system_can_score(seeded):
-    """Handoff trap 1, at the content end.
+    """A phone set that drifts, caught at the content end.
 
     A passage declaring 'th' or 'TH1' would load, appear in the filter list, and match
     nothing the pron service ever emits — a passage that exists and is unreachable.
@@ -143,8 +143,8 @@ async def test_every_phoneme_focus_is_a_phone_the_system_can_score(seeded):
 async def test_every_passage_shows_orthographic_evidence_of_its_focus(seeded):
     """Crude, and the docstring at the top of this file says why.
 
-    A real density measure needs G2P over the body and arrives with m8. What this
-    catches now is the mistake that actually happens when a passage is edited: the text
+    A real density measure needs G2P over the body, which this image does not have. What
+    this catches is the mistake that actually happens when a passage is edited: the text
     is rewritten, the focus is left behind, and the passage stops exercising the sound
     it claims to.
     """
@@ -162,8 +162,8 @@ async def test_every_passage_shows_orthographic_evidence_of_its_focus(seeded):
 
 async def test_passages_are_long_enough_to_be_worth_scoring(seeded):
     """Under ~50 words there are too few instances of any phone for a mean GOP to mean
-    anything, and PRD P4 gates a trend at 5 attempts — short passages make that gate
-    take longer to open for no benefit."""
+    anything, and a trend is gated at 5 attempts — short passages make that gate take
+    longer to open for no benefit."""
     passages = (await seeded.scalars(select(Passage))).all()
 
     for passage in passages:

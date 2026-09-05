@@ -3,9 +3,8 @@
 The distinction this module exists to make: **the database is a dependency, the model
 services are not.** Without Postgres this container cannot answer anything and should
 say so with a 503. Without `asr`, `tts` and `pron` it can still serve scenarios,
-sessions, auth and progress — which is invariant I6 and requirement FR-27, and which is
-also the *normal* state of this repository until m4, when the first model service is
-built. A stack reporting `degraded` here is working as designed.
+sessions, auth and progress, and it starts and answers while those services are still
+loading their weights. A stack reporting `degraded` here is working as designed.
 
 Two endpoints, because they answer two different questions:
 
@@ -70,10 +69,10 @@ async def _probe_service(
     """Ask one model service how it is.
 
     Every failure mode collapses to `unreachable` with the exception type preserved in
-    `detail`. That is deliberate: from here, "the container was never started",
-    "m4 has not been written yet" and "the host is down" are genuinely the same
-    observation, and inventing a distinction the API cannot actually make would be a
-    worse answer than the honest one.
+    `detail`. That is deliberate: from here, "the container was never started", "the
+    service is not deployed" and "the host is down" are genuinely the same observation,
+    and inventing a distinction the API cannot actually make would be a worse answer
+    than the honest one.
 
     The service's own body is passed through under `reports`. The model services answer
     200 with `{"model_loaded": false}` while weights are still loading — a cold start is

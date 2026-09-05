@@ -15,14 +15,13 @@ from models.turn import TurnOut
 
 
 class SessionCreate(BaseModel):
-    """Starting a conversation. FR-6.
+    """Starting a conversation.
 
     A slug rather than an id, for the same reason `GET /scenarios/{slug}` takes one: the
     id is a database detail, and a client that has just read the catalogue is holding
     slugs. There is no `mode` field — every session this endpoint creates is a
-    conversation. Read-aloud sessions are built around a passage and arrive with m8,
-    and inventing the parameter now would mean shipping a value that is accepted and
-    ignored.
+    conversation. Read-aloud sessions are built around a passage and are opened by
+    `POST /attempts` instead.
     """
 
     scenario_slug: Slug
@@ -48,12 +47,12 @@ class SessionSummary(ORMModel):
 
 
 class SessionDetail(SessionSummary):
-    """One session, opened: the full transcript. FR-10.
+    """One session, opened: the full transcript.
 
     The whole transcript, unpaginated, and that is a decision rather than an oversight.
     A conversation is bounded by the thing it is a conversation about — the seeded
     rubrics ask for eight to twelve turns — so this is tens of rows, not thousands, and
-    paginating a transcript would make "reload the page and carry on" (FR-10) into a
+    paginating a transcript would make "reload the page and carry on" into a
     scroll-and-fetch problem for no measurable benefit.
     """
 

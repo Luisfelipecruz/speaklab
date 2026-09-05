@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * Create an account. FR-1 and FR-3.
+ * Create an account.
  *
  * Native language is asked for here rather than being left to a settings page nobody
- * visits, because m8 needs it to say anything useful the first time somebody reads a
+ * visits, because pronunciation scoring needs it to say anything useful the first time
+ * somebody reads a
  * passage aloud: which English sounds a speaker's first language does not have is the
  * difference between "your /v/ is weak" and a prediction the system could have made
  * before hearing a word. A column full of defaults would be the same as not having it.

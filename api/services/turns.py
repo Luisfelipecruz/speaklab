@@ -78,11 +78,11 @@ async def persist_reply(
                 channels=1,
                 duration_ms=reply.duration_ms,
             ),
-            # No device_hint. That column answers "which microphone made this", which is
-            # how m10 annotates a pronunciation trend when somebody changes headsets
-            # (PRD R5). Synthesised speech came from no microphone, and writing a
-            # sentinel there would put a fake device into the one column whose whole
-            # purpose is to be trustworthy about devices.
+            # No device_hint. That column answers "which microphone made this", which
+            # is how a pronunciation trend gets annotated when somebody changes headsets.
+            # Synthesised speech came from no microphone, and writing a sentinel there
+            # would put a fake device into the one column whose whole purpose is to be
+            # trustworthy about devices.
             device_hint=None,
         )
         asset_id = asset.id

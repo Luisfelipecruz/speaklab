@@ -4,12 +4,12 @@ The mirror image of `models/audio.py`. There, a recogniser told the API what it 
 here the API asks for speech and is told what came back. Both files exist for the same
 reason: the `audio_assets` row records `duration_ms`, `sample_rate` and `format`, and in
 both directions the service that produced the audio is the authority on those, not the
-API — which holds no media library at all (invariant I5).
+API — which holds no media library at all.
 
 The metadata arrives in response headers rather than in the body, because the body is a
 WAV. Parsing headers into a typed model rather than reading `response.headers[...]` at
 the call site is what makes a service that stops sending `X-Duration-Ms` a loud failure
-instead of a `KeyError` in whichever milestone happens to touch it next.
+instead of a `KeyError` in whichever caller happens to touch it next.
 """
 
 from pydantic import BaseModel, Field
@@ -60,6 +60,6 @@ class SpeechChunk(BaseModel):
     channels: int = Field(gt=0)
 
     # Measured from the start of the request, not from the previous chunk. On chunk 0
-    # this is the number PRD §9.1's fallback exists to reduce: how long the listener
-    # waited before hearing anything at all.
+    # this is time to first audio: how long the listener waited before hearing anything
+    # at all.
     latency_ms: int = Field(ge=0)

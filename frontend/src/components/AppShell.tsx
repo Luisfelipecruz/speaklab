@@ -3,10 +3,9 @@
 /**
  * The frame every signed-in screen sits in.
  *
- * It exists because m7 is the first milestone with more than one destination, and a
- * person who cannot get from a conversation back to the catalogue has to type a URL.
- * It is also the first consumer of the session that renders *around* other consumers,
- * which is what turned `useAuth` from a hook into a provider.
+ * It exists because a person who cannot get from a conversation back to the catalogue
+ * has to type a URL. It is also the consumer of the session that renders *around* other
+ * consumers, which is why `useAuth` is a provider rather than a plain hook.
  *
  * **It never blocks on the session check.** `status` is three-valued, and rendering
  * nothing while it is "checking" would blank the page on every navigation for somebody

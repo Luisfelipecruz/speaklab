@@ -1,4 +1,4 @@
-"""Forced alignment and Goodness of Pronunciation. PRD §6.2 / §7.4.
+"""Forced alignment and Goodness of Pronunciation.
 
     GOP(p) = log P(p | O_seg) − max over q of log P(q | O_seg)     (Witt & Young 2000)
 
@@ -7,18 +7,18 @@ construction**, and GOP = 0 means the canonical phone was itself the best-scorin
 over its own span. Frame posteriors come from a wav2vec2 CTC phoneme model; the segment
 boundaries come from CTC forced alignment against the canonical phone sequence.
 
-m0 measured the separation this is built to detect: a phone the speaker did not produce
-drops **8.14 nats** below one they did, Cohen's d = 8.26, on real human speech, with the
-competing phone named correctly in 10 cases out of 10.
+The separation this is built to detect, measured on real human speech: a phone the
+speaker did not produce drops **8.14 nats** below one they did, Cohen's d = 8.26, with
+the competing phone named correctly in 10 cases out of 10.
 
-Three things here are deliberately not what the spike did.
+Three things here are deliberate.
 
 **The competitor maximum is taken over phones, not over every token.** CTC's blank is not
 a phone, and a segment where blank scores highest is a segment that was short or quiet —
 not one where the speaker produced silence instead of a /θ/. Reporting ``<pad>`` as "what
-you said instead" would be a claim about speech the acoustic model never made, which is
-what invariant I2 forbids. The spike's arithmetic is still computed, as ``gop_all_tokens``,
-so the size of this deviation is a measured number in docs/decisions/0005 rather than an
+you said instead" would be a claim about speech the acoustic model never made, and this
+system does not make those. The all-token arithmetic is still computed, as
+``gop_all_tokens``, so the size of this deviation stays a measured number rather than an
 assurance in a comment.
 
 **Spans come from ``torchaudio.functional.merge_tokens`` rather than a hand-walked
@@ -81,9 +81,9 @@ def log_posteriors(model, audio: np.ndarray) -> torch.Tensor:
 def score(model, audio: np.ndarray, words: list[Word]) -> list[dict[str, Any]]:
     """One recording against one canonical phone sequence → one row per phone.
 
-    Rows are shaped exactly like the ``phoneme_scores`` table (plan §5). The API stores
-    them without reshaping, which is why the field names here are the column names there
-    and not a wire format that has to be translated twice.
+    Rows are shaped exactly like the ``phoneme_scores`` table. The API stores them
+    without reshaping, which is why the field names here are the column names there and
+    not a wire format that has to be translated twice.
     """
     flat = flatten(words)
     if not flat:
@@ -163,10 +163,10 @@ def score(model, audio: np.ndarray, words: list[Word]) -> list[dict[str, Any]]:
                 # surprising score can be explained without re-running the model.
                 "frames": span.end - span.start,
                 "gop_all_tokens": round(canonical - best_any, 4),
-                # m0 §2: eSpeak emits r-coloured composites as single tokens where
-                # g2p_en emits two ARPAbet phones, so segmentation can differ around
-                # rhotics even though every symbol maps. Flagged rather than corrected,
-                # because the right correction is a decision that needs this count.
+                # eSpeak emits r-coloured composites as single tokens where g2p_en
+                # emits two ARPAbet phones, so segmentation can differ around rhotics
+                # even though every symbol maps. Flagged rather than corrected, because
+                # the right correction is a decision that needs this count.
                 "r_composite": recognized in pm.R_COMPOSITES,
             }
         )
@@ -177,10 +177,10 @@ def score(model, audio: np.ndarray, words: list[Word]) -> list[dict[str, Any]]:
 def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """The aggregates worth computing once here rather than four times downstream.
 
-    ``percentile_5`` is the operating point m0 settled on for Q2: the GOP below which 5 %
-    of *this* reading's phones fall. It is reported per attempt because a threshold is a
-    property of a speaker and a corpus, and the one number this service must never do is
-    hand back a constant that looks calibrated.
+    ``percentile_5`` is the GOP below which 5 % of *this* reading's phones fall. It is
+    reported per attempt because a threshold is a property of a speaker and a corpus, and
+    the one thing this service must never do is hand back a constant that looks
+    calibrated.
     """
     if not rows:
         return {"phones": 0}
@@ -199,7 +199,7 @@ def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _percentile(sorted_values: list[float], q: float) -> float:
-    """Linear interpolation, matching the m0 spike's `analyze.py` exactly."""
+    """Linear interpolation between the two nearest ranks."""
     if not sorted_values:
         return float("nan")
     k = (len(sorted_values) - 1) * q

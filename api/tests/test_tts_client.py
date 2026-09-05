@@ -244,8 +244,8 @@ async def test_the_stream_yields_one_typed_chunk_per_line_in_order():
 async def test_concatenated_chunks_reproduce_the_whole_synthesis():
     """The contract that makes the streaming endpoint usable for storage as well.
 
-    m6 has to store one asset per assistant turn regardless of how the audio arrived,
-    so `b"".join(chunk.pcm)` plus a WAV header must equal what /synthesize would have
+    One asset is stored per assistant turn regardless of how the audio arrived, so
+    `b"".join(chunk.pcm)` plus a WAV header must equal what /synthesize would have
     returned. Asserted on sample counts because that is the part a chunking bug breaks.
     """
     lines = [chunk_line(0, samples=500), chunk_line(1, samples=700)]

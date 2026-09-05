@@ -9,7 +9,7 @@
  *
  * **The types below are hand-written mirrors of `api/models/*.py`, and that is a
  * decision with a cost.** Generating them from the OpenAPI document would keep them in
- * step automatically, and at m12 it may be worth it. At m7 it would add a code
+ * step automatically, and may eventually be worth it. Today it would add a code
  * generator, a checked-in artefact and a "is the schema stale?" question to every
  * review, to keep six interfaces honest — and the interfaces are covered by the one
  * thing generation cannot give you either way, which is a test that calls the real API.
@@ -214,8 +214,8 @@ export interface Turn {
   latency_ms: number | null;
   created_at: string;
   /**
-   * Below PRD §7.5's gate, derived server-side from `asr_confidence` so the threshold
-   * lives in one language. It is on the turn and not only on the response that created
+   * Below the confidence gate, derived server-side from `asr_confidence` so the
+   * threshold lives in one language. It is on the turn and not only on the response that created
    * it because a reloaded transcript has to mark the same turns as the live one did.
    */
   low_confidence: boolean;
@@ -256,7 +256,7 @@ export interface TurnResponse {
   reply_turn: Turn;
   speech: Speech;
   timing: TurnTiming;
-  /** Below PRD §7.5's gate. Still stored, still replied to, must not count towards a trend. */
+  /** Below the confidence gate. Still stored, still replied to, never counted in a trend. */
   low_confidence: boolean;
 }
 
@@ -272,9 +272,9 @@ export interface SessionSummary {
 }
 
 /**
- * The report FR-9 produces, split by **where each number came from**.
+ * The end-of-session report, split by **where each number came from**.
  *
- * The nesting is invariant I1 made structural rather than documented: `measured` is
+ * The nesting is structural rather than documented: `measured` is
  * counted from stored rows and is the same on every rebuild, `narrative` is written by
  * a language model, and `pending` names the parts that need analysers which do not
  * exist yet. A caller has to reach through a key called `narrative` to get at a
@@ -337,7 +337,7 @@ export function deleteSession(id: number): Promise<void> {
 }
 
 /**
- * Send one recorded turn. FR-7.
+ * Send one recorded turn.
  *
  * The field name is `file` because that is what `add_turn` declares; a `FormData` key
  * that does not match produces a 422 naming a missing field, which reads like the
@@ -382,7 +382,7 @@ function queryString(params: Record<string, string | number | undefined>): strin
   return query ? `?${query}` : "";
 }
 
-// ── Read-aloud (m8) ─────────────────────────────────────────────────────────
+// ── Read-aloud ──────────────────────────────────────────────────────────────
 
 export interface PassageSummary {
   slug: string;
@@ -403,8 +403,8 @@ export interface PhonemeScore {
   phone_idx: number;
   canonical_phone: string;
   /**
-   * What won the segment instead, or null. The null is invariant I2 in a field: where
-   * nothing clearly won, the interface must not name a sound the model did not assert.
+   * What won the segment instead, or null. The null matters: where nothing clearly won,
+   * the interface must not name a sound the model did not assert.
    */
   recognized_phone: string | null;
   start_ms: number | null;
@@ -418,7 +418,7 @@ export interface PronunciationSummary {
   phones: number;
   mean_gop: number | null;
   median_gop: number | null;
-  /** This reading's own 5th percentile — not a calibrated threshold. See handoff Q2. */
+  /** This reading's own 5th percentile — not a calibrated threshold. */
   percentile_5: number | null;
   r_composites: number;
   blank_dominated: number;
@@ -449,7 +449,7 @@ export interface AttemptDetail extends AttemptSummary {
   summary: PronunciationSummary | null;
   /**
    * Whether there are phone scores to show, and if not, why — separate from `status`
-   * because "processed, with the scorer switched off" is not a failed reading (PRD R6).
+   * because "processed, with the scorer switched off" is not a failed reading.
    */
   pronunciation: "ok" | "unavailable";
   pronunciation_detail: string | null;
@@ -473,7 +473,7 @@ export function getPassage(slug: string): Promise<PassageDetail> {
 }
 
 /**
- * Send one reading. FR-12.
+ * Send one reading.
  *
  * Answers in about as long as a conversational turn — the recogniser runs inside the
  * request because the stored recording's row cannot be written without a decoder's
@@ -508,7 +508,7 @@ export function listAttempts(
   return request<AttemptPage>(`/attempts${queryString(params)}`);
 }
 
-/** Score a stored reading again. FR-16 — the recording is still on disk. */
+/** Score a stored reading again — the recording is still on disk. */
 export function rescoreAttempt(id: number): Promise<AttemptDetail> {
   return request<AttemptDetail>(`/attempts/${id}/rescore`, { method: "POST" });
 }
@@ -534,7 +534,7 @@ export function worstByWord(phonemes: PhonemeScore[]): Map<number, PhonemeScore>
 /**
  * The confusion pairs in a reading: canonical phone, what was heard instead, how often.
  *
- * PRD §7.4's `/θ/ → /s/ ×34`. Counted only where the two differ *and* the score is below
+ * Rendered as `/θ/ → /s/ ×34`. Counted only where the two differ *and* the score is below
  * `floor`, because a phone realised acceptably still has a `recognized_phone` — often
  * the same sound written differently — and listing those would bury the two rows that
  * matter under two hundred that do not.

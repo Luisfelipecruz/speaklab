@@ -186,7 +186,7 @@ async def test_the_owner_gets_their_recording_back(audio_root, client, db_sessio
 async def test_another_account_gets_404_not_403(
     audio_root, client, other_client, db_session
 ):
-    """A 403 would confirm the recording exists, which is the fact being probed for (D25)."""
+    """A 403 would confirm the recording exists, which is the fact being probed for."""
     owner = await a_user(db_session, client)
     await a_user(db_session, other_client)
     asset, _ = await store_recording(db_session, owner, RECORDING, SOURCE)
@@ -231,7 +231,7 @@ async def test_an_anonymous_request_is_401(audio_root, client, db_session):
 async def test_a_row_whose_file_was_deleted_is_404_and_the_row_survives(
     audio_root, client, db_session
 ):
-    """FR-26: retention off means the waveform goes and the derived numbers stay.
+    """Retention off means the waveform goes and the derived numbers stay.
 
     So this is a normal state, not corruption — and the row must not be deleted to
     produce it, because every metric computed from that recording still references it.

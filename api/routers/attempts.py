@@ -1,14 +1,13 @@
-"""Read-aloud: record a passage, get it back scored phone by phone. FR-12 … FR-16.
+"""Read-aloud: record a passage, get it back scored phone by phone.
 
-The second of the product's two practice modes, and the one the m0 spike was run for.
-Where `POST /sessions/{id}/turns` is a conversation — a persona answers — this is a
+The second of the product's two practice modes. Where `POST /sessions/{id}/turns` is a conversation — a persona answers — this is a
 measurement: there is a right answer, the passage text, and the question is how close the
 reading came to it at the level of individual sounds.
 
 **Two clocks, and the endpoint returns on the first one.** Transcription happens inside
 the request because the `audio_assets` row cannot be written without a decoder's account
 of the file; alignment happens after it, as a background job, because it needs a service
-that is off by default and because FR-15 says the client polls. So `POST /attempts`
+that is off by default and because the client polls for the result. So `POST /attempts`
 answers in about as long as a conversational turn, with a transcript and a WER already
 on the row, and the phones appear underneath a moment later. `services/scoring.py` is
 that job.
@@ -83,7 +82,7 @@ async def create_attempt(
     db: AsyncSession = Depends(get_db),
     scorer: Scorer = Depends(get_scorer),
 ) -> AttemptDetail:
-    """Read a passage aloud. FR-12."""
+    """Read a passage aloud."""
     passage = await db.scalar(select(Passage).where(Passage.slug == passage_slug))
     if passage is None or not passage.is_active:
         raise HTTPException(
@@ -91,13 +90,12 @@ async def create_attempt(
             detail=f"No passage with slug {passage_slug!r}",
         )
 
-    # **FR-26 and FR-16 genuinely conflict here, and this is the resolution.**
-    # `attempts.audio_asset_id` is NOT NULL by design — an attempt without its audio
-    # cannot be rescored, and FR-16 would be a promise the schema could not keep. An
-    # account with retention off has asked for the waveform not to be stored. Rather than
-    # quietly keeping it anyway, or silently dropping rescoring, the endpoint refuses and
-    # names the setting. A conversation still works with retention off; only read-aloud
-    # needs the file to survive the request. See docs/decisions/0005 §6 and handoff Q14.
+    # Scoring a reading needs its waveform to survive the request: alignment runs after
+    # the response is sent, and a stored reading can be scored again later, which is why
+    # `attempts.audio_asset_id` is NOT NULL. An account with retention off has asked for
+    # the waveform not to be kept. Rather than quietly keeping it anyway, or silently
+    # dropping the ability to rescore, the endpoint refuses and names the setting.
+    # Conversation practice still works with retention off; only read-aloud needs this.
     if not user.retain_audio:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -257,7 +255,7 @@ async def get_attempt(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AttemptDetail:
-    """One reading, with its passage and its phones. The poll target. FR-15."""
+    """One reading, with its passage and its phones. The poll target."""
     attempt = await _owned_attempt(db, attempt_id, user)
     passage = await db.get(Passage, attempt.passage_id)
 
@@ -281,7 +279,7 @@ async def rescore(
     db: AsyncSession = Depends(get_db),
     scorer: Scorer = Depends(get_scorer),
 ) -> AttemptDetail:
-    """Run the alignment again on a stored reading. FR-16.
+    """Run the alignment again on a stored reading.
 
     The recording is still on disk — which is the whole reason `audio_asset_id` is NOT
     NULL — so this costs nothing but the model's time and asks the user for nothing. It

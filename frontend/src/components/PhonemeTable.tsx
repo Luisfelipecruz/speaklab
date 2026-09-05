@@ -1,19 +1,19 @@
 /**
- * The confusion pairs in a reading — PRD §7.4's `/θ/ → /s/ ×34`.
+ * The confusion pairs in a reading, rendered as `/θ/ → /s/ ×34`.
  *
- * **This is the screen the whole milestone is for.** A GOP of −9.4 is a number; "you
- * produced /s/ four times where English wants /θ/" is something a person can practise.
- * m0 measured that the acoustic model names the substituted phone correctly in 10 cases
- * out of 10 — including the one probe whose *threshold* missed — so the second column is
- * the more reliable half of this table, not the decorative one.
+ * **This is the screen read-aloud is for.** A GOP of −9.4 is a number; "you produced /s/
+ * four times where English wants /θ/" is something a person can practise. On the probe
+ * set the acoustic model named the substituted phone correctly in 10 cases out of 10 —
+ * including the one probe whose *threshold* missed — so the second column is the more
+ * reliable half of this table, not the decorative one.
  *
  * Only substitutions below the reading's own weakest band are listed. Every scored phone
  * has a `recognized_phone`, including the ones that were produced perfectly well — often
  * the same sound under a different symbol — and listing all of them would bury the two
  * rows that matter under two hundred that do not.
  *
- * Where the model reported no clear winner the row is absent rather than guessed at. That
- * is invariant I2: no pronunciation claim from something that did not assert it.
+ * Where the model reported no clear winner the row is absent rather than guessed at: no
+ * pronunciation claim comes from something that did not assert it.
  */
 
 import {

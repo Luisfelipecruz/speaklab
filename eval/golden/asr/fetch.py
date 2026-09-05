@@ -5,18 +5,17 @@ needed to *audit* it. Anyone can re-run it and get byte-identical files, because
 row indices below are pinned and `manifest.json` records the sha256 of every file it
 produced. That is the difference between a fixture you trust and a fixture you found.
 
-Why LibriSpeech and not the recordings in `spike/audio/`: those are macOS `say` output,
-and m0 established that instrument is degenerate (`spike/gop-feasibility.md` §3 — two
-takes saying different words decoded to an identical phone string). A WER measured on
-synthetic speech would be a flattering number about nothing. LibriSpeech test-clean is
-read speech from real people, with references verified by the corpus authors.
+Why LibriSpeech and not synthesised audio: text-to-speech output is a degenerate
+instrument for this — two takes saying different words have been observed decoding to an
+identical phone string — so a WER measured on synthetic speech would be a flattering
+number about nothing. LibriSpeech test-clean is read speech from real people, with
+references verified by the corpus authors.
 
 What this set is NOT: representative of the users of this product. It is native,
 adult, fluent, read-aloud English recorded in good conditions. It measures the
 recogniser's *floor* — the error rate below which nothing that follows can be blamed
 on the model. Learner speech will be worse, and the honest number for that needs
-learner recordings; `spike/RECORD.md` is the first five minutes of that work and m11 is
-where it becomes a suite.
+learner recordings this corpus does not contain.
 
     python3 eval/golden/asr/fetch.py [--force]
 

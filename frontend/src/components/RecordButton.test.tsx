@@ -1,8 +1,8 @@
 /**
  * The control, in each of its four states, driven by a pointer and by a keyboard.
  *
- * The keyboard tests are not an accessibility afterthought here. PRD §9.2 requires
- * keyboard-operable recording, and a held gesture is the one interaction where the
+ * The keyboard tests are not an accessibility afterthought here. Recording has to be
+ * keyboard-operable, and a held gesture is the one interaction where the
  * keyboard genuinely differs from a click — Space has to start on keydown and stop on
  * keyup, and the browser's own "Space activates a button on keyup" behaviour has to be
  * suppressed or every recording ends with a second, empty one.

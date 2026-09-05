@@ -1,9 +1,9 @@
-"""Browsing the seeded read-aloud passages. FR-11.
+"""Browsing the seeded read-aloud passages.
 
 Same shape as `scenarios.py`, one filter different: `phoneme_focus` instead of category
-and grammar. That filter is what m10's recommendation endpoint will use — "picked
-because your /θ/ is the worst phone in your last thirty attempts" is a sentence that
-needs a way to ask for passages that exercise /θ/ (FR-24).
+and grammar. That filter is what recommendations are built on — "picked because your /θ/
+is the worst phone in your last thirty attempts" is a sentence that needs a way to ask
+for passages that exercise /θ/.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -46,9 +46,9 @@ async def list_passages(
 async def get_passage(slug: str, db: AsyncSession = Depends(get_db)) -> Passage:
     """One passage, with its body.
 
-    This is the endpoint a read-aloud attempt is scored against: the WER at m8 compares
-    the transcript with `body` as returned here, so whatever the user reads on screen
-    and whatever the reference text is are the same string by construction.
+    This is the endpoint a read-aloud attempt is scored against: the WER compares the
+    transcript with `body` as returned here, so whatever the user reads on screen and
+    whatever the reference text is are the same string by construction.
     """
     passage = await db.scalar(select(Passage).where(Passage.slug == slug))
     if passage is None:

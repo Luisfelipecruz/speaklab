@@ -5,15 +5,14 @@ has an integer primary key, so `GET /audio/41` is a guess anybody can make; the 
 thing between a stranger and somebody's voice is `get_owned_or_404`, which folds
 existence and ownership into a single `WHERE` so the check cannot be half-applied. A
 row belonging to another account is **404, not 403** — a 403 would confirm the recording
-exists, which is the fact the guesser was probing for (D25).
+exists, which is the fact the guesser was probing for.
 
 There is no upload endpoint here, and that is not an omission. Audio enters the system
-attached to something: a conversation turn (m6, `POST /sessions/{id}/turns`) or a
-read-aloud attempt (m8, `POST /attempts`). A bare `POST /audio` would be a recording
-that belongs to nothing, with no scenario, no passage and no reason to have been made —
-and something would then have to decide what to do with the orphans. The pipeline those
-two endpoints call is `services/audio.ingest_recording`, which exists and is tested now,
-at the milestone that built it.
+attached to something: a conversation turn (`POST /sessions/{id}/turns`) or a read-aloud
+attempt (`POST /attempts`). A bare `POST /audio` would be a recording that belongs to
+nothing, with no scenario, no passage and no reason to have been made — and something
+would then have to decide what to do with the orphans. The pipeline those two endpoints
+call is `services/audio.ingest_recording`.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -69,11 +68,11 @@ async def get_audio(
         ) from exc
 
     if not path.is_file():
-        # The row survived its file. That is a normal state, not a corruption: FR-26
-        # lets somebody turn off audio retention, after which the waveform is deleted
-        # and only the derived numbers remain. 404 is the honest answer — the recording
-        # is genuinely not there — and the row stays, because the metrics computed from
-        # it still are.
+        # The row survived its file. That is a normal state, not a corruption: an
+        # account can turn off audio retention, after which the waveform is deleted and
+        # only the derived numbers remain. 404 is the honest answer — the recording is
+        # genuinely not there — and the row stays, because the metrics computed from it
+        # still are.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"The recording for asset {asset_id} is no longer stored",

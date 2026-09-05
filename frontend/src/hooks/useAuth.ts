@@ -3,16 +3,11 @@
 /**
  * Session state, shared by everything that renders inside the application.
  *
- * **This was a plain hook at m3 and is a context at m7, which is what m3 said would
- * happen.** The note it carried read: a provider is what you need when several
- * components must agree on one copy of the session; at m3 there were two consumers and
- * they were two pages that never render at the same time, so a context would have been
- * indirection with one implementation.
- *
- * m7 is the milestone that changes the arithmetic. The header knows who is signed in and
- * sits *around* pages that also need the profile, so the hook-per-consumer version would
- * mount two independent copies of the session on every screen — two `GET /auth/me` calls
- * on load, and a sign-out that empties one of them while the other still renders an
+ * **A provider rather than a plain hook, because several components must agree on one
+ * copy of the session.** The header knows who is signed in and sits *around* pages that
+ * also need the profile, so a hook-per-consumer version would mount two independent
+ * copies of the session on every screen — two `GET /auth/me` calls on load, and a
+ * sign-out that empties one of them while the other still renders an
  * email address. Neither is a bug a test would have caught; both are the reason the
  * promotion was scheduled rather than done speculatively.
  *

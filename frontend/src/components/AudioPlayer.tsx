@@ -4,30 +4,29 @@
  * Playback for one stored recording or one synthesised reply.
  *
  * It plays a URL — in practice `GET /audio/{asset_id}`, which is the only endpoint that
- * serves audio and is ownership-checked (m4). It deliberately knows nothing about how
+ * serves audio and is ownership-checked. It deliberately knows nothing about how
  * the audio was made: the persona's reply from the TTS service and the learner's own
  * recording are the same object to this component, and a session transcript shows both
  * side by side.
  *
  * Three things here are requirements rather than polish:
  *
- * - **Keyboard operable.** PRD §9.2 requires it. Space and Enter toggle playback, the
- *   arrow keys seek. That falls out of using real `<button>` and `<input type=range>`
- *   elements instead of divs with click handlers.
- * - **A caption slot.** PRD §9.2 requires captions on all synthesised speech. The
- *   transcript is passed in rather than fetched, because whoever renders a turn already
+ * - **Keyboard operable.** Space and Enter toggle playback, the arrow keys seek. That
+ *   falls out of using real `<button>` and `<input type=range>` elements instead of divs
+ *   with click handlers.
+ * - **A caption slot.** Synthesised speech is always captioned. The transcript is passed
+ *   in rather than fetched, because whoever renders a turn already
  *   has it and a second request for text that is already on the page would be a
  *   fabrication risk as well as a waste.
  * - **A visible error state.** A failed load has to say so. The default behaviour of an
  *   `<audio>` element that cannot fetch its source is to sit there looking idle, which
  *   is indistinguishable from audio that has not been pressed yet.
  *
- * m7 mounts it, tests it, and adds two props to it. `autoPlay` is what makes the
- * persona's reply arrive as speech rather than as a button somebody has to find, and
+ * Two props exist for the conversation screen. `autoPlay` is what makes the persona's
+ * reply arrive as speech rather than as a button somebody has to find, and
  * `onPlayingChange` is how the screen around it knows not to open the microphone while
- * the speakers are busy — recording over the reply feeds the persona's own voice back
- * into the recogniser, which is trap 3 arriving through the room instead of through a
- * codec.
+ * the speakers are busy — recording over the reply would feed the persona's own voice
+ * back into the recogniser.
  *
  * **An autoplay that the browser refuses is not a failure.** Every browser blocks
  * audio until the page has been interacted with, and this component's `failed` state
@@ -46,8 +45,8 @@ export interface AudioPlayerProps {
   /** Where the audio lives. Usually `${PUBLIC_API_URL}/audio/${assetId}`. */
   src: string;
   /**
-   * Shown beneath the controls. Required for synthesised speech by PRD §9.2; optional
-   * here because a learner's own recording is captioned by its transcript elsewhere.
+   * Shown beneath the controls. Required for synthesised speech; optional here because
+   * a learner's own recording is captioned by its transcript elsewhere.
    */
   caption?: string;
   /** Accessible name for the play control, e.g. "the barista's reply". */

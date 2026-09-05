@@ -54,18 +54,18 @@ class PracticeSession(Base):
     )
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    # The end-of-session report (FR-9), stored as produced. It is a document read whole
-    # by exactly one screen and never queried across rows; the numbers inside it are
-    # also in fluency_metrics, grammar_usage and language_errors, which is where the
-    # trends are computed from. Nothing on a chart is read from here (invariant I1).
+    # The end-of-session report, stored as produced. It is a document read whole by
+    # exactly one screen and never queried across rows; the numbers inside it are also
+    # in fluency_metrics, grammar_usage and language_errors, which is where the trends
+    # are computed from. Nothing on a chart is read from here.
     report: Mapped[dict | None] = mapped_column(JSONB)
 
-    # ── The conversation's memory (m6, FR-8) ────────────────────────────────
+    # ── The conversation's memory ───────────────────────────────────────────
     #
     # A running prose summary of the turns that no longer fit in the token budget.
-    # FR-8 says oldest turns are *summarised rather than dropped*, and this column is
-    # the difference between the two: without it, a scenario forgets the user's name at
-    # turn twelve, which is not practice.
+    # Oldest turns are summarised rather than dropped, and this column is the difference
+    # between the two: without it, a scenario forgets the user's name at turn twelve,
+    # which is not practice.
     context_digest: Mapped[str | None] = mapped_column(Text)
 
     # The highest `turns.idx` already folded into `context_digest`. It is what makes
@@ -85,11 +85,11 @@ class PracticeSession(Base):
     __table_args__ = (
         # The history query: this user's sessions, newest first.
         #
-        # Plan §5 writes this as `(user_id, started_at DESC)`. Ascending here, on
-        # purpose: Postgres scans a btree in either direction, so for a single sort
-        # column the DESC buys nothing — it matters only when columns are ordered in
-        # opposite directions. What it would cost is real: a DESC index is an
-        # expression index to SQLAlchemy, which `compare_metadata` cannot diff, so
-        # test_migrations would stop being able to check this index at all.
+        # Ascending, on purpose, though the query sorts newest first: Postgres scans a
+        # btree in either direction, so for a single sort column a DESC index buys
+        # nothing — it matters only when columns are ordered in opposite directions.
+        # What it would cost is real: a DESC index is an expression index to
+        # SQLAlchemy, which `compare_metadata` cannot diff, so test_migrations would
+        # stop being able to check this index at all.
         Index("ix_sessions_user_id_started_at", "user_id", "started_at"),
     )

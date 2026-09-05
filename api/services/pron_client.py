@@ -1,16 +1,16 @@
 """Talking to the pron service.
 
 The same shape as `asr_client`, for the same reason: the API holds no weights and no
-media library (invariant I5), it holds an address and a client, and the error taxonomy is
-the part worth writing by hand.
+media library, it holds an address and a client, and the error taxonomy is the part worth
+writing by hand.
 
 Four outcomes reach the caller and they are genuinely different facts:
 
 - `PronUnavailable` — nobody answered, or the service answered 5xx. **This is the normal
   state**, not an exception: `pron` is profiled, so on a laptop that never ran
-  `make pron-up` it is simply absent. PRD R6 says an attempt must still return its
-  transcript and WER in that case, with phoneme scores reported as `unavailable`. This is
-  the only client in the system whose most common failure is expected.
+  `make pron-up` it is simply absent. An attempt still returns its transcript and WER in
+  that case, with phoneme scores reported as `unavailable`. This is the only client in
+  the system whose most common failure is expected.
 - `PronRejected` — a 4xx. The audio could not be decoded, or the recording is far shorter
   than the passage, or the passage text desyncs from G2P. Retrying the same bytes against
   the same text will fail identically, so this is stored on the attempt as a *reason*

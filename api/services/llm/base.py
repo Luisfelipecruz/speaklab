@@ -90,7 +90,7 @@ class LlmUnavailable(LlmError):
     """Nobody answered, or the provider failed on its own account.
 
     The reply must not be fabricated and must not be retried in a loop by this process.
-    The endpoint turns this into a 503 with a plain message (plan §7 m6).
+    The endpoint turns this into a 503 with a plain message.
     """
 
 
@@ -115,8 +115,8 @@ def estimate_tokens(text: str) -> int:
     """Roughly how many tokens `text` will become. Never exact, deliberately cheap.
 
     There is no Gemma tokenizer in this image and there will not be one: it means
-    `transformers`, which means torch, which is precisely what invariant I5 keeps out of
-    the API container. So the prompt is sized by a ratio.
+    `transformers`, which means torch, and the API container carries neither. So the
+    prompt is sized by a ratio.
 
     The ratio is measured rather than folklore — `tests/test_conversation_live.py`
     compares this against Ollama's own `prompt_eval_count` on real assembled prompts and
@@ -161,7 +161,7 @@ class LlmProvider(ABC):
     Two methods rather than one, and they are genuinely different calls rather than one
     wrapping the other. `complete` asks for the whole reply; `stream` asks for it token
     by token so that finished sentences can be handed to the voice while the rest is
-    still being written (PRD §9.1's first fallback). Both shapes are exercised, because
+    still being written. Both shapes are exercised, because
     `make turn-latency` measures them against each other — and a comparison where one arm
     is the other arm in a costume measures nothing.
     """
@@ -186,7 +186,7 @@ class LlmProvider(ABC):
         The union return is the shape that keeps the token counts. They only exist on
         the provider's last line, so a stream that yielded only strings would force
         every streamed turn to store `prompt_tokens = NULL` — which is most turns, and
-        which would make the FR-8 budget an unmeasured claim on the majority path.
+        which would make the token budget an unmeasured claim on the majority path.
 
         The terminal `Completion.text` is the full accumulated reply, so a caller that
         does not care about deltas can ignore every string and read the last item.

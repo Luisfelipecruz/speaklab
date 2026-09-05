@@ -1,12 +1,9 @@
-"""Register, log in, log out, and read or amend the profile. FR-1 to FR-4.
+"""Register, log in, log out, and read or amend the profile.
 
-**Five operations, where the plan's API surface forecast four.** The fifth is
-`POST /auth/logout`, and it is not scope creep — it is forced by the decision above it.
-The token lives in an httpOnly cookie precisely so that no script can read it, and the
-consequence of that is that no script can delete it either. Without a server operation
-to clear the cookie there is no way to log out at all. §6 of the plan and the
-cookie decision were written independently and could not both be right; the count is
-the one that gives.
+**There is a `POST /auth/logout`, and it is forced by the cookie decision.** The token
+lives in an httpOnly cookie precisely so that no script can read it, and the consequence
+is that no script can delete it either. Without a server operation to clear the cookie
+there is no way to log out at all.
 
 **The token is set as a cookie and never returned in a body.** A response containing the
 token would be the same token in a place the browser stores differently — the caller
@@ -71,7 +68,7 @@ def _set_session_cookie(response: Response, user_id: int) -> None:
 async def register(
     body: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Create an account and log it in. FR-1, FR-3.
+    """Create an account and log it in.
 
     Registration returns a session rather than redirecting to a login form, because the
     alternative is asking someone for the password they typed nine seconds ago.
@@ -109,7 +106,7 @@ async def register(
 async def login(
     body: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Exchange credentials for a session cookie. FR-2.
+    """Exchange credentials for a session cookie.
 
     The no-such-user branch verifies against a dummy hash before failing, so that the
     two rejections take the same time. See `services/security.py`.
@@ -140,9 +137,9 @@ async def logout(response: Response) -> None:
     the state a user most needs to be able to clear, and a logout that 401s when the
     session is already broken leaves the browser holding a cookie it cannot get rid of.
 
-    What this does not do is revoke the token. There is no server-side session table
-    (D23, D24), so a copy taken from the browser beforehand stays valid until it expires.
-    That is the cost of the stateless design and it is bounded by `ACCESS_TOKEN_TTL_HOURS`.
+    What this does not do is revoke the token. There is no server-side session table,
+    so a copy taken from the browser beforehand stays valid until it expires. That is the
+    cost of the stateless design and it is bounded by `ACCESS_TOKEN_TTL_HOURS`.
     """
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
@@ -166,7 +163,7 @@ async def update_me(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Change native language, self-assessed band, or audio retention. FR-26.
+    """Change native language, self-assessed band, or audio retention.
 
     `exclude_unset=True` rather than `exclude_none=True`, and the difference is a real
     one: a body of `{"cefr_self_assessed": null}` means *clear it*, and under

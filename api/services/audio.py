@@ -58,9 +58,9 @@ def storage_path(user_id: int, digest: str) -> Path:
     fact the decoder reported; a filename extension would be a second copy of it that
     nothing validates and that the media type could be read from by mistake.
 
-    Partitioned by user because that is the unit of deletion: FR-26 lets somebody turn
-    audio retention off, and "delete this person's recordings" should be a directory
-    rather than a query joined against a filesystem walk.
+    Partitioned by user because that is the unit of deletion: an account can turn audio
+    retention off, and "delete this person's recordings" should be a directory rather
+    than a query joined against a filesystem walk.
     """
     return Path(AUDIO_ROOT) / str(user_id) / digest
 
@@ -97,8 +97,8 @@ async def store_recording(
 
     **The INSERT goes inside a SAVEPOINT**, and that is the part worth reading twice. A
     plain `session.rollback()` in the collision path would undo the *whole* transaction,
-    not the failed row — and from m6 this function is called inside a larger unit of work
-    that also inserts a turn. A duplicate recording would then silently discard the turn
+    not the failed row — and this function is called inside a larger unit of work that
+    also inserts a turn. A duplicate recording would then silently discard the turn
     that carried it, which is a data-loss bug that only appears on a retry. `begin_nested`
     rolls back to the savepoint, so the caller's work survives and so do the caller's
     loaded objects: a full rollback also expires every instance in the identity map, and
@@ -164,16 +164,13 @@ async def ingest_recording(
     service cannot decode never becomes a row: the caller gets `AsrRejected` and the
     table gets nothing.
 
-    m6 (`POST /sessions/{id}/turns`) and m8 (`POST /attempts`) are the two callers. They
-    are the reason this is a function in `services/` rather than the body of an endpoint:
-    both need exactly this, one of them inside a larger transaction with an LLM call in
-    it, and neither should be re-deriving the order these two steps go in.
+    `POST /sessions/{id}/turns` and `POST /attempts` are the two callers. They are the
+    reason this is a function in `services/` rather than the body of an endpoint: both
+    need exactly this, one of them inside a larger transaction with an LLM call in it,
+    and neither should be re-deriving the order these two steps go in.
 
-    Not done here, deliberately: caching a transcript against the digest. At m4 there is
-    nowhere to put one — `turns.transcript` is the column for it and a turn needs a
-    session, which is m6. So a re-uploaded identical recording is transcribed again and
-    deduplicates only its bytes. m6 is where that short-circuit belongs, and adding a
-    table for it now would be building m6's storage a milestone early.
+    Not done here, deliberately: caching a transcript against the digest. A re-uploaded
+    identical recording is transcribed again and deduplicates only its bytes.
     """
     if len(data) > MAX_UPLOAD_BYTES:
         # Checked here rather than only at the asr service, and before the model call
@@ -203,10 +200,9 @@ async def delete_unreferenced_assets(
 
     **Unreferenced is checked, not assumed.** An asset is content-addressed and unique
     per `(user_id, sha256)`, so one row can legitimately be pointed at by more than one
-    turn, and from m8 by an attempt as well. Deleting on the strength of "this session
-    referenced it" would eventually take a recording out from under a read-aloud attempt
-    that was still using it. The two `NOT EXISTS` checks below are what make this safe to
-    call before those other referrers exist, rather than a bug scheduled for m8.
+    turn, and by a read-aloud attempt as well. Deleting on the strength of "this session
+    referenced it" would eventually take a recording out from under an attempt that was
+    still using it. The two `NOT EXISTS` checks below are what make this safe.
 
     Files are **not** removed here. The rows are deleted, the caller commits, and only
     then does it unlink — the mirror of `store_recording`, which writes the file before

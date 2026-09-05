@@ -1,5 +1,5 @@
 /**
- * The report, and invariant I1 rendered as three headings.
+ * The report, and its provenance split rendered as three headings.
  *
  * The report arrives already split by where each number came from, and the only job this
  * component has is to keep that split on screen. So the tests are mostly about
@@ -63,7 +63,7 @@ test("a model that ignored the format is reported as that, not salvaged", () => 
   expect(screen.getByText(/did not answer in the format/)).toBeInTheDocument();
 });
 
-test("the analyses that do not exist yet are listed with the milestone that builds them", () => {
+test("the analyses that do not exist yet are listed rather than omitted", () => {
   render(<SessionReport report={makeReport()} />);
 
   expect(screen.getByText("Not measured yet")).toBeInTheDocument();

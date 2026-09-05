@@ -1,23 +1,21 @@
 /**
- * One conversation. FR-10.
+ * One conversation.
  *
  * **Server-rendered first, then handed to the client.** The transcript is fetched here,
  * with the browser's cookie forwarded, so a page reload paints the conversation rather
- * than a spinner over it. That is what FR-10 is actually asking for: a session that
- * survives a reload is one that is *on the screen* after the reload, not one that can be
- * fetched a round trip later.
+ * than a spinner over it: a session that survives a reload is one that is *on the screen*
+ * after the reload, not one that can be fetched a round trip later.
  *
  * The client component below takes that snapshot as its initial state and never refetches
  * on mount, so the first paint and the interactive state are the same conversation and
  * not two.
  *
- * **Two kinds of session arrive here, and only one of them is a conversation.** m8 added
- * read-aloud, which groups several readings of a passage into a sitting — a `sessions` row
- * with no scenario and no turns. Rendering that through `Conversation` produced a page
- * with an empty transcript and a record button whose only possible outcome was a 409
- * saying the session has no conversation to continue. Found by using it, not by a test:
- * every unit test here builds a conversation, because until m8 there was no other kind.
- * So the mode is branched on before anything is rendered.
+ * **Two kinds of session arrive here, and only one of them is a conversation.**
+ * Read-aloud groups several readings of a passage into a sitting — a `sessions` row with
+ * no scenario and no turns. Rendering that through `Conversation` would produce a page
+ * with an empty transcript and a record button whose only possible outcome is a 409
+ * saying the session has no conversation to continue. So the mode is branched on before
+ * anything is rendered.
  */
 
 import Link from "next/link";
@@ -43,7 +41,7 @@ export default async function SessionPage({
 
   // Null here means 401 or 404 and the two are deliberately not distinguished on
   // screen: the API answers 404 for somebody else's session precisely so that guessing
-  // an id tells you nothing (D25), and a frontend that said "you are not allowed to see
+  // an id tells you nothing, and a frontend that said "you are not allowed to see
   // session 41" would hand back the fact the server withheld.
   const session = await serverRequestOrNull<SessionDetail>(`/sessions/${sessionId}`);
 

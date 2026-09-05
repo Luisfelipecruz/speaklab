@@ -4,7 +4,7 @@ The field that earns this table its existence is `target_grammar` — the forms 
 scenario was *designed* to elicit. It is what lets the system ask a question no chat
 app can answer: did this scenario actually make you produce present perfect, and were
 you right when you did? A scenario whose declared forms never appear in any transcript
-is a broken scenario, and m11's eval harness is what says so (PRD §6.1).
+is a broken scenario, and the eval harness is what says so.
 
 `persona_prompt` is deliberately never serialised to a client — see api/models/scenario.py.
 """
@@ -30,7 +30,7 @@ class Scenario(Base):
     category: Mapped[str] = mapped_column(Text, nullable=False)
     cefr_band: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # The system prompt for m6's conversation loop. Server-side only.
+    # The system prompt for the conversation loop. Server-side only.
     persona_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     goal: Mapped[str] = mapped_column(Text, nullable=False)
 

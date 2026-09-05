@@ -104,8 +104,8 @@ test("the marked count is shown, so a few tinted words do not read as a bad read
 });
 
 test("the legend says the bands are relative, because no calibrated threshold exists", () => {
-  // Handoff Q2. The interface must not imply a pass mark it does not have — a tinted
-  // word here means "the weakest sound in this reading", not "you got this wrong".
+  // The interface must not imply a pass mark it does not have — a tinted word here
+  // means "the weakest sound in this reading", not "you got this wrong".
   render(
     <PhonemeHeatmap body="the theatre" phonemes={[makePhoneme()]} summary={SUMMARY} />,
   );

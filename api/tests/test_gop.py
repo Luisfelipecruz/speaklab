@@ -1,22 +1,21 @@
 """The GOP pipeline against the real `pron` service. Skips when it is not running.
 
-The other half of the arrangement `test_asr_golden.py` and `test_tts_live.py` established:
-hermetic tests prove the logic, and **only a live suite is allowed to produce a number
-that gets published**. Everything here talks to a real wav2vec2, and every figure it
-prints is a figure that may be quoted (invariant I9).
+The same arrangement `test_asr_golden.py` and `test_tts_live.py` use: hermetic tests
+prove the logic, and **only a live suite is allowed to produce a number that gets
+published**. Everything here talks to a real wav2vec2, and every figure it prints is a
+figure that may be quoted.
 
 Four things are measured:
 
-1. **The probe** — m0's reference-perturbation experiment, re-run through the service
-   rather than through a spike script. Score real human speech against text containing a
-   phone the speaker did not produce, and GOP at that phone must collapse. Gate: 8 of 10,
-   which is what m0 set before it knew the answer.
-2. **`recognized_phone`** — the field that turns a grade into an instruction. m0 got it
+1. **The probe** — reference perturbation. Score real human speech against text containing
+   a phone the speaker did not produce, and GOP at that phone must collapse. Gate: 8 of
+   10, set before the answer was known.
+2. **`recognized_phone`** — the field that turns a grade into an instruction. It has been
    right in 10 of 10.
 3. **Alignment over the whole shipped corpus** — all 12 seeded passages, against the phone
    counts recorded in `test_g2p.py`. This is the half of the tokeniser contract that
    hermetic tests cannot check, because `g2p_en` is not in the API image.
-4. **Latency**, against the 10 000 ms budget in PRD §9.1.
+4. **Latency**, against a 10 000 ms budget.
 
 Run it with:
 
@@ -24,7 +23,7 @@ Run it with:
 
 which is the only place `PRON_URL` is pointed at the real container. `make test` sees
 `http://pron.invalid:8103` and every test here skips, which is what keeps the hermetic
-suite hermetic (trap 25).
+suite hermetic.
 """
 
 from __future__ import annotations
@@ -167,8 +166,8 @@ def test_the_service_reports_the_vocabulary_it_is_scoring_against():
 def test_a_correct_reading_scores_near_zero(probe_audio, manifest):
     """GOP <= 0 by construction, and near 0 when the speaker produced the phone.
 
-    This is the baseline every other number here is read against. m0 measured mean
-    -0.386 and **median exactly 0.000** over 35 correctly produced phones.
+    This is the baseline every other number here is read against. The reference run
+    measured mean -0.386 and **median exactly 0.000** over 35 correctly produced phones.
     """
     result = score(probe_audio, manifest["probe"]["truth"])
     rows = result["phones"]
@@ -190,7 +189,7 @@ def test_a_correct_reading_scores_near_zero(probe_audio, manifest):
 
 
 def test_a_phone_the_speaker_did_not_produce_collapses(probe_audio, manifest):
-    """m0's experiment, through the service. Gate: 8 of 10.
+    """Reference perturbation, through the service. Gate: 8 of 10.
 
     Perturbing the *reference* rather than the audio is what makes this runnable on
     genuine human speech, and it is the exact situation the product is in when a learner
@@ -198,7 +197,7 @@ def test_a_phone_the_speaker_did_not_produce_collapses(probe_audio, manifest):
 
     The threshold is the 5th percentile of GOP over the correctly produced phones — the
     operating point that would wrongly flag 5 % of correct speech. Computed here from
-    this run rather than read from m0, because a threshold copied forward is a constant
+    this run rather than carried forward, because a threshold copied forward is a constant
     pretending to be a measurement.
     """
     probe = manifest["probe"]
@@ -240,7 +239,7 @@ def test_a_phone_the_speaker_did_not_produce_collapses(probe_audio, manifest):
         hit = wrong["gop"] < threshold
         detected += hit
         # Did the model name the phone the speaker actually produced? That is the
-        # confusion pair in PRD §7.4 — the difference between a grade and an instruction.
+        # confusion pair — the difference between a grade and an instruction.
         named += wrong["recognized_phone"] is not None
         print(
             f"  {item['n']:<3}{item['contrast']:<28}{baseline:>9.3f}{wrong['gop']:>9.3f}"
@@ -254,12 +253,12 @@ def test_a_phone_the_speaker_did_not_produce_collapses(probe_audio, manifest):
         print(
             f"\n  mean drop {mean_drop:+.3f}   detected {detected}/10   named {named}/{len(drops)}"
         )
-        print("  m0 measured: mean drop +8.138, detected 9/10, named 10/10")
+        print("  reference run: mean drop +8.138, detected 9/10, named 10/10")
 
     assert not missing, f"probes {missing} could not be located in the alignment"
     assert detected >= 8, (
         f"only {detected}/10 planted errors fell below the clean 5th percentile. "
-        f"m0's gate was 8; it measured 9."
+        f"The gate is 8; the reference run measured 9."
     )
 
 
@@ -267,13 +266,13 @@ def test_the_competing_phone_is_named_not_guessed(probe_audio, manifest):
     """`recognized_phone` is what makes a score actionable, and it is never invented.
 
     "your /θ/ is weak" is a grade. "you are producing /s/ where English wants /θ/" is an
-    instruction, and m0 found the model gets it right in 10 of 10 — including the probe
-    the threshold itself missed. The other half of the property is invariant I2: where
-    nothing won the segment, the answer is null, not a plausible guess.
+    instruction, and the model gets it right in 10 of 10 — including the probe the
+    threshold itself missed. The other half of the property: where nothing won the
+    segment, the answer is null, not a plausible guess.
     """
     probe = manifest["probe"]
     truth = probe["truth"].split()
-    item = probe["probes"][1]  # /s/ against a spoken /ð/ — m0's clearest, -10.687
+    item = probe["probes"][1]  # /s/ against a spoken /ð/ — the clearest case, -10.687
 
     words = list(truth)
     words[item["word_idx"]] = item["replacement"]
@@ -378,13 +377,13 @@ def test_text_the_tokeniser_and_g2p_disagree_about_is_refused():
 def test_a_passage_length_reading_is_inside_the_budget(
     probe_audio, passage_length_audio
 ):
-    """PRD §9.1 allows 10 000 ms for asynchronous read-aloud scoring.
+    """Asynchronous read-aloud scoring is allowed 10 000 ms.
 
     Measured on audio the length of a real reading, not on the 3.4 s probe — the forward
     pass is linear in audio length and quoting the short number would be flattering. Both
     are measured, and the pair is the interesting part: it separates *length* from
-    *environment*, which is what m0's 99.5 ms cannot do on its own. m0 ran on the host
-    with 8 torch threads; this runs where the service actually runs.
+    *environment*. A host-side measurement with 8 torch threads cannot do that on its
+    own; this runs where the service actually runs.
     """
     with open(SEEDS, encoding="utf-8") as handle:
         passage = json.load(handle)[0]["body"]
@@ -407,7 +406,7 @@ def test_a_passage_length_reading_is_inside_the_budget(
         f"service {result['latency_ms']:>5} ms  round trip {elapsed_ms:>5} ms\n"
         f"  per audio-second: {short['latency_ms'] / 3.4:.0f} ms -> "
         f"{result['latency_ms'] / seconds:.0f} ms\n"
-        f"  budget 10 000 ms (PRD 9.1). m0 measured 99.5 ms on 3.4 s ON THE HOST."
+        f"  budget 10 000 ms. A host run measured 99.5 ms on 3.4 s, which is not this."
     )
     assert elapsed_ms < 10_000, f"{elapsed_ms} ms exceeds the 10 000 ms budget"
 
@@ -422,17 +421,19 @@ def test_broken_readings_score_worse_than_clean_ones(manifest):
     that was not. It does not prove the system detects a *learner* error, because a
     perturbed reference is a categorically different phone and a learner error is
     gradient — a retracted /s/, epenthesis with a particular vowel quality, an unreleased
-    final stop. m0's 8-nat gap is an upper bound, and this is the test that finds the
-    real one.
+    final stop. The 8-nat gap from reference perturbation is an upper bound, and this is
+    the test that finds the real one.
 
-    It needs five minutes of somebody's voice. `spike/RECORD.md` is the protocol; drop
-    the files in `eval/golden/pron/` and list them under `pairs` in the manifest.
+    It needs about five minutes of somebody's voice: each passage read twice, once
+    correctly and once mispronouncing the marked words, same microphone and same sitting.
+    Drop the recordings in `eval/golden/pron/` and list them under `pairs` in the
+    manifest; its README carries the full protocol.
     """
     pairs = manifest["pairs"]
     if not pairs:
         pytest.skip(
-            "No clean/broken pairs recorded yet. This is criterion S4 and it is the "
-            "one thing in m8 that cannot be automated: see spike/RECORD.md, ~5 minutes."
+            "No clean/broken pairs recorded yet — this is the one check here that "
+            "cannot be automated. See eval/golden/pron/ for the recording protocol."
         )
 
     clean_gops: list[float] = []

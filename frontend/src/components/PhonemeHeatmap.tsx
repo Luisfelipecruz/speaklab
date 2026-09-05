@@ -2,11 +2,11 @@
  * The passage, with each word tinted by the weakest sound in it.
  *
  * **The bands are relative to this reading, and the copy says so.** There is no
- * calibrated GOP threshold in this system: m0 settled the *method* — a percentile of the
- * correct-speech distribution, per phone — and could not settle the *numbers*, because it
- * had one speaker and ten probes (handoff Q2). `PRON_GOP_THRESHOLDS` is deliberately
- * empty, and a heatmap that invented one would be the interface deciding which sounds a
- * learner is told to work on, on the strength of a constant somebody typed.
+ * calibrated GOP threshold in this system. The method is settled — a percentile of the
+ * correct-speech distribution, per phone — but the numbers need recordings from more than
+ * one speaker, so `PRON_GOP_THRESHOLDS` is deliberately empty. A heatmap that invented
+ * one would be the interface deciding which sounds a learner is told to work on, on the
+ * strength of a constant somebody typed.
  *
  * So the bands come from the reading's own distribution — its 5th percentile and its
  * median — and the legend calls them *the weakest sounds in this reading* rather than

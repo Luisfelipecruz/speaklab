@@ -1,5 +1,5 @@
 /**
- * The passage catalogue. FR-11.
+ * The passage catalogue.
  *
  * A server component for the same reason `/scenarios` is: `GET /passages` takes no
  * session, so there is nothing to forward and no reason to ship a fetch to the browser.

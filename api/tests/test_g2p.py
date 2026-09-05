@@ -5,10 +5,10 @@ context is what resolves homographs, and then has to attribute the flat result b
 individual words so the heatmap can tint them. That re-attribution is what breaks, and it
 broke here:
 
-    The m0 spike's rule — a surface word is a whitespace token with `.,!?;:` stripped —
+    The obvious rule — a surface word is a whitespace token with `.,!?;:` stripped —
     **desyncs on 2 of the 12 seeded passages.** Both contain a standalone em dash, which
     survives that strip, counts as a word, and produces no phones: 79 surface words
-    against 78 phone groups, and `spike/gop.py` raises on it. Read-aloud would have been
+    against 78 phone groups, which is a hard alignment failure. Read-aloud would have been
     broken on a sixth of the shipped corpus, presenting as an alignment bug rather than a
     tokenisation one.
 

@@ -1,7 +1,7 @@
 """Scenario wire shapes.
 
-**`persona_prompt` appears in none of them.** It is the system prompt m6 will send to
-the LLM — who the persona is, what it wants, and how hard it pushes back — and it is
+**`persona_prompt` appears in none of them.** It is the system prompt sent to the LLM —
+who the persona is, what it wants, and how hard it pushes back — and it is
 withheld from the client for two reasons. It is the exercise: a user who reads "the
 interviewer should challenge the candidate's timeline twice" is no longer practising the
 thing the scenario was built to make them practise. And it is the attack surface: the
@@ -23,7 +23,7 @@ class RubricCriterion(SeedModel):
 
 
 class Rubric(SeedModel):
-    """What a good performance looks like, for the end-of-session report (FR-9).
+    """What a good performance looks like, for the end-of-session report.
 
     Strict here, on the seed path, so a malformed rubric fails `make seed` with a path
     into the JSON. Deliberately *not* strict on the read path — see ScenarioDetail.
@@ -31,8 +31,8 @@ class Rubric(SeedModel):
 
     criteria: list[RubricCriterion] = Field(min_length=1)
 
-    # Below this, a session report is an opinion about three sentences. m6 uses it to
-    # decide whether a session is worth reporting on at all.
+    # Below this, a session report is an opinion about three sentences. It decides
+    # whether a session is worth reporting on at all.
     min_turns: int = Field(ge=1)
 
 
@@ -75,8 +75,8 @@ class ScenarioSeed(SeedModel):
     persona_prompt: str = Field(min_length=1)
     goal: str = Field(min_length=1)
 
-    # min_length=1 on both, and this is the requirement rather than a nicety. PRD §6.1:
-    # a scenario declares the forms it is designed to elicit, and m11 checks whether it
+    # min_length=1 on both, and this is a requirement rather than a nicety. A scenario
+    # declares the forms it is designed to elicit, and the eval harness checks whether it
     # actually elicited them. A scenario with no declared forms cannot fail that check,
     # so it would be permanently exempt from the one test that says whether it works.
     target_grammar: list[str] = Field(min_length=1)

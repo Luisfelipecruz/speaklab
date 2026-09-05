@@ -1,14 +1,14 @@
 /**
- * One scenario in the catalogue. FR-5.
+ * One scenario in the catalogue.
  *
  * A server component — it has no state and no handlers, so shipping it to the browser
  * would be bundle for nothing. The whole card is a link, because a card with a "Start"
  * button in the corner makes the other 95 % of the target dead space.
  *
  * The declared target forms are shown, and that is a product decision rather than a
- * detail dump. PRD §6.1: a scenario declares the grammar it is designed to elicit, and
- * m11 later checks whether it actually elicited it. Showing the learner what a scenario
- * is *for* is the difference between choosing one and picking one at random.
+ * detail dump: a scenario declares the grammar it is designed to elicit, and the eval
+ * harness later checks whether it actually elicited it. Showing the learner what a
+ * scenario is *for* is the difference between choosing one and picking one at random.
  * `persona_prompt` is the opposite case and never leaves the server.
  */
 

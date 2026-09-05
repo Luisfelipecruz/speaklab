@@ -13,11 +13,11 @@
  * on the player is the way out for somebody who wants to answer sooner.
  *
  * **The timing line is on the screen, not behind a debug flag.** `TurnTiming` comes back
- * on every turn precisely so it can be, and PRD R3 is that a latency regression is felt
- * long before anybody notices it. A number nobody can see is a number nobody checks. It
- * also makes the honest thing visible: on a busy machine these figures nearly triple
- * (decision 0003 §3), and a user who can see 6 s of "heard / thought / spoke" knows the
- * machine is loaded rather than assuming the app is broken.
+ * on every turn precisely so it can be: a latency regression is felt long before anybody
+ * notices it, and a number nobody can see is a number nobody checks. It also makes the
+ * honest thing visible: on a busy machine these figures nearly triple, and a user who can
+ * see 6 s of "heard / thought / spoke" knows the machine is loaded rather than assuming
+ * the app is broken.
  */
 
 import Link from "next/link";

@@ -1,30 +1,23 @@
 """SpeakLab TTS — text in, the persona's voice out.
 
-The service exists for FR-6 and FR-7: a session's opening turn and every persona reply
-are delivered *as speech*, not as text the browser reads aloud with whatever voice the
-operating system happens to have. It holds one voice, loaded once, and it is reachable
+A session's opening turn and every persona reply are delivered *as speech*, not as text
+the browser reads aloud with whatever voice the operating system happens to have. It holds one voice, loaded once, and it is reachable
 only from inside the compose network — the same rule as `asr`, and the reason there is
 no authentication here.
 
 **Two endpoints for one job, and the second one is the whole latency story.**
 
-`POST /synthesize` returns the finished WAV. It is what m6 stores on the `audio_assets`
-row, and on a full-length reply it takes about a second — against a 400 ms budget
-(PRD §9.1). That is a miss, and it is not fixable by tuning, because the cost is
-proportional to the audio produced.
+`POST /synthesize` returns the finished WAV. It is what the turn writer stores on the
+`audio_assets` row, and on a full-length reply it takes about a second — against a 400 ms
+budget. That is a miss, and it is not fixable by tuning, because the cost is proportional
+to the audio produced.
 
 `POST /synthesize/stream` returns one PCM chunk **per sentence**, as Piper produces
 them, each tagged with how long the caller had been waiting when it arrived. The first
 chunk lands in about 90 ms regardless of how long the reply is, because a first sentence
-is a first sentence. That is PRD §9.1's first prescribed fallback — *stream the LLM
-reply into TTS sentence by sentence* — and it is the reason the budget is reachable at
-all. Both shapes ship here rather than the streaming one arriving with m6, because the
-measurement that says the plain endpoint misses was taken in the milestone that wrote
-it, and a service that only offers the shape which cannot meet its own budget is a
-service the next milestone has to reopen.
-
-The measurements, including why `intra_op_num_threads` is set by hand, are in
-`docs/decisions/0002-tts-model-choice.md`.
+is a first sentence. Streaming the LLM reply into TTS sentence by sentence is what makes
+the budget reachable at all, and both shapes ship together because a service that only
+offers the shape which cannot meet its own budget is a service somebody has to reopen.
 """
 
 from __future__ import annotations
@@ -63,7 +56,7 @@ VOICE_NAME = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
 #                      the one model in the system that ships inside its image.
 #
 # A voice in neither is downloaded into (1) during the background load, so it survives
-# an image rebuild (FR-28) and is not re-fetched by every developer.
+# an image rebuild and is not re-fetched by every developer.
 VOICE_DIR = Path(os.environ.get("PIPER_VOICE_DIR", "/models/piper"))
 BUILTIN_DIR = Path(os.environ.get("PIPER_BUILTIN_VOICE_DIR", "/opt/piper-voices"))
 
@@ -376,8 +369,8 @@ async def synthesize_stream(request: SynthesiseRequest) -> StreamingResponse:
     is declared once per line and the payload is only samples.
 
     `latency_ms` on each line is measured from the start of the request, not from the
-    previous chunk. It is the number PRD §9.1 is actually about: how long the listener
-    waited before hearing anything.
+    previous chunk. It is time to first audio: how long the listener waited before
+    hearing anything.
     """
     _guard(request)
     started = time.perf_counter()
