@@ -14,7 +14,7 @@ repository exists at `Luisfelipecruz/speaklab`; every git command is still prepa
 
 ## 0. How to read this
 
-Thirteen milestones, `m0` through `m12`. `m0` is a throwaway spike; `m1`–`m12` each
+Fourteen milestones, `m0` through `m13`. `m0` is a throwaway spike; `m1`–`m13` each
 become exactly one stacked pull request.
 
 Every milestone states:
@@ -156,6 +156,12 @@ where `api/` is `/app`; CI, which runs from `api/`; and a host shell. A root-lev
 `seeds/` needs a bind mount in one of those and a different relative path in another, and
 the day the two disagree the loader reads an empty directory and reports success.
 Recorded as **D20**.
+
+`frontend/src/app/` gains a route group at m12: `app/(app)/` holds the four signed-in
+sections behind one layout instead of the four identical ones there today. Parentheses
+keep a route group out of the URL, so no route moves — only the repository path does,
+which is the objection those four layouts each recorded in a comment, and the reason the
+path is named here.
 
 There is deliberately no `infra/postgres/`. Plain `postgres:16` is pulled, not built
 (D9 — no PostGIS, no pgvector), so a Dockerfile whose only line is `FROM postgres:16`
@@ -354,7 +360,7 @@ tables precisely because they are queried across rows, aggregated by category an
 Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout` that m3
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
-against `app.openapi()` at m12, not recalled — this list is the forecast, the running
+against `app.openapi()` at m13, not recalled — this list is the forecast, the running
 system is the authority. **18 exist as of m7**, counted from the running app rather than
 from this list. m5 added none: its `POST /synthesize` is a model-service internal API, and
 the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
@@ -1210,16 +1216,19 @@ test that every reason contains a number.
 
 ---
 
-### m11 — Evaluation harness · **CODE COMPLETE, uncommitted**
+### m11 — Evaluation harness · **MERGED (PR #13, 2026-09-05)**
 
 **Goal.** Turn every model-facing claim into a number produced by a command.
 
 **Why here.** Everything to be evaluated now exists. Before this, the README's numbers are
 assertions.
 
-> **Built and not yet committed, and here is what it cost.** 528 of 562 API tests pass with
+> **Merged as `f3647fd`, and here is what it cost.** 528 of 562 API tests pass with
 > no services running (was 504 of 536); 130 frontend across 18 suites, untouched. Lint
 > clean on both trees. **24 files**, no migration, no new dependency, no new API operation.
+> All three CI jobs passed on PR #13, and the new "Evaluation harness" step reported four
+> suites not run and **graded nothing as met** on a runner with no model layer — the
+> property the whole design rests on, confirmed on somebody else's machine.
 > The writeup is `docs/decisions/0008-evaluation-harness.md`. What a reader needs first:
 >
 > 1. **The harness settles four of the ten criteria, and one is met.** S6 met at 1.72 %
@@ -1289,7 +1298,90 @@ because nothing ran.
 
 ---
 
-### m12 — Polish, documentation, demo
+### m12 — Navigation, layout and the signed-in shell
+
+**Goal.** A person who has signed in can see where they are, where else they can go, and
+what to do next — on a phone and on a 27-inch monitor.
+
+**Why here.** Two reasons, and neither is taste.
+
+The first is sequencing. m13 records a walkthrough, and a walkthrough of an interface that
+is about to be replaced is a recording made twice.
+
+The second is that m11 measured this product and got the same answer three times. S4 has
+never run, S5 is undecidable and S7 is not met, and all three are blocked on one thing: a
+corpus. The only machine that produces a corpus is a person practising, and the interface
+currently asks them to navigate four sections by four text links squeezed beside a
+wordmark. Making practice easy is not cosmetic here — it is the input to the measurements.
+
+**Why this is a milestone at all, when §9 says m1–m12 are fixed.** It is not a new idea
+arriving late. m7 shipped `AppShell` as a header that exists, in its own words, "because a
+person who cannot get from a conversation back to the catalogue has to type a URL" — a
+stated minimum, not a design. The scope-creep rule is there to stop features being
+invented; it should not be used to rule an unmet quality bar out of scope. §9 now reads
+m1–m13.
+
+**What is wrong, counted rather than asserted.**
+
+| | |
+|---|---|
+| Navigation | Four text links in one row of `AppShell.tsx`, with no disclosure at any width and nothing to show what is in a section before you open it. The current one is marked by weight and colour, which is the whole of the wayfinding |
+| Width | `max-w-5xl` on both the header and `<main>` — 1024 px at every viewport. On a 2560 px display roughly 60 % of the screen is margin |
+| Density | The progress page is a single `flex-col gap-6` of full-width cards — four metric families, a recommendation card, a repertoire chart and a phoneme trend, stacked in one column inside that 1024 px |
+| The front door | `app/page.tsx` renders no shell, so `/` has no navigation at all, and its content is a service-status table for `asr`, `tts` and `pron`. That is a page for whoever runs the stack |
+| After sign-in | `DEFAULT_AFTER_LOGIN` is `/scenarios`. Nothing answers "how am I doing, and what should I do now", though m10 already computes the answer |
+| Dark mode | `globals.css` carries a complete `.dark` block and 16 sidebar variables. Nothing sets the class and nothing reads a sidebar variable, so the 11 lines carrying `dark:` utilities — 9 of them inside the shadcn primitives — can never fire |
+| Duplication | Four four-line `layout.tsx` files each wrap `AppShell`, each with a comment explaining why the route group was skipped |
+| Tests | Three of the 18 components under `components/` have no test file, and `AppShell` is one of them — the one every signed-in page renders inside. The other two are `AuthProvider` and `PhonemeTable.helpers` |
+
+**Deliverables.**
+```
+frontend/src/components/ui/{sidebar,sheet,dropdown-menu,skeleton,tooltip}.tsx
+frontend/src/components/{AppSidebar,ThemeToggle,PageHeader}.tsx
+frontend/src/components/AppShell.tsx           rewritten around the sidebar
+frontend/src/app/(app)/layout.tsx              one layout for the four sections
+frontend/src/app/(app)/home/page.tsx           the signed-in home
+frontend/src/app/page.tsx                      the public front door, health demoted
+frontend/src/app/status/page.tsx               where the service table goes
+frontend/src/app/layout.tsx                    the theme class, set before first paint
+frontend/src/components/**/*.test.tsx
+docs/decisions/0009-navigation-and-layout.md
+```
+
+**Decisions.**
+- **A sidebar, not a wider top bar.** The four sections are peers a person moves between mid-task, and a vertical rail has room for the thing a top bar has no room for: what is *in* each section — a streak, a count, whether anything has been analysed since last time. It collapses to an icon rail rather than disappearing.
+- **Below `md` it becomes a sheet.** Practice happens on the device the microphone is in.
+- **`/` splits in two.** A public front door for a stranger, and `/home` for somebody signed in — which becomes `safeNext`'s default. `/home` is assembled from what m10 already returns: the recommendation card, the week's counts, the last session. The service-status table moves to `/status`, reachable by URL and not in the sidebar, because it is a diagnostic and it belongs to the operator.
+- **Width becomes a property of the page, not of the shell.** Prose wants about 65 characters; a phoneme heatmap wants the screen. `AppShell` stops imposing a maximum and each page declares its own.
+- **The route group finally lands.** `app/(app)/` replaces the four duplicated layouts. Parentheses keep it out of the URL, so no route changes — what changes is a repository path this plan names, which is the objection those four comments raised and the reason it is decided here rather than deferred a third time.
+- **Dark mode ships, or the tokens come out.** A complete `.dark` block nothing can reach is dead code that reads as a feature. Either wire the toggle, persist the choice and set the class before first paint, or delete the block and the sidebar variables with it. Deciding against it is an outcome; leaving it as it is, is not.
+- **No new runtime dependency without a line in the decision doc.** `radix-ui` and `lucide-react` are already installed and shadcn components are source files rather than packages. If persisting a theme needs `next-themes`, that is a decision to record, not a default to accept.
+
+**Tests.** RTL, and the list is short because most of it is one property said several ways:
+every section is reachable from every other without typing a URL. The current section still
+carries `aria-current` — the header does that today and a rewrite is the ordinary way to
+lose it. The mobile sheet opens, closes, and gives focus back. The shell
+renders its navigation while the session check is still in flight — which `AppShell` has
+claimed in a comment since m7 and nothing has ever verified. The signed-in home renders an
+empty state rather than a blank for an account that has never practised. The theme survives
+a reload.
+
+**Done when.** Every section is one click from every other at 375 px and at 2560 px; a
+signed-in person lands somewhere that tells them what to do next; no page is capped at a
+width its content did not ask for; and `npm run lint`, `npm run typecheck`, `npm test` and
+`npm run build` are green.
+
+**Explicitly not here.** Empty states, loading skeletons and error boundaries for the
+*existing* pages stay in m13 — this milestone builds the frame, m13 finishes what sits
+inside it, and the one screen created here ships with its own empty state. No API change
+either: every number this milestone puts on screen is already served by an operation that
+exists, so the count stays at 25 of 30.
+
+**Branch** `feature/m12-shell` · **PR** `feat: replace the header with a sidebar shell and a signed-in home`
+
+---
+
+### m13 — Polish, documentation, demo
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1316,7 +1408,7 @@ Makefile                               (all targets documented)
 **Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1),
 every S-criterion is verified and recorded, and the walkthrough is recorded.
 
-**Branch** `feature/m12-polish` · **PR** `feat: finalise documentation, demo and empty states`
+**Branch** `feature/m13-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
 ---
 
@@ -1334,7 +1426,8 @@ m1 scaffold
                                                               ├─ m9 analysis
                                                                   └─ m10 progress
                                                                       └─ m11 eval
-                                                                          └─ m12 polish
+                                                                          └─ m12 shell
+                                                                              └─ m13 polish
 ```
 
 m4 and m5 are genuinely independent and could be worked in either order. Everything else
@@ -1354,7 +1447,7 @@ at `main` except m1.
 | R5 GOP varies with hardware | m10 | Within-user z-score, device fingerprint, sample gate |
 | R6 `pron` memory pressure | m1, m8 | Profiled service, graceful degradation tested |
 | R7 Persona drift | m6, m11 | Per-turn re-anchoring, summarised history, adherence suite |
-| R8 Scope creep | this document | m1–m12 fixed; new ideas go to PRD §15 |
+| R8 Scope creep | this document | m1–m13 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea |
 
 ---
 
@@ -1376,8 +1469,9 @@ Evenings-and-weekends pace, one developer.
 | m9 | 4 | Golden labelling is manual and slow |
 | m10 | 4 | Charts and rollup arithmetic |
 | m11 | 3 | |
-| m12 | 3 | |
-| **Total** | **~37–40** | |
+| m12 | 3–4 | The sidebar is the easy half; deciding what belongs on a signed-in home is not |
+| m13 | 3 | |
+| **Total** | **~40–44** | |
 
 ---
 
@@ -1392,33 +1486,42 @@ record; the live version is below.
 
 ### The next three actions
 
-**m11 is built and uncommitted.** 24 files in the working tree, `main` still at `8acfb3a`
-(PR #12). The harness runs, `docs/evaluation.md` is generated, and the API suite is 528 of
-562 without services.
+**m11 is merged. `main` is `f3647fd`, and m12 is the interface.**
 
-1. **Commit m11 and open its PR.** `GIT-COMMANDS.md` §A.11 stages the 24 files and §B.9
-   cuts `feature/m11-eval` from `main`. The staging set was validated by set comparison in
-   both directions; `.eval/` is gitignored and no audio or weights are in it. The PR body
-   is `.pr-bodies/m11-eval.md`.
+1. **Cut `feature/m12-shell` from `main` and build it.** Navigation, layout and the
+   signed-in shell — the interface work m7 deferred when it shipped a header and said so in
+   the file: a sidebar that collapses to a sheet, a signed-in home assembled from what m10
+   already computes, width that belongs to the page rather than to the shell, and the
+   `.dark` block either wired up or deleted. §7 opens the milestone with a table of what is
+   wrong, counted rather than asserted, so the first commit does not have to begin with a
+   survey. It gets `docs/decisions/0009`, because at least four of those are decisions
+   rather than preferences.
 2. **Read `docs/decisions/0008` §5 before touching `services/conversation.py`.** The
    persona recites its brief in 30 of 40 attempts when an instruction is spoken inside the
    scene, and the guardrail that forbids it has been in place since m6 unmeasured. **Q16**
    carries the fix, and the reason it is not in m11 is that a prompt change needs measuring
    across more than one model — which is now possible for the first time.
-3. **Then m12 — polish, documentation, demo.** Cut `feature/m12-polish` from a merged
-   `main`. It has **no decision doc of its own** unless something is decided; it rewrites
-   the README against measured reality, finalises `docs/{architecture,data-model}.md`,
-   records a walkthrough, and verifies every S-criterion. Four of them are already
-   adjudicated by `make eval`, so m12's job there is the other six — and S9 and S10 are the
-   two it should automate, because "the test count matches the README" is a check, not a
-   claim.
+3. **Then m13 — polish, documentation, demo**, last for a practical reason on top of the
+   original one: it records a walkthrough, and a walkthrough of an interface about to be
+   replaced is a recording made twice. It has **no decision doc of its own** unless
+   something is decided; it rewrites the README against measured reality, finalises
+   `docs/{architecture,data-model}.md`, records the walkthrough, and verifies every
+   S-criterion. Four are already adjudicated by `make eval`, so m13's job there is the other
+   six — and S9 and S10 are the two it should automate, because "the test count matches the
+   README" is a check, not a claim.
 
-**What m12 must not do:** rewrite the README into something warmer than the measurements
+**One thing PR #13's merge taught, and it is not about any milestone.** A commit made
+straight onto `main` is not finished until `git push` has run. `4508bf4` was not pushed, so
+the squash absorbed it and the next `git pull --ff-only` refused on a genuine divergence.
+Nothing was lost, and one command proved it — `git diff <pr-head> origin/main`, empty. The
+sheet's §D sections now end in a push and a check for exactly this reason.
+
+**What m13 must not do:** rewrite the README into something warmer than the measurements
 support. Three criteria are unmet, one has never run, and one is a role-integrity failure
 found by this project's own harness. A portfolio README that leads with those is a
 stronger document than one that buries them, and it is the only one consistent with S10.
 
-Three things still need a person, and none blocks m12 — but two of them are now what
+Three things still need a person, and none of them blocks m12 or m13 — but two are now what
 stands between this project and three of its own success criteria:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
