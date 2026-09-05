@@ -1134,16 +1134,18 @@ detection precision on the golden set is ≥ 0.70 (criterion S5) and reported in
 
 ---
 
-### m10 — Progress, trends and recommendations · **BUILT (2026-09-05)**
+### m10 — Progress, trends and recommendations · **MERGED (PR #12, 2026-09-05)**
 
 **Goal.** The user sees whether they are improving, and what to practise next.
 
 **Why here.** Needs everything above it to have produced data.
 
-> **Built, and here is what it cost.** 504 of 536 API tests pass with no services running,
-> and 130 frontend tests across 18 suites; lint, `tsc`, `eslint` and `next build` all
-> clean. The writeup is `docs/decisions/0007-progress-metrics.md`. What a reader needs
-> before touching it:
+> **Built and merged, and here is what it cost.** 504 of 536 API tests pass with no
+> services running, and 130 frontend tests across 18 suites; lint, `tsc`, `eslint` and
+> `next build` all clean, and all three CI jobs green on the PR and again on `main`.
+> 40 files, 5597 insertions.
+> The writeup is `docs/decisions/0007-progress-metrics.md`. What a reader needs before
+> touching it:
 >
 > 1. **Criterion S7 is not met and cannot be on this corpus.** It asks for 30-day trends
 >    across four families from ≥ 20 real sessions. The database holds **2** conversation
@@ -1335,27 +1337,35 @@ Evenings-and-weekends pace, one developer.
 
 ## 11. First three actions
 
-**Superseded — m0 through m8 are merged.** Kept for the record; the live version is
+**Superseded — m0 through m10 are merged.** Kept for the record; the live version is
 below.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #9.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #12.
 
 ### The next three actions
 
-1. **Commit m10 and open its PR.** `GIT-COMMANDS.md` §A.10 is the sheet. The uncommitted
-   tree is the whole milestone; nothing is half-landed.
-2. **Read `docs/decisions/0007` §7 before starting m11.** m11 turns claims into numbers a
-   command produces, and three success criteria are now measured and unmet — S4 (needs
-   recordings), S5 (0.500 against 0.70) and S7 (2 sessions against 20). All three fail for
-   the same reason: the system needs *use*, not code. An evaluation harness that reports
-   them as failures with their sample sizes attached is the right outcome; one that quietly
-   drops them is not.
-3. **Start m11 — the evaluation harness.** Four suites, and three of them already exist as
-   ad-hoc measurement scripts: `make asr-wer`, `make pron-golden` and `make error-precision`.
-   The work is a common runner, `docs/evaluation.md` with dated numbers, and persona
-   adherence, which is the only one with nothing behind it yet.
+**m10 is merged.** `main` is at `8acfb3a` (PR #12). The tree is clean and the next
+milestone starts from a merged `main`.
+
+1. **Read `docs/decisions/0007` §7 before writing any of m11.** Three success criteria are
+   now measured and unmet — S4 (needs recordings), S5 (0.500 against a 0.70 bar) and S7
+   (2 sessions against 20). All three fail for the same reason: the system needs *use*, not
+   code. An evaluation harness that reports them as failures with their sample sizes
+   attached is the right outcome; one that quietly drops them is not, and that is the
+   specific temptation this milestone has to resist.
+2. **Start m11 — the evaluation harness.** Cut `feature/m11-eval` from `main`. Its decision
+   doc is **`0008`**, because m10 took `0007`, and it needs **no migration** — nothing in
+   it writes to the database. Three of its four suites already exist as ad-hoc measurement
+   scripts: `make asr-wer`, `make pron-golden`, `make error-precision`. The work is a common
+   runner, `docs/evaluation.md` with dated numbers, and persona adherence — the only suite
+   with nothing behind it yet.
+3. **Keep every suite's skip-rather-than-fail behaviour.** Each existing measurement
+   declines when its service, model or golden set is absent, which is what lets CI run the
+   deterministic subset and stay green without Ollama, without `pron`, and without
+   recordings that do not exist. A harness that turns those skips into failures makes CI
+   red for reasons that have nothing to do with the code under review.
 
 Three things still need a person, and none blocks m11 — but two of them are now what
 stands between this project and three of its own success criteria:
