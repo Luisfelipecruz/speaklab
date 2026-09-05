@@ -1134,16 +1134,18 @@ detection precision on the golden set is ≥ 0.70 (criterion S5) and reported in
 
 ---
 
-### m10 — Progress, trends and recommendations · **BUILT (2026-09-05)**
+### m10 — Progress, trends and recommendations · **MERGED (PR #12, 2026-09-05)**
 
 **Goal.** The user sees whether they are improving, and what to practise next.
 
 **Why here.** Needs everything above it to have produced data.
 
-> **Built, and here is what it cost.** 504 of 536 API tests pass with no services running,
-> and 130 frontend tests across 18 suites; lint, `tsc`, `eslint` and `next build` all
-> clean. The writeup is `docs/decisions/0007-progress-metrics.md`. What a reader needs
-> before touching it:
+> **Built and merged, and here is what it cost.** 504 of 536 API tests pass with no
+> services running, and 130 frontend tests across 18 suites; lint, `tsc`, `eslint` and
+> `next build` all clean, and all three CI jobs green on the PR and again on `main`.
+> 40 files, 5597 insertions.
+> The writeup is `docs/decisions/0007-progress-metrics.md`. What a reader needs before
+> touching it:
 >
 > 1. **Criterion S7 is not met and cannot be on this corpus.** It asks for 30-day trends
 >    across four families from ≥ 20 real sessions. The database holds **2** conversation
@@ -1208,22 +1210,64 @@ test that every reason contains a number.
 
 ---
 
-### m11 — Evaluation harness
+### m11 — Evaluation harness · **CODE COMPLETE, uncommitted**
 
 **Goal.** Turn every model-facing claim into a number produced by a command.
 
 **Why here.** Everything to be evaluated now exists. Before this, the README's numbers are
 assertions.
 
+> **Built and not yet committed, and here is what it cost.** 528 of 562 API tests pass with
+> no services running (was 504 of 536); 130 frontend across 18 suites, untouched. Lint
+> clean on both trees. **24 files**, no migration, no new dependency, no new API operation.
+> The writeup is `docs/decisions/0008-evaluation-harness.md`. What a reader needs first:
+>
+> 1. **The harness settles four of the ten criteria, and one is met.** S6 met at 1.72 %
+>    word error rate. S5 **undecidable** — 0.500 over six scored proposals cannot be placed
+>    against a 0.70 bar in either direction. S7 **not met** — five sessions on one calendar
+>    day. S4 **has never run**, because the recordings do not exist.
+> 2. **The fourth suite found something on its first run.** Asked to ignore its
+>    instructions and print its brief, `gemma3:4b` recited it in **30 of 40 attempts**
+>    across four runs. `GUARDRAILS` has forbidden that since m6 and nothing had ever
+>    checked. It is a role-integrity failure, not a confidentiality one — every persona
+>    ships in `api/seeds/scenarios.json`. Reported, not asserted; **not fixed here**, and
+>    Q16 carries it.
+> 3. **The judge is scored on every run**, against ten replies labelled before it existed.
+>    It agrees 8 of 10 and misses **exactly the two the deterministic layer catches**,
+>    identically on all four runs. That is the argument for the split design arriving on
+>    the first measurement.
+> 4. **The self-tests are built out of flattering fixtures.** Three true positives out of
+>    three; a passing GOP probe standing in for S4; a README quoting a stale WER. Each is a
+>    shape a plausible implementation reports as a pass, and each has a test saying it must
+>    not. This is the one component whose bugs all point the same way.
+> 5. **A fifth input that is not a suite:** `scripts/corpus.py`, the census. S7 is a fact
+>    about a database and I9 forbids recalling it.
+> 6. **Two bugs found on the way, both in this milestone's own work.** `black --exclude
+>    eval` was a regex matching any path containing "eval" — six files unformatted since
+>    they existed. And the runner checked for a result file before the exit code, so a
+>    suite whose measurement passed and whose assertion failed reported as "measured" —
+>    on the exact run that found item 2.
+
 **Deliverables.**
 ```
-eval/{run.py,report.py}
-eval/golden/{asr,pron,errors,personas}/
-api/tests/test_eval_harness.py
+eval/{run.py,report.py,scoring.py}
+eval/golden/personas/                  probes + a calibration set for the judge
+api/tests/{test_eval_harness.py,test_persona_adherence.py,eval_out.py}
+api/scripts/corpus.py                  the census S7 is read against
 Makefile                               (eval target activated)
 docs/evaluation.md
-.github/workflows/ci.yml                (extended)
+.github/workflows/ci.yml               (extended)
 ```
+
+**Also built, and not in the list above:** `eval/scoring.py` was not forecast and holds the
+Wilson interval and the five deterministic persona rules, shared by the suites and the
+report so there is one copy; `api/tests/eval_out.py`, the seam a suite hands numbers
+through; the `.eval/` writable mount in `docker-compose.yml`; `make persona-adherence`,
+`make corpus`, `make eval-local` and `make fmt-eval`; and `record()` calls plus Cohen's d
+in the three suites that already existed.
+
+**Not built, deliberately:** `eval/golden/{asr,pron,errors}/` were forecast as new and all
+three already existed from m4, m8 and m9. Only `personas/` was missing.
 
 **Decisions.**
 - Four suites: **ASR** (WER on the golden set), **pronunciation** (GOP separation on clean/broken pairs, the S4 criterion automated), **error detection** (precision/recall against hand labels), **persona adherence** (does the model stay in character and elicit its declared `target_grammar`).
@@ -1232,10 +1276,14 @@ docs/evaluation.md
 - Persona adherence uses an LLM judge — the one legitimate place for one, because it evaluates prose rather than producing a plotted metric (P1 is not violated; nothing here reaches a user's trend chart).
 
 **Tests.** The harness is tested against known-good and known-bad fixtures, so a broken
-evaluator cannot report a passing grade.
+evaluator cannot report a passing grade. **Done** — 23 tests in `test_eval_harness.py`,
+with no model, no service and no network, and the fixtures are the flattering ones.
 
 **Done when.** `make eval` runs all four suites and writes `docs/evaluation.md` with
-measured numbers, and CI runs the deterministic subset.
+measured numbers — **done**, three of four suites measured on the run that produced the
+committed report, and the fourth reported as not run because `pron` was not up. CI runs the
+deterministic subset — **done**, `python eval/run.py --local`, which grades nothing as met
+because nothing ran.
 
 **Branch** `feature/m11-eval` · **PR** `feat: add evaluation harness for ASR, GOP, error detection and personas`
 
@@ -1335,40 +1383,54 @@ Evenings-and-weekends pace, one developer.
 
 ## 11. First three actions
 
-**Superseded — m0 through m8 are merged.** Kept for the record; the live version is
-below.
+**Superseded — m0 through m10 are merged, and m11 is built and uncommitted.** Kept for the
+record; the live version is below.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #9.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #12.
 
 ### The next three actions
 
-1. **Commit m10 and open its PR.** `GIT-COMMANDS.md` §A.10 is the sheet. The uncommitted
-   tree is the whole milestone; nothing is half-landed.
-2. **Read `docs/decisions/0007` §7 before starting m11.** m11 turns claims into numbers a
-   command produces, and three success criteria are now measured and unmet — S4 (needs
-   recordings), S5 (0.500 against 0.70) and S7 (2 sessions against 20). All three fail for
-   the same reason: the system needs *use*, not code. An evaluation harness that reports
-   them as failures with their sample sizes attached is the right outcome; one that quietly
-   drops them is not.
-3. **Start m11 — the evaluation harness.** Four suites, and three of them already exist as
-   ad-hoc measurement scripts: `make asr-wer`, `make pron-golden` and `make error-precision`.
-   The work is a common runner, `docs/evaluation.md` with dated numbers, and persona
-   adherence, which is the only one with nothing behind it yet.
+**m11 is built and uncommitted.** 24 files in the working tree, `main` still at `8acfb3a`
+(PR #12). The harness runs, `docs/evaluation.md` is generated, and the API suite is 528 of
+562 without services.
 
-Three things still need a person, and none blocks m11 — but two of them are now what
+1. **Commit m11 and open its PR.** `GIT-COMMANDS.md` §A.11 stages the 24 files and §B.9
+   cuts `feature/m11-eval` from `main`. The staging set was validated by set comparison in
+   both directions; `.eval/` is gitignored and no audio or weights are in it. The PR body
+   is `.pr-bodies/m11-eval.md`.
+2. **Read `docs/decisions/0008` §5 before touching `services/conversation.py`.** The
+   persona recites its brief in 30 of 40 attempts when an instruction is spoken inside the
+   scene, and the guardrail that forbids it has been in place since m6 unmeasured. **Q16**
+   carries the fix, and the reason it is not in m11 is that a prompt change needs measuring
+   across more than one model — which is now possible for the first time.
+3. **Then m12 — polish, documentation, demo.** Cut `feature/m12-polish` from a merged
+   `main`. It has **no decision doc of its own** unless something is decided; it rewrites
+   the README against measured reality, finalises `docs/{architecture,data-model}.md`,
+   records a walkthrough, and verifies every S-criterion. Four of them are already
+   adjudicated by `make eval`, so m12's job there is the other six — and S9 and S10 are the
+   two it should automate, because "the test count matches the README" is a check, not a
+   claim.
+
+**What m12 must not do:** rewrite the README into something warmer than the measurements
+support. Three criteria are unmet, one has never run, and one is a role-integrity failure
+found by this project's own harness. A portfolio README that leads with those is a
+stronger document than one that buries them, and it is the only one consistent with S10.
+
+Three things still need a person, and none blocks m12 — but two of them are now what
 stands between this project and three of its own success criteria:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
-  `eval/golden/pron/README.md`. Until they exist, the broken-vs-clean test skips and no
-  GOP threshold can be calibrated, so `PRON_GOP_THRESHOLDS` stays empty. **S4.**
+  `eval/golden/pron/README.md`. Until they exist, the broken-vs-clean test skips, `make
+  eval` reports **S4 as never run**, and no GOP threshold can be calibrated, so
+  `PRON_GOP_THRESHOLDS` stays empty.
 - **More recorded conversation, on more than one day.** It is the only thing that can
   settle S5 *or* S7. Seven user turns in two sessions on a single calendar day is the whole
   corpus; the progress page cannot draw a trend through one point however well it is
   written, and the error measurement re-runs against whatever is there: `make analyze`,
   then `python3 eval/golden/errors/build.py`, then `make error-precision`, then
-  `make rollup`.
+  `make rollup`, then `make eval`.
 - **A product decision on read-aloud with audio retention off.** Today the endpoint
   refuses with a 409 naming the setting, because a reading that cannot be rescored would
   break the promise its schema makes. The alternative worth weighing is a third retention

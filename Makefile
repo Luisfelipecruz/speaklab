@@ -5,9 +5,11 @@
 # from `up` AND from `build`, which is what lets docker-compose.yml declare the infra/pron
 # build context that m8 has not created yet.
 
-.PHONY: help up down restart logs ps health test test-frontend lint fmt clean \
-        pron-up llm-up migrate migrate-down migrate-status seed eval asr-wer tts-latency \
-        tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch
+.PHONY: help up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
+        pron-up llm-up migrate migrate-down migrate-status seed eval eval-local asr-wer \
+        tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
+        persona-adherence corpus analyze analyze-dry error-precision rollup rollup-dry \
+        rollup-force
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -51,13 +53,32 @@ test-frontend:                     ## Run the frontend suite (Jest + RTL) in a c
 # A formatter pointed at /app therefore tries to write to a read-only mount and fails.
 # CI lints `api` from the repository root, where eval/ is a sibling and never in scope —
 # so this exclusion makes the two agree rather than letting them differ silently.
+# The two exclusions are NOT the same pattern, and that difference is load-bearing.
+# ruff's `--exclude` matches path components, so `eval` means the directory. black's is a
+# regular expression `re.search`ed against the whole path, so a bare `eval` also matches
+# tests/eval_out.py and tests/test_eval_harness.py. It did: black checked 99 files where
+# it should have checked 105, and six files with "eval" in their names were formatted by
+# nothing for as long as they existed. Anchored, it means the directory and only that.
+#
+# m11 put real code in eval/ — a runner, a report generator and the arithmetic they share
+# — so the directory is checked in its own pass rather than skipped. It cannot be checked
+# in the same pass as /app: it is mounted read-only, and `--fix` would try to write to it.
 lint:                              ## ruff + black, check only
 	docker compose --profile tools run --rm --entrypoint sh test -c \
-		"ruff check --exclude eval /app && black --check --exclude eval /app"
+		"ruff check --exclude eval /app && black --check --exclude '^/eval/' /app \
+		 && ruff check /app/eval && black --check /app/eval"
 
 fmt:                               ## ruff --fix + black, in place
 	docker compose --profile tools run --rm --entrypoint sh test -c \
-		"ruff check --fix --exclude eval /app && black --exclude eval /app"
+		"ruff check --fix --exclude eval /app && black --exclude '^/eval/' /app"
+
+# Separate from `fmt`, and it takes its own writable mount at a different path rather
+# than making /app/eval writable. Formatting is a thing a developer does to source; it is
+# not a thing any measurement can do to the corpus it is graded on, and keeping the two
+# capabilities in different commands is what keeps that true.
+fmt-eval:                          ## ruff --fix + black over eval/, via a writable mount
+	docker compose --profile tools run --rm -v "$$PWD/eval:/eval-rw" \
+		--entrypoint sh test -c "ruff check --fix /eval-rw && black /eval-rw"
 
 # ── Model services ──────────────────────────────────────────────────────────
 
@@ -178,11 +199,35 @@ pron-golden:                       ## Measure GOP against the live pron service
 		-e PRON_URL=http://pron:8103 test \
 		python -m pytest /app/tests/test_gop.py -v -s
 
-eval:                              ## Retrieval + scoring evaluation (lands in m11)
-	@echo "The evaluation harness is m11. Until it lands this target has nothing to run."
-	@echo "The measurements that exist now are \`make asr-wer\`, \`make tts-latency\`,"
-	@echo "\`make turn-latency\` and \`make pron-golden\`."
-	@exit 1
+persona-adherence:                 ## Score persona adherence, and score the judge too
+	@echo "Six probes through the real model, five deterministic guardrails, and an LLM"
+	@echo "judge that is itself measured against ten hand-labelled replies on every run."
+	@echo "Needs Ollama on the host. About two minutes."
+	docker compose --profile tools run --rm \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		test python -m pytest /app/tests/test_persona_adherence.py -v -s
+
+corpus:                            ## How much practice this system has actually seen
+	@echo "A query, not a measurement. Every undecidable verdict in docs/evaluation.md"
+	@echo "traces back to these counts."
+	docker compose exec api python -m scripts.corpus
+
+eval:                              ## Every suite that can run, then docs/evaluation.md
+	@echo "Runs the four measurement suites and the corpus census, then writes"
+	@echo "docs/evaluation.md from what they produced. A suite whose service is not up"
+	@echo "SKIPS and is reported as not run — never as passing, and never with a figure"
+	@echo "carried forward from a previous run."
+	@echo ""
+	@echo "For everything to run you need: \`make up\`, \`make pron-up\`, and Ollama on"
+	@echo "the host with the configured model pulled. Takes about five minutes."
+	python3 eval/run.py
+
+eval-local:                        ## The same harness without Docker. What CI runs.
+	@echo "Runs the suites in this environment rather than in a container, and writes to"
+	@echo "a scratch path. Everything model-facing skips unless you have services up and"
+	@echo "the URLs exported — which is the point: it proves the harness works with no"
+	@echo "model layer at all."
+	python3 eval/run.py --local --out /tmp/speaklab-evaluation.md
 
 # ── Destructive ─────────────────────────────────────────────────────────────
 

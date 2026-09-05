@@ -56,7 +56,9 @@ def main() -> int:
         if actual == expected:
             print(f"ok       {probe['file']} ({os.path.getsize(target)} bytes)")
             return 0
-        print(f"MISMATCH {probe['file']}: {actual[:12]} != {expected[:12]}, re-fetching")
+        print(
+            f"MISMATCH {probe['file']}: {actual[:12]} != {expected[:12]}, re-fetching"
+        )
 
     print(f"fetching {probe['source_url']}")
     try:

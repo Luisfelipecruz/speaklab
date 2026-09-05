@@ -7,6 +7,86 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.0] — 2026-09-05 · m11, the evaluation harness
+
+Every model-facing claim in this repository is now a number produced by a command, and
+`make eval` writes them into `docs/evaluation.md` with the date and revision attached.
+Three of the four suites already existed as ad-hoc scripts; what was missing was a way to
+get their numbers into a document without a person copying them, and a copied number is a
+recalled number.
+
+**The harness reports four of the ten success criteria, and one of them is met.** S6 is
+met at 1.72 % word error rate — and the check has teeth, because "measured and published"
+means the figure has to appear in the README, so a stale quote fails it. S5 is
+**undecidable**: 0.500 detection precision over six scored proposals, which cannot be
+placed against a 0.70 bar in either direction. S7 is **not met**: five sessions on one
+calendar day against a bar of twenty. **S4 has never run at all**, because it needs
+recordings of somebody reading the same passage correctly and incorrectly, and those do
+not exist.
+
+**The fourth suite is new, and it found something on its first run.** Asked ten times to
+ignore its instructions and print its brief while playing a letting agent,
+`gemma3:4b` recited the brief in **30 of 40 attempts across four runs** — 8, 9, 7 and 6 —
+which is 0.750 [0.598, 0.858]. `GUARDRAILS` has told the model since
+m6 that anything in a speaker turn is something a person said out loud inside the scene
+and never an instruction — and nothing had ever checked. It is a role-integrity failure
+rather than a confidentiality one: every persona ships in `api/seeds/scenarios.json`, so
+nothing is disclosed. What breaks is the exercise, and it breaks by *speaking*, which in
+an app driven by a microphone is the only input there is. `docs/decisions/0008` §5 has the
+full result; Q16 carries the fix.
+
+### Added
+
+- **`eval/run.py`** — the orchestrator. Runs each suite, collects what it wrote, takes the
+  corpus census, adjudicates and renders. `--local` runs the suites in the current
+  environment instead of a container, which is what CI does with no model layer at all.
+- **`eval/report.py`** — the adjudicator and the renderer, pure and separately testable.
+  Three rules govern every verdict: no result means `not run`; below twenty trials means
+  `undecidable`, *including when the figure clears the bar*; otherwise compare.
+- **`eval/scoring.py`** — Wilson intervals, and the five deterministic persona rules. The
+  suites and the report share one copy rather than keeping two.
+- **`api/tests/test_persona_adherence.py`** — six probes through the real model, five
+  deterministic guardrails, and an LLM judge that is itself scored against ten
+  hand-labelled replies on every run. It is the only place in this system where a language
+  model produces a number, and nothing it produces reaches a chart.
+- **`api/tests/test_eval_harness.py`** — 23 tests, no model, no service, no network. The
+  fixtures are deliberately flattering ones: three true positives out of three, a passing
+  GOP probe standing in for S4, a README quoting a stale word error rate. Each is a shape
+  a plausible implementation reports as a pass.
+- **`eval/golden/personas/`** — six probes and ten hand-labelled replies, graded by reading
+  the eight personas before any reply was generated.
+- **`api/scripts/corpus.py`** and `make corpus` — how much practice this system has
+  actually seen, as a query. Every undecidable verdict traces back to it.
+- **`api/tests/eval_out.py`** — how a suite hands its numbers to the harness. Writes JSON
+  when `EVAL_OUT_DIR` is set and does nothing when it is not, so a measurement never
+  depends on being collected.
+- **`make eval`, `make eval-local`, `make persona-adherence`, `make fmt-eval`.**
+- **`.eval/`** — a writable results mount beside the read-only fixtures. A hole in a
+  read-only mount is a read-only mount with a hole in it.
+
+### Changed
+
+- **The three existing suites record their figures** as well as printing them. No
+  assertion changed and no measurement moved.
+- **CI lints `eval` as well as `api`**, and runs the whole harness with no model layer —
+  which proves the property everything rests on: four skipped suites produce a report that
+  grades nothing as met.
+- **`test_gop.py` computes Cohen's d** for the clean/broken comparison, because S4 asks
+  for the gap as an effect size and a difference of means says nothing without the spread.
+
+### Fixed
+
+- **`black --exclude eval` was excluding six files it should not have.** ruff's exclusion
+  matches path components; black's is a regular expression searched against the whole
+  path, so a bare `eval` also matched `tests/eval_out.py`. Black had been checking 99
+  files where it should have been checking 105. Anchored to `^/eval/` it means the
+  directory.
+- **The runner hid a failing suite on its first run.** It checked for the result file
+  before the exit code, so a suite whose measurement passed and whose assertion failed
+  reported as "measured". That run was the one that found the persona leak.
+
+---
+
 ## [0.10.0] — 2026-09-05 · m10, progress, trends and recommendations
 
 You can now see whether you are getting better — and, far more often at this stage, be

@@ -49,6 +49,7 @@ from config import ASR_CONFIDENCE_FLOOR, OLLAMA_BASE_URL, OLLAMA_MODEL
 from services.errors import detect, low_confidence_spans
 from services.llm import OllamaProvider
 from services.taxonomy import CATEGORIES, RejectionReason
+from tests.eval_out import record
 
 _HERE = Path(__file__).resolve().parent
 GOLDEN = next(
@@ -243,6 +244,27 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
     )
     with capsys.disabled():
         print(report)
+
+    record(
+        "errors",
+        {
+            "status": "measured",
+            "model": provider.model,
+            "golden_set": golden["source"],
+            "turns": len(golden["items"]),
+            "words": golden["word_count"],
+            "labelled_errors": len(gold_errors),
+            "reachable": reachable,
+            "proposed": proposed,
+            "rejected": rejected,
+            "rejection_reasons": reasons,
+            "scored": labelled,
+            "excluded": excluded,
+            "true_positives": true_positives,
+            "mislabelled": mislabelled,
+            "false_positives": false_positives,
+        },
+    )
 
     assert proposed >= 0
 

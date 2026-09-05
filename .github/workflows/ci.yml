@@ -65,15 +65,30 @@ jobs:
       - name: Install
         run: pip install -r infra/api/requirements.txt
 
+      # Both trees. eval/ held only two fetch scripts until m11 put the harness in it —
+      # a runner, a report generator, and the arithmetic the measurement suites share
+      # with them. Unlinted code that decides whether a success criterion is met is not
+      # a place to save four seconds.
       - name: ruff
-        run: ruff check api
+        run: ruff check api eval
 
       - name: black
-        run: black --check api
+        run: black --check api eval
 
       - name: pytest
         working-directory: api
         run: python -m pytest tests -v
+
+      # The evaluation harness, end to end, with no model layer at all — which is the
+      # only interesting way to run it here. Every measurement suite skips when its
+      # service is absent, so what this proves is the property the whole harness rests
+      # on: four skipped suites produce a report that grades nothing as met, rather than
+      # an empty file, a crash, or a table of green ticks. `--local` runs the suites in
+      # this environment instead of a container; the report goes to a scratch path and
+      # docs/evaluation.md is never touched by CI, because a report written where no
+      # model exists would overwrite real measurements with zeroes.
+      - name: Evaluation harness
+        run: python eval/run.py --local --out "$RUNNER_TEMP/evaluation.md"
 
   frontend:
     name: Frontend — lint, types, tests and build

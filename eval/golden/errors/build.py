@@ -149,9 +149,7 @@ def build(labels: dict, turns: dict[int, dict]) -> dict:
 
 def write(labels: dict, turns: dict, name: str) -> dict:
     manifest = build(labels, turns)
-    (HERE / name).write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
-    )
+    (HERE / name).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     low = sum(
         1
         for item in manifest["items"]

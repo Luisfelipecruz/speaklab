@@ -332,9 +332,17 @@ services:
       - ./api:/app
       # Read-only, and the flag is the point rather than caution. eval/ holds fixtures
       # graded BEFORE the run; a container that can rewrite them could turn a failing
-      # eval into a passing one with nobody noticing (invariant I7). Mounted into the
+      # eval into a passing one with nobody noticing. Mounted into the
       # test service and nowhere else. The directory arrives with m11.
       - ./eval:/app/eval:ro
+      # Where a measurement writes its numbers, and the only writable thing the eval
+      # path has. Deliberately NOT a subdirectory of eval/: the fixtures above are
+      # read-only because the system being evaluated must not be able to rewrite the
+      # corpus it is graded on, and a writable directory nested inside them would be a
+      # hole in exactly that. Inputs in eval/, outputs in .eval/, different mounts.
+      # Gitignored — a result belongs in docs/evaluation.md, which `make eval` writes
+      # from these files on the host.
+      - ./.eval:/app/.eval
       # The pron service's source, read-only, so that `api/tests/test_phone_map.py` and
       # `api/tests/test_g2p.py` can import the modules they are about. Those two tests
       # guard handoff trap 1 — a phone that maps to the wrong acoustic target produces
