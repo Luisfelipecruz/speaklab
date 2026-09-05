@@ -1,0 +1,38 @@
+{
+  "generated_by": "eval/golden/pron/fetch.py",
+  "probe": {
+    "id": "voices-sp0307-sg0042",
+    "file": "voices-sp0307-sg0042.wav",
+    "source_url": "https://download.pytorch.org/torchaudio/tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
+    "attribution": "VOiCES corpus (Richey et al., Interspeech 2018), Lab41/SRI, CC BY 4.0. Mirrored as a torchaudio tutorial asset.",
+    "truth": "i had that curiosity beside me at this moment",
+    "duration_s": 3.4,
+    "sample_rate": 16000,
+    "sha256": "c65fcd726d6b08c82c1e5dc7558f863cd8d483e3ed2f4a7bcf271dc1865ada14",
+    "note": "Native adult English, read, clean. Free CTC decode is correct on every phone including both /ð/, the /h/ and the intervocalic flap in 'curiosity' — which is what makes it a valid instrument for the probes below.",
+    "probes": [
+      {"n": 1,  "word_idx": 1, "replacement": "bad",     "canonical_phone": "B",  "spoken_phone": "HH", "contrast": "/b/ against spoken /h/",       "m0_gop_wrong": -9.366,  "m0_detected": true},
+      {"n": 2,  "word_idx": 2, "replacement": "sat",     "canonical_phone": "S",  "spoken_phone": "DH", "contrast": "/s/ against spoken /ð/",       "m0_gop_wrong": -10.687, "m0_detected": true},
+      {"n": 3,  "word_idx": 4, "replacement": "decide",  "canonical_phone": "D",  "spoken_phone": "B",  "contrast": "/d/ against spoken /b/",       "m0_gop_wrong": -7.311,  "m0_detected": true},
+      {"n": 4,  "word_idx": 5, "replacement": "we",      "canonical_phone": "W",  "spoken_phone": "M",  "contrast": "/w/ against spoken /m/",       "m0_gop_wrong": -9.985,  "m0_detected": true},
+      {"n": 5,  "word_idx": 6, "replacement": "it",      "canonical_phone": "IH", "spoken_phone": "AE", "contrast": "/ɪ/ against spoken /æ/",       "m0_gop_wrong": -2.232,  "m0_detected": false},
+      {"n": 6,  "word_idx": 7, "replacement": "thus",    "canonical_phone": "AH", "spoken_phone": "IH", "contrast": "/ʌ/ against spoken /ɪ/",       "m0_gop_wrong": -6.212,  "m0_detected": true},
+      {"n": 7,  "word_idx": 8, "replacement": "comment", "canonical_phone": "K",  "spoken_phone": "M",  "contrast": "/k/ against spoken /m/",       "m0_gop_wrong": -10.658, "m0_detected": true},
+      {"n": 8,  "word_idx": 1, "replacement": "hat",     "canonical_phone": "T",  "spoken_phone": "D",  "contrast": "/t/ against spoken /d/, final", "m0_gop_wrong": -4.737,  "m0_detected": true},
+      {"n": 9,  "word_idx": 5, "replacement": "knee",    "canonical_phone": "N",  "spoken_phone": "M",  "contrast": "/n/ against spoken /m/",       "m0_gop_wrong": -6.373,  "m0_detected": true},
+      {"n": 10, "word_idx": 2, "replacement": "chat",    "canonical_phone": "CH", "spoken_phone": "DH", "contrast": "/tʃ/ against spoken /ð/",      "m0_gop_wrong": -13.819, "m0_detected": true}
+    ],
+    "m0_result": {
+      "detected": 9,
+      "of": 10,
+      "gate": 8,
+      "threshold_p5_clean": -3.119,
+      "mean_drop": 8.138,
+      "cohens_d": 8.26,
+      "recognized_phone_correct": 10,
+      "note": "The threshold is one speaker's number and must not be copied into config. It is recorded here as the operating point m0 used, not as a calibrated value."
+    }
+  },
+  "pairs": [],
+  "pairs_note": "Empty until somebody records them. Protocol: spike/RECORD.md — the three passages in spike/passages.json read twice, once naturally and once with the ten logged substitutions. Human recordings only; see README.md for why TTS cannot stand in. This is what criterion S4 is measured on."
+}

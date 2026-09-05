@@ -104,14 +104,20 @@ def test_every_route_is_either_scoped_to_a_user_or_declared_public():
     ), f"declared public but actually scoped; remove them from PUBLIC_ROUTES: {sorted(stale)}"
 
 
-def test_the_user_scoped_routes_are_the_ones_expected_at_m6():
+def test_the_user_scoped_routes_are_the_ones_expected_at_m8():
     """A companion to the test above, which would also pass if *nothing* were scoped and
     everything were listed as public. This one names the routes that must be locked.
 
     It is meant to be edited by each milestone that adds a scoped route — m4 added
-    `GET /audio/{asset_id}`, m6 added the six session routes — and the edit is the point.
-    A route arriving in this set without somebody typing it here is a route nobody decided
-    should be private.
+    `GET /audio/{asset_id}`, m6 added the six session routes, m8 added the four attempt
+    routes — and the edit is the point. A route arriving in this set without somebody
+    typing it here is a route nobody decided should be private.
+
+    **m8's four are the case this test was written for.** `attempts` has no `user_id`
+    column: it reaches its owner through `sessions`, so `get_owned_or_404` does not apply
+    and `routers/attempts._owned_attempt` does the join itself. A hand-written ownership
+    check is exactly the kind that gets written once and forgotten on the fifth endpoint,
+    and this list is what notices.
 
     m6 is the milestone where this stopped being a formality. Everything scoped before it
     was one row deep: a profile, or a recording read by id. A session is a tree — turns,
@@ -129,6 +135,11 @@ def test_the_user_scoped_routes_are_the_ones_expected_at_m6():
         ("GET", "/auth/me"),
         ("PATCH", "/auth/me"),
         ("GET", "/audio/{asset_id}"),
+        # Read-aloud (m8). Scoped through the session, not through a column.
+        ("POST", "/attempts"),
+        ("GET", "/attempts"),
+        ("GET", "/attempts/{attempt_id}"),
+        ("POST", "/attempts/{attempt_id}/rescore"),
         ("POST", "/sessions"),
         ("GET", "/sessions"),
         ("GET", "/sessions/{session_id}"),

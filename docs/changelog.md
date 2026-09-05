@@ -34,7 +34,7 @@ has the table.
   is gitignored — so `make pron-fetch` is how the audio reaches a machine, not an audit.
 - **`make pron-golden`**, which is where every number in decision 0005 comes from, and
   **`make pron-fetch`**.
-- **45 API tests and 23 frontend tests**: 300 passing server-side (from 255), 93 across 13
+- **47 API tests and 23 frontend tests**: 302 passing server-side (from 255), 93 across 13
   suites in the browser (from 70).
 
 ### Fixed
@@ -45,6 +45,12 @@ has the table.
   that. Read-aloud would have been broken on a sixth of the corpus. The rule is now *a
   token containing a letter*; 12 of 12 align, 3091 phones. Found before any production
   code was written, by running the spike's rule over the real seed file.
+- **A read-aloud sitting opened the conversation screen.** m8 created a second kind of
+  `sessions` row, and `/sessions/{id}` had only ever been given the first — so a sitting
+  rendered an empty transcript and a record button whose only possible outcome was a 409.
+  The page now branches on `mode` and lists the sitting's readings, which needed a
+  `session_id` filter on `GET /attempts`. Found by using the product; every unit test on
+  that page builds a conversation, because until this milestone there was no other kind.
 - **The `pron` image was 8.51 GB.** PyPI's torch wheels declare the whole NVIDIA CUDA
   stack on `linux/aarch64` as well as x86_64, so an arm64 CPU-only image carried 2.9 GB of
   CUDA and 652 MB of Triton it could never execute. Installing torch from PyTorch's CPU

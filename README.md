@@ -153,7 +153,7 @@ has not been measured yet and is not claimed.
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **319** — 300 pass with no model services running; the other 19 need `asr`, `tts`, `pron` or Ollama |
+| API test suite | **330** — 302 pass with no model services running; the other 28 need `asr`, `tts`, `pron` or Ollama |
 | Frontend test suite | **93** across 13 suites, Jest and React Testing Library, no services needed |
 | API image | 424 MB, with no torch — asserted by a test, not by a comment |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |

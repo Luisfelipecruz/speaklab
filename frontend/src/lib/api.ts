@@ -498,7 +498,12 @@ export function getAttempt(id: number): Promise<AttemptDetail> {
 }
 
 export function listAttempts(
-  params: { passage_slug?: string; limit?: number; offset?: number } = {},
+  params: {
+    passage_slug?: string;
+    session_id?: number;
+    limit?: number;
+    offset?: number;
+  } = {},
 ): Promise<AttemptPage> {
   return request<AttemptPage>(`/attempts${queryString(params)}`);
 }
