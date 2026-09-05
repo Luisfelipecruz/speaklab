@@ -29,12 +29,15 @@ suite hermetic.
 from __future__ import annotations
 
 import json
+import math
 import os
+import statistics
 import time
 
 import httpx
 import pytest
 
+from tests.eval_out import record
 from tests.test_g2p import EXPECTED
 
 PRON_URL = os.environ.get("PRON_URL", "http://pron.invalid:8103")
@@ -255,6 +258,24 @@ def test_a_phone_the_speaker_did_not_produce_collapses(probe_audio, manifest):
         )
         print("  reference run: mean drop +8.138, detected 9/10, named 10/10")
 
+    record(
+        "pron",
+        {
+            "status": "measured",
+            "threshold": threshold,
+            "detected": detected,
+            "probes": len(probe["probes"]),
+            "named": named,
+            "located": len(drops),
+            "mean_drop": (sum(drops) / len(drops)) if drops else None,
+            # What criterion S4 is waiting for, carried here because this is the only
+            # suite that knows the number. Its own test skips when there are none, and a
+            # skipped test writes nothing at all — so without this the report could say
+            # "not run" and not say why.
+            "clean_broken_pairs": len(manifest.get("pairs", [])),
+        },
+    )
+
     assert not missing, f"probes {missing} could not be located in the alignment"
     assert detected >= 8, (
         f"only {detected}/10 planted errors fell below the clean 5th percentile. "
@@ -447,8 +468,39 @@ def test_broken_readings_score_worse_than_clean_ones(manifest):
 
     threshold = percentile(clean_gops, 0.05)
     flagged = sum(1 for gop in broken_gops if gop < threshold)
+    clean_mean = statistics.fmean(clean_gops)
+    broken_mean = statistics.fmean(broken_gops)
+
+    # Cohen's d with a pooled standard deviation. The criterion asks for the gap "as a
+    # measured effect size" precisely because a difference of means says nothing without
+    # the spread underneath it: two nats apart is decisive on tight distributions and
+    # invisible on loose ones. The m0 spike measured d = 8.26 by reference perturbation,
+    # which is an upper bound on what this will find.
+    pooled = math.sqrt(
+        (statistics.variance(clean_gops) + statistics.variance(broken_gops)) / 2
+    )
+    cohens_d = (clean_mean - broken_mean) / pooled if pooled else None
+
     print(
         f"\n  clean {len(clean_gops)} phones, broken {len(broken_gops)} phones\n"
-        f"  threshold {threshold:+.3f}, flagged {flagged}/{len(broken_gops)} broken phones"
+        f"  threshold {threshold:+.3f}, flagged {flagged}/{len(broken_gops)} broken phones\n"
+        f"  clean mean {clean_mean:+.3f}, broken mean {broken_mean:+.3f}, "
+        f"Cohen's d {cohens_d if cohens_d is None else round(cohens_d, 3)}"
     )
-    assert sum(broken_gops) / len(broken_gops) < sum(clean_gops) / len(clean_gops)
+
+    record(
+        "pron_pairs",
+        {
+            "status": "measured",
+            "pairs": len(pairs),
+            "clean_phones": len(clean_gops),
+            "broken_phones": len(broken_gops),
+            "clean_mean": clean_mean,
+            "broken_mean": broken_mean,
+            "cohens_d": cohens_d,
+            "threshold": threshold,
+            "flagged": flagged,
+        },
+    )
+
+    assert broken_mean < clean_mean

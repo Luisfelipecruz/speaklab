@@ -37,6 +37,7 @@ from config import ASR_URL
 from services.asr_client import transcribe
 from services.wer import wer
 from tests.conftest import API_ROOT
+from tests.eval_out import record
 
 # In the container `eval/` is mounted read-only at /app/eval; on a host it is beside
 # api/. Read-only is a property worth having: the corpus a system is evaluated on must
@@ -144,6 +145,22 @@ async def test_word_error_rate_on_the_golden_set(manifest, capsys):
             f"(sub {substitutions}, del {deletions}, ins {insertions}), "
             f"ceiling {ceiling * 100:.0f}%"
         )
+
+    record(
+        "asr",
+        {
+            "status": "measured",
+            "model": model,
+            "wer": rate,
+            "errors": errors,
+            "reference_words": reference_words,
+            "utterances": len(manifest),
+            "substitutions": substitutions,
+            "deletions": deletions,
+            "insertions": insertions,
+            "ceiling": ceiling,
+        },
+    )
 
     assert rate <= ceiling, f"{model} scored {rate:.1%} against a {ceiling:.0%} ceiling"
 

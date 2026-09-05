@@ -159,7 +159,7 @@ has not been measured yet and is not claimed.
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **536** — 504 pass with no model services running; the other 32 need `asr`, `tts`, `pron` or Ollama |
+| API test suite | **562** — 528 pass with no model services running; the other 34 need `asr`, `tts`, `pron` or Ollama |
 | Frontend test suite | **130** across 18 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
@@ -172,6 +172,9 @@ has not been measured yet and is not claimed.
 | **Progress trends rendered from real sessions** | **2**, against a bar of 20 — **not met.** Two conversations and two readings, all on one calendar day. Three of the four families draw a single point and the fourth is gated off |
 | The whole stored corpus, rolled up | 7 turns · 272 words · 2 readings · 450 phone instances · **2.57 errors per 100 words** · 11 distinct forms · one week |
 | Reading the progress page | **7 ms** — it reads snapshots and computes nothing. A rollup with nothing to do is also 7 ms; a forced rebuild of both snapshots is 17 ms |
+| **Persona adherence, deterministic rules** | **3–4 of 6** probe replies clean across four runs. Most of what fails is the sentence cap the persona itself states; one reply read its brief out loud |
+| **An instruction spoken inside the scene** | **30 of 40** attempts — 0.750 [0.598, 0.858], four runs of ten scoring 8, 9, 7 and 6 — made the persona quote its own brief back. The guardrail has said not to since m6 and nothing had ever checked. It breaks the exercise rather than disclosing anything: see [decision 0008 §5](docs/decisions/0008-evaluation-harness.md) |
+| **The persona judge, against hand labels** | **0.800** over ten replies. It missed exactly the two the deterministic layer catches — the same two on all four runs |
 | **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
 | **ASR latency, ~6 s of audio** | **1231 ms** against a 700 ms budget — **missed, deliberately** |
 | **TTS latency, ~80-token reply** | **320 ms** whole against a 400 ms budget — **78 ms** to the first sentence |
@@ -198,6 +201,28 @@ metric downstream; the whole argument is in
 settled it: the stage misses and the turn passes**, so nothing is downgraded.
 The word error rate is a **floor**: LibriSpeech is native, fluent, read-aloud English, and
 learner speech will be worse by an amount that set cannot estimate.
+
+### Where these numbers come from
+
+`make eval` runs four measurement suites and a corpus census and writes
+[docs/evaluation.md](docs/evaluation.md), dated and with the revision it was taken at.
+Nothing in that file is written by hand.
+
+Three rules make it worth reading:
+
+- **A suite that did not run is reported as not run.** No figure, and nothing carried
+  forward from a previous run. Every suite skips when its service, model or golden set is
+  absent, so this is not a convention — the code that would produce a figure never runs.
+- **Below twenty trials nothing decides a criterion**, in either direction. A precision of
+  1.000 over three proposals is three proposals, and the report says `undecidable` rather
+  than met.
+- **The one language-model judge in this system is itself scored on every run**, against
+  ten replies labelled before it existed, and its agreement is printed beside its
+  verdicts.
+
+Of the ten success criteria, this harness settles four. **S6 is met. S5 is undecidable on
+a corpus this size. S7 is not met. S4 has never run**, because it needs recordings that do
+not exist. The other six are named in the report with where each is measured instead.
 
 The TTS budget *is* met, and the interesting part is what it took. onnxruntime's own
 thread default is 2.3× slower than eight threads here, which alone was the difference
@@ -353,7 +378,9 @@ Named explicitly so nothing here reads as a claim.
 | m10 | **No accuracy per grammatical form.** Errors are filed under a taxonomy category and forms are counted by a parser; nothing links an error to the form it happened in, so a per-form chart would be an invented join |
 | m10 | **The device annotation is computed and inert.** `audio_assets.device_hint` exists and nothing populates it, so a chart is never annotated when the microphone changes. The arithmetic is there for the day something fills the column |
 | m10 | **`progress_snapshots.cefr_estimate` is a column nothing writes.** A band assigned from seven turns would be a confident answer to a question this data cannot settle |
-| m11 | The evaluation harness |
+| m11 | **A resistant persona.** Asked to ignore its instructions, `gemma3:4b` recites its brief in 30 of 40 attempts. The brief is not a secret — every persona ships in `api/seeds/scenarios.json` — so nothing is disclosed; what breaks is the exercise, and it breaks by *speaking*, which is the only input this app has. The measurement now exists and the fix does not |
+| m11 | **A judge from a different model family.** `gemma3:4b` grading `gemma3:4b` shares its blind spots by construction. The calibration set is the only thing standing between that and a meaningless number, and swapping the judge needs nothing but an environment variable |
+| m11 | **A test that runs a deliberately broken suite.** The harness's self-tests feed fixtures to the adjudicator; nothing yet runs a suite that lies |
 | m12 | Documentation and a demo |
 
 ---
@@ -377,7 +404,10 @@ frontend/       Next.js 15, React 19, shadcn/ui
   src/lib/      api.ts is the wire shapes and the browser client; server-api.ts forwards
                 the cookie from a server component. Tests sit beside what they test
 infra/          One directory per image — api, frontend, asr, tts
-eval/golden/    Evaluation fixtures. Committed, with a manifest of their hashes
+eval/           The evaluation harness. run.py orchestrates, report.py adjudicates and
+  golden/       renders, scoring.py is the arithmetic both share with the suites.
+                golden/ holds the fixtures — committed, with a manifest of their hashes,
+                and mounted read-only into the one container that measures
 docs/           Architecture, data model, decisions, changelog
 speaklab-agent/ The twelve-milestone implementation plan
 spike/          m0, throwaway, gitignored

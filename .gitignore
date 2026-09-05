@@ -68,3 +68,9 @@ speaklab-agent/GIT-COMMANDS.md
 # are there, and the measurement suite prefers them and says which set it used.
 eval/golden/errors/labels.local.json
 eval/golden/errors/manifest.local.json
+
+# What a `make eval` run produced, before eval/report.py turns it into
+# docs/evaluation.md. Raw per-suite JSON, rewritten from scratch on every run and
+# meaningless without the date it was taken on. The report is the artefact; this is the
+# scratch space it is rendered from.
+.eval/
