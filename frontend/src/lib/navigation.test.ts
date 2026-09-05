@@ -5,8 +5,10 @@ test("a path on this site is honoured", () => {
   expect(safeNext("/scenarios/job-interview-backend")).toBe("/scenarios/job-interview-backend");
 });
 
-test("no destination lands on the catalogue, not the home page", () => {
-  // Somebody who has just signed in came here to practise.
+test("no destination lands on the signed-in home", () => {
+  // Somebody who has just signed in wants to know what to practise, which is a question
+  // the catalogue cannot answer because it knows nothing about them.
+  expect(DEFAULT_AFTER_LOGIN).toBe("/home");
   expect(safeNext(null)).toBe(DEFAULT_AFTER_LOGIN);
   expect(safeNext("")).toBe(DEFAULT_AFTER_LOGIN);
 });

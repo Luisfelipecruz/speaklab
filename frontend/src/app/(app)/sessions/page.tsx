@@ -12,7 +12,8 @@
 
 import Link from "next/link";
 
-import { DeleteSessionButton } from "@/app/sessions/DeleteSessionButton";
+import { DeleteSessionButton } from "@/app/(app)/sessions/DeleteSessionButton";
+import { Page, PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,15 +60,15 @@ export default async function SessionsPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Your conversations</h1>
-        <p className="text-muted-foreground">
-          {page.total === 0
+    <Page width="wide">
+      <PageHeader
+        title="Your conversations"
+        description={
+          page.total === 0
             ? "Nothing yet."
-            : `${page.total} session${page.total === 1 ? "" : "s"}, newest first.`}
-        </p>
-      </header>
+            : `${page.total} session${page.total === 1 ? "" : "s"}, newest first.`
+        }
+      />
 
       {page.items.length === 0 ? (
         <Card>
@@ -123,6 +124,6 @@ export default async function SessionsPage({
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

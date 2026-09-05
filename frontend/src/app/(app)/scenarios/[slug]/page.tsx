@@ -13,7 +13,8 @@
 
 import { notFound } from "next/navigation";
 
-import { StartSession } from "@/app/scenarios/[slug]/StartSession";
+import { StartSession } from "@/app/(app)/scenarios/[slug]/StartSession";
+import { Page } from "@/components/PageHeader";
 import { humanise } from "@/components/ScenarioCard";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +47,7 @@ export default async function ScenarioPage({
   const criteria = scenario.rubric.criteria ?? [];
 
   return (
-    <div className="flex max-w-3xl flex-col gap-8">
+    <Page width="prose">
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{scenario.cefr_band}</Badge>
@@ -97,6 +98,6 @@ export default async function ScenarioPage({
       </Card>
 
       <StartSession slug={scenario.slug} title={scenario.title} />
-    </div>
+    </Page>
   );
 }

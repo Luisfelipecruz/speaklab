@@ -1,168 +1,92 @@
 import Link from "next/link";
+import { GaugeIcon, MessagesSquareIcon, MicIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { getHealth, PUBLIC_API_URL, type ServiceStatus } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * The front door, and the stack describing itself.
+ * The front door, for somebody who has not signed in.
  *
- * The lower half is proof of something no unit test can give — that the browser reaches
- * the frontend container, the frontend container reaches the API container, and the API
- * container reaches Postgres. It renders whatever /health actually says, including
- * "degraded", which is the correct state on a machine where the model services have not
- * been started.
+ * It used to be a service-status table: three container names, a database latency, and a
+ * probe result for each model service. That is a page for whoever runs the stack, and it
+ * was the first thing a learner saw. It now lives at /status, where the person who wants
+ * it will look for it.
  *
- * Above it is the way in: without it the only entry point to the product would be a URL
- * somebody had to know.
+ * What replaces it is the one thing a stranger needs — what this does, and the way in.
+ * Somebody already signed in goes to /home instead; both buttons below lead there through
+ * the ordinary redirect, so a returning visitor who bookmarked the root does not have to
+ * find the entry point twice.
+ *
+ * No shell around it. The navigation rail is for people with practice to navigate.
  */
 
-export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "SpeakLab — practise spoken English against local models",
+};
 
-/** What each model service is for. */
-const MODEL_SERVICES = [
+const CLAIMS = [
   {
-    name: "asr",
-    role: "Transcript with word timestamps and per-word logprobs",
+    icon: MessagesSquareIcon,
+    title: "Conversation with a goal",
+    body: "A persona with a brief and something to push back about. You speak, it answers out loud, and the report at the end is counted from the turns rather than written about them.",
   },
-  { name: "tts", role: "The persona's spoken reply" },
   {
-    name: "pron",
-    role: "Forced alignment and per-phoneme GOP",
+    icon: MicIcon,
+    title: "Pronunciation, sound by sound",
+    body: "Passages engineered to force one group of sounds. Forced alignment scores every phone against the one the text asked for, and says which sound came out instead.",
   },
-] as const;
+  {
+    icon: GaugeIcon,
+    title: "Progress you can check",
+    body: "Fluency, accuracy and breadth over weeks, each series gated on how much speech it rests on. Nothing plotted here is produced by a language model.",
+  },
+];
 
-function StatusBadge({ status }: { status: ServiceStatus | string }) {
-  const variant =
-    status === "ok" ? "default" : status === "error" ? "destructive" : "secondary";
-  return <Badge variant={variant}>{status}</Badge>;
-}
-
-export default async function Home() {
-  const health = await getHealth();
-
+export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
-      <header className="flex flex-col gap-4">
-        <h1 className="text-4xl font-semibold tracking-tight">SpeakLab</h1>
-        <p className="text-muted-foreground text-balance">
-          Practise spoken English against local models. Scenario role-play, read-aloud
-          pronunciation scoring with per-phoneme GOP, and progress you can actually
-          measure.
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-12 px-6 py-16">
+      <header className="flex max-w-2xl flex-col gap-5">
+        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">SpeakLab</h1>
+        <p className="text-balance text-lg text-muted-foreground">
+          Practise spoken English against models running on this machine. Scenario
+          role-play, read-aloud pronunciation scoring with per-phoneme GOP, and progress
+          you can actually measure.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button asChild size="lg" className="h-11 px-6">
-            <Link href="/scenarios">Start practising</Link>
+            <Link href="/home">Start practising</Link>
           </Button>
           <Button asChild variant="ghost" size="lg" className="h-11 px-4">
-            <Link href="/sessions">Your conversations</Link>
+            <Link href="/login">Sign in</Link>
           </Button>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           You will need a microphone and about ten minutes. Nothing you say leaves this
           machine.
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-4">
-            <span>Stack</span>
-            {health ? (
-              <StatusBadge status={health.status} />
-            ) : (
-              <Badge variant="destructive">api unreachable</Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Read from{" "}
-            <code className="font-mono text-xs">{PUBLIC_API_URL}/health</code> on every
-            request. A cached health check is not a health check.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {health ? (
-            <>
-              <Row label="API" value={`v${health.version}`} status="ok" />
-              <Separator />
-              <Row
-                label="Database"
-                value={
-                  health.database.latency_ms !== undefined
-                    ? `SELECT 1 in ${health.database.latency_ms} ms`
-                    : (health.database.detail ?? "no detail")
-                }
-                status={health.database.status}
-              />
-            </>
-          ) : (
-            <p className="text-muted-foreground">
-              The API did not answer. Start it with{" "}
-              <code className="font-mono text-xs">make up</code>, then reload.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Model services</CardTitle>
-          <CardDescription>
-            <code className="font-mono text-xs">asr</code> and{" "}
-            <code className="font-mono text-xs">tts</code> are what a conversation needs;
-            the stack still serves everything that is not speech while they are absent or
-            still loading their weights. Conversation also needs Ollama on the
-            host — it is deliberately not a Compose service, because Docker on macOS
-            cannot pass the GPU through.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {MODEL_SERVICES.map(({ name, role }, index) => {
-            const probe = health?.models?.[name];
-            return (
-              <div key={name} className="flex flex-col gap-3">
-                {index > 0 ? <Separator /> : null}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-mono font-medium">{name}</span>
-                    <span className="text-muted-foreground">{role}</span>
-                  </div>
-                  <StatusBadge status={probe?.status ?? "unknown"} />
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-    </main>
-  );
-}
-
-function Row({
-  label,
-  value,
-  status,
-}: {
-  label: string;
-  value: string;
-  status: ServiceStatus | string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex flex-col gap-0.5">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">{value}</span>
+      <div className="grid gap-4 md:grid-cols-3">
+        {CLAIMS.map(({ icon: Icon, title, body }) => (
+          <Card key={title}>
+            <CardHeader className="gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Icon className="size-4" />
+                {title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">{body}</CardContent>
+          </Card>
+        ))}
       </div>
-      <StatusBadge status={status} />
-    </div>
+
+      <p className="text-xs text-muted-foreground">
+        Running the stack yourself?{" "}
+        <Link href="/status" className="underline">
+          Service status
+        </Link>
+        .
+      </p>
+    </main>
   );
 }

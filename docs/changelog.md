@@ -7,6 +7,94 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.12.0] — 2026-09-06 · m12, navigation, layout and the signed-in shell
+
+Everything this system measures was already being computed and served; what was missing
+was an interface that put it in front of the person practising. The four sections were
+four text links in a row beside the wordmark, every screen was 1024 pixels wide at every
+viewport, the front page was a service-status table, and signing in dropped you on a
+catalogue of eight scenarios that knew nothing about you.
+
+**This is the frame, not a redesign.** Every screen still renders what it rendered, no API
+operation was added or moved — 25 of 30, unchanged — and no runtime dependency was
+installed. What changed is where things are and how much room they get.
+
+**A rail instead of a row, and it carries what the sections contain.** Five entries, each
+with the fact that decides whether it is worth opening: how many conversations are stored,
+how many readings have been scored, whether the progress figures are behind the practice
+that produced them. They cost no extra request — the signed-in layout is a server
+component reading the same snapshot the progress page reads, so the counts are correct at
+first paint. Below the medium breakpoint the rail becomes a sheet, because practice
+happens on the device the microphone is in.
+
+**`/` split in two.** A public front door for a stranger; `/home` for somebody signed in,
+assembled from three responses that already existed and now where signing in lands. The
+service-status table moved to `/status`, reachable by address and deliberately not in the
+navigation — it is a diagnostic and it belongs to whoever runs the stack.
+
+**Dark mode ships rather than being deleted.** The `.dark` block and sixteen sidebar
+variables had been in `globals.css` since the beginning with nothing setting the class and
+nothing reading a variable. The rail is the first thing in the repository that reads them.
+
+Writing the shell's first test found two bugs and fixed both: two separate "Sign in"
+controls, and focus not being returned when the mobile sheet closed — a dialog restores
+focus to its own trigger, and this one is opened by a button outside it.
+
+### Added
+
+- **`components/AppSidebar.tsx`** — the rail. Five sections, `aria-current` on the current
+  one, a real `<nav>` landmark, badges from the practice snapshot, and an icon-only
+  collapsed state whose tooltips say what each section is for.
+- **`components/ThemeToggle.tsx`** and **`lib/theme.ts`** — light, dark, or the operating
+  system. The class is set by a synchronous script in `<head>` before first paint, because
+  a theme applied from an effect is a white flash on every navigation for anybody who
+  chose dark. The rule exists twice — as that script and as functions — and a test runs
+  the script and compares its result against the functions over all six cases.
+- **`components/PageHeader.tsx`** — a page's title and its measure. Three named widths,
+  `prose`, `wide` and `full`, replacing one maximum imposed on everything.
+- **`app/(app)/home/page.tsx`** — the signed-in home, with a designed empty state for an
+  account that has never practised.
+- **`app/status/page.tsx`** — the service-status table, moved off the front page.
+- **`components/ui/{sidebar,sheet,dropdown-menu,skeleton,tooltip}.tsx`** and
+  `hooks/use-mobile.ts`, from the component registry.
+- **Tests for the three components that had none** — `AppShell`, `AuthProvider` and
+  `PhonemeTable.helpers` — plus the new files. **174 frontend tests across 26 suites**, up
+  from 130 across 18. Twenty-one components, twenty-one test files.
+
+### Changed
+
+- **`app/(app)/`** replaces four near-identical `layout.tsx` files. The parentheses keep it
+  out of the URL: `/scenarios`, `/read`, `/sessions` and `/progress` are exactly where they
+  were, and the build output confirms all twelve routes are unmoved.
+- **`AppShell`** is rewritten around the rail and no longer caps width. The top bar carries
+  the control that opens the rail on a phone, the theme toggle, and sign-out.
+- **`app/page.tsx`** is a front door rather than a health check.
+- **`DEFAULT_AFTER_LOGIN`** is `/home`, not `/scenarios`.
+- **The progress page** stops being one column of seven full-width panels; they sit in two
+  from `xl` up, with the phoneme trend full width because it is one row per sound.
+- **The catalogues** go to three and four columns where there is room for them.
+
+### Known
+
+- **Opening any menu or tooltip in a test costs several seconds** in jsdom, and it is the
+  positioning library rather than anything in this repository — an open tooltip, which has
+  neither a focus scope nor a scroll lock, costs the same as an open menu. The frontend
+  suite went from about 2 s at 130 tests to 43–136 s at 174, on a machine also running
+  Ollama and a virtual machine — the spread is that load, the floor is the popper. The theme tests drive the menu with the keyboard to avoid most of it.
+  `docs/decisions/0009` §7 records what was ruled out.
+- **The component generator added a dependency and rewrote three files' imports** while
+  pulling the sidebar in. Both were reverted and the three files are byte-identical to
+  what they were; recorded because it would have gone in unnoticed.
+- Holding the record button in Chrome and Safari is **still unverified by a person**, and
+  this milestone does not change that.
+
+### Not in this release
+
+Empty states, loading skeletons and error boundaries for the *existing* pages, the README
+rewritten against measured reality, and the demo walkthrough — all m13.
+
+---
+
 ## [0.11.0] — 2026-09-05 · m11, the evaluation harness
 
 Every model-facing claim in this repository is now a number produced by a command, and

@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 
+import { Page, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,15 +54,13 @@ export default async function ReadPage({
   const focuses = [...new Set(passages.flatMap((one) => one.phoneme_focus))].sort();
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Read aloud</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Each passage is built to make you produce one group of sounds over and over.
-          Read it out, and every sound you make is scored against the sound the text asked
-          for — including which sound came out instead.
-        </p>
-      </header>
+    <Page width="full">
+      <PageHeader
+        title="Read aloud"
+        description="Each passage is built to make you produce one group of sounds over
+          and over. Read it out, and every sound you make is scored against the sound the
+          text asked for — including which sound came out instead."
+      />
 
       {failure && (
         <Alert variant="destructive">
@@ -111,7 +110,7 @@ export default async function ReadPage({
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {passages.map((passage) => (
             <Card key={passage.slug} className="flex flex-col">
               <CardHeader className="gap-2">
@@ -136,7 +135,7 @@ export default async function ReadPage({
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 

@@ -16,8 +16,9 @@
 
 import Link from "next/link";
 
-import { RefreshProgress } from "@/app/progress/RefreshProgress";
+import { RefreshProgress } from "@/app/(app)/progress/RefreshProgress";
 import { MetricPanel } from "@/components/MetricPanel";
+import { Page, PageHeader } from "@/components/PageHeader";
 import { NextUpCard } from "@/components/NextUpCard";
 import { PhonemeTrend } from "@/components/PhonemeTrend";
 import { RepertoireChart } from "@/components/RepertoireChart";
@@ -49,14 +50,16 @@ export default async function ProgressPage() {
 
   if (!progress || !recommendations) {
     return (
-      <Alert>
-        <AlertDescription>
-          <Link href="/login?next=/progress" className="underline">
-            Sign in
-          </Link>{" "}
-          to see how your practice is going.
-        </AlertDescription>
-      </Alert>
+      <Page width="prose">
+        <Alert>
+          <AlertDescription>
+            <Link href="/login?next=/progress" className="underline">
+              Sign in
+            </Link>{" "}
+            to see how your practice is going.
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
@@ -64,17 +67,14 @@ export default async function ProgressPage() {
   const practised = totals.turns > 0 || totals.attempts > 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Your progress</h1>
-          <p className="text-muted-foreground">
-            Weeks from {progress.since} to {progress.until}. Every figure is counted from
-            what you recorded — nothing on this page is written by a language model.
-          </p>
-        </div>
-        <RefreshProgress stale={progress.stale} />
-      </header>
+    <Page width="full" className="gap-6">
+      <PageHeader
+        title="Your progress"
+        description={`Weeks from ${progress.since} to ${progress.until}. Every figure is
+          counted from what you recorded — nothing on this page is written by a language
+          model.`}
+        actions={<RefreshProgress stale={progress.stale} />}
+      />
 
       {progress.stale && (
         <Alert>
@@ -117,15 +117,22 @@ export default async function ProgressPage() {
         </Card>
       )}
 
-      <NextUpCard recommendations={recommendations} />
+      {/* Two columns from `xl` up, one below it. The panels are independent of each
+          other — a fluency trend says nothing about an accuracy trend — so stacking
+          them in a single column on a wide display buys nothing and costs a scroll
+          past four cards to reach the fifth. */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <NextUpCard recommendations={recommendations} />
 
-      {progress.families.map((family) => (
-        <MetricPanel key={family.name} family={family} />
-      ))}
+        {progress.families.map((family) => (
+          <MetricPanel key={family.name} family={family} />
+        ))}
 
-      <RepertoireChart repertoire={progress.repertoire} />
+        <RepertoireChart repertoire={progress.repertoire} />
+      </div>
 
+      {/* Full width on its own: one row per sound, and there are up to forty of them. */}
       <PhonemeTrend phones={progress.phones} gate={progress.phone_gate} />
-    </div>
+    </Page>
   );
 }

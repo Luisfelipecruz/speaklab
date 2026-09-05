@@ -23,6 +23,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { Page } from "@/components/PageHeader";
 import { RecordButton, type RecordPhase } from "@/components/RecordButton";
 import { SessionReport } from "@/components/SessionReport";
 import { TranscriptPane } from "@/components/TranscriptPane";
@@ -75,20 +76,22 @@ export function Conversation({
 
   if (session.phase === "gone") {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          This conversation no longer exists.{" "}
-          <Link href="/sessions" className="underline">
-            Back to your history
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
+      <Page width="prose">
+        <Alert variant="destructive">
+          <AlertDescription>
+            This conversation no longer exists.{" "}
+            <Link href="/sessions" className="underline">
+              Back to your history
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <Page width="wide" className="gap-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{speaker}</h1>
@@ -176,6 +179,6 @@ export function Conversation({
           </Button>
         </div>
       )}
-    </div>
+    </Page>
   );
 }

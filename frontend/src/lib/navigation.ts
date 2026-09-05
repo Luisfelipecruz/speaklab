@@ -14,7 +14,13 @@
  * same-site test.
  */
 
-export const DEFAULT_AFTER_LOGIN = "/scenarios";
+/**
+ * Where signing in lands when nothing else was asked for.
+ *
+ * `/home` rather than the catalogue: somebody arriving wants to know how they are doing
+ * and what to do about it, and a grid of scenarios answers neither.
+ */
+export const DEFAULT_AFTER_LOGIN = "/home";
 
 export function safeNext(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return DEFAULT_AFTER_LOGIN;

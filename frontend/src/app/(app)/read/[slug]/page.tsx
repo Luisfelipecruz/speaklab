@@ -10,6 +10,7 @@
 
 import { notFound } from "next/navigation";
 
+import { Page } from "@/components/PageHeader";
 import { PassageReader } from "@/components/PassageReader";
 import { Badge } from "@/components/ui/badge";
 import { ApiError, type PassageDetail } from "@/lib/api";
@@ -33,7 +34,7 @@ export default async function PassagePage({
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <Page width="wide">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{passage.cefr_band}</Badge>
@@ -50,6 +51,6 @@ export default async function PassagePage({
       </header>
 
       <PassageReader passage={passage} />
-    </div>
+    </Page>
   );
 }

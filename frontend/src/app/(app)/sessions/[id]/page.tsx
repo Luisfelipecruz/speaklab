@@ -21,7 +21,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Conversation } from "@/app/sessions/[id]/Conversation";
+import { Conversation } from "@/app/(app)/sessions/[id]/Conversation";
+import { Page } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,16 +48,18 @@ export default async function SessionPage({
 
   if (!session) {
     return (
-      <Alert>
-        <AlertDescription>
-          That conversation is not available. It may belong to another account, or you may
-          need to{" "}
-          <Link href={`/login?next=/sessions/${sessionId}`} className="underline">
-            sign in
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
+      <Page width="prose">
+        <Alert>
+          <AlertDescription>
+            That conversation is not available. It may belong to another account, or you
+            may need to{" "}
+            <Link href={`/login?next=/sessions/${sessionId}`} className="underline">
+              sign in
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
@@ -88,7 +91,7 @@ async function ReadingSitting({
   const readings = page?.items ?? [];
 
   return (
-    <div className="flex flex-col gap-6">
+    <Page width="wide" className="gap-6">
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary">Read aloud</Badge>
@@ -156,6 +159,6 @@ async function ReadingSitting({
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
