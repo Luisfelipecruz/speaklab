@@ -1,10 +1,11 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.4 — **m0 passed; m1 through m6 are merged into `main` and CI green; m7 and
-m8 are built and awaiting their PRs.** m9 is next. The repository exists at
-`Luisfelipecruz/speaklab`; every git command is still prepared in `GIT-COMMANDS.md` for
-the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-08-30 (m8)
+**Status:** v1.5 — **m0 passed; m1 through m8 are merged into `main`, CI green.** The
+persona-placeholder fix and a repo-wide comment-hygiene pass are also merged (PR #9).
+**m9 is next and nothing blocks it.** The repository exists at `Luisfelipecruz/speaklab`;
+every git command is still prepared in `GIT-COMMANDS.md` for the human to run, never by
+an agent.
+**Date:** 2026-08-29, last revised 2026-09-05 (m8 merged; comment hygiene)
 **Companion to:** `../PRD.md`
 
 ---
@@ -971,7 +972,7 @@ first audio arrives at turn latency. See `docs/decisions/0004` §3.
 
 ---
 
-### m8 — Read-aloud and pronunciation scoring · **BUILT (2026-08-30)**
+### m8 — Read-aloud and pronunciation scoring · **MERGED (PR #8, 2026-09-05)**
 
 > The hardest milestone. Gated by m0 — **which passed on 2026-08-29.** Read
 > `spike/gop-feasibility.md` before starting; it carries the mapping table, the measured
@@ -1055,11 +1056,35 @@ the job), `frontend/src/components/{PhonemeHeatmap,PhonemeTable,PassageReader}.t
 
 ---
 
-### m9 — Error taxonomy and grammar analysis
+### m9 — Error taxonomy and grammar analysis · **NEXT**
 
 **Goal.** Every user turn yields deterministic grammar usage and validated error records.
 
 **Why here.** Needs a corpus of real turns to develop against — m6 and m7 produce it.
+
+> **Start here next session.** `main` is clean, both suites are green (**303 passed, 29
+> skipped** API; **93 across 13 suites** frontend), and there is nothing outstanding from
+> m8 that m9 depends on. Three corrections to the deliverables below, found on 2026-09-05
+> and not yet folded into the file lists:
+>
+> 1. **The decision doc is `0006-error-taxonomy.md`, not `0005`.** m8 took `0005`
+>    (`0005-gop-pipeline.md`).
+> 2. **The migration is `0003_analysis.py`, not `0006_analysis.py`.** Revisions are
+>    numbered in the order they exist, not per milestone: only `0001` and `0002` exist,
+>    because m3, m4, m5 and m8 each needed no schema change.
+> 3. **The confidence gate is per *word*, not per turn** — this changes what m9 builds.
+>    Real learner speech settled it: a stored turn scored `asr_confidence` **0.899**,
+>    comfortably above the 0.60 floor, while containing "department" where the speaker
+>    said "the apartment". That word's own probability was **0.41**, and 28 of its 30
+>    neighbours were above 0.69. The turn score *is* the mean of the per-word scores, so
+>    a locally wrong word is averaged away and **no turn-level threshold can catch it**;
+>    a per-word gate at 0.60 flags exactly the two suspect words and nothing else.
+>    `turns.words` already stores the logprobs, so the data is there. Build the exclusion
+>    rule per word and feed it to the accuracy trend.
+>
+> Also worth knowing before writing prompts: the `pending` block in the session report
+> (`services/conversation.py`) is what m9 replaces, key by key — `fluency`, `errors`,
+> `grammar_usage`. Each currently carries a sentence naming what is missing.
 
 **Deliverables.**
 ```
@@ -1258,6 +1283,31 @@ Evenings-and-weekends pace, one developer.
 
 ## 11. First three actions
 
-1. Set the git identity — it is **unset** and would produce unlinkable commits. `GIT-COMMANDS.md` §0.1.
-2. Run the **m0 spike**. Do not write production code before it passes.
-3. Create the repository and land m1. `GIT-COMMANDS.md` §0.2 and §A.1.
+**Superseded — m0 through m8 are merged.** Kept for the record; the live version is
+below.
+
+1. ~~Set the git identity.~~ Done.
+2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #9.
+
+### The next three actions
+
+1. **Read §7 m9 above**, including the three corrections in the note — the decision-doc
+   number, the migration number, and the per-word confidence gate.
+2. **Build the closed taxonomy first** (`services/taxonomy.py`), before any prompt. It is
+   what makes an LLM proposal rejectable, and the rejection *rate* is the metric that
+   answers whether `gemma3:4b` is strong enough for this job at all.
+3. **Write `analyze_backfill.py` early and run it over the stored turns.** The corpus
+   already exists — real conversations, real transcripts, real word logprobs — and it is
+   the only way to develop a detector against speech rather than against fixtures.
+
+Two things still need a person, and neither blocks m9:
+
+- **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
+  `eval/golden/pron/README.md`. Until they exist, the broken-vs-clean test skips and no
+  GOP threshold can be calibrated, so `PRON_GOP_THRESHOLDS` stays empty.
+- **A product decision on read-aloud with audio retention off.** Today the endpoint
+  refuses with a 409 naming the setting, because a reading that cannot be rescored would
+  break the promise its schema makes. The alternative worth weighing is a third retention
+  state: keep the waveform for read-aloud only, where the speaker is reading published
+  text rather than talking about their own life.
