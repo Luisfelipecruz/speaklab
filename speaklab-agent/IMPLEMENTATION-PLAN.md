@@ -1298,7 +1298,7 @@ because nothing ran.
 
 ---
 
-### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE, uncommitted**
+### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE** — `4b0e79e` plus one uncommitted follow-on commit, unpushed
 
 **Goal.** A person who has signed in can see where they are, where else they can go, and
 what to do next — on a phone and on a 27-inch monitor.
@@ -1376,6 +1376,16 @@ width its content did not ask for; and `npm run lint`, `npm run typecheck`, `npm
 inside it, and the one screen created here ships with its own empty state. No API change
 either: every number this milestone puts on screen is already served by an operation that
 exists, so the count stays at 25 of 30.
+
+**What came back from looking at it.** The frame shipped and then failed three of its own
+tests once the pages were seen together: per-page widths moved the content box on every
+navigation, the type scale left the product at 12 px, and four metric families on one page
+meant eleven charts each holding a single measurement. All three are corrected on the same
+branch, in a second commit, with `docs/decisions/0010` superseding §3 of 0009. That is not
+scope creep arriving late — it is the same rule this milestone was admitted under: an unmet
+quality bar on work already delivered is not a new idea. What it does mean is that **m13's
+"empty states for the existing pages" is now smaller than it was**, because the emptiest
+page in the product has been dealt with.
 
 **Branch** `feature/m12-shell` · **PR** `feat: replace the header with a sidebar shell and a signed-in home`
 

@@ -65,7 +65,7 @@ export default async function HomePage() {
 
   if (!progress) {
     return (
-      <Page width="prose">
+      <Page>
         <PageHeader
           title="SpeakLab"
           description="Practise spoken English against models running on this machine."
@@ -87,7 +87,7 @@ export default async function HomePage() {
 
   if (!practised) {
     return (
-      <Page width="prose">
+      <Page>
         <PageHeader
           title="Start here"
           description="Nothing has been recorded on this account yet, so there is nothing to
@@ -122,7 +122,7 @@ export default async function HomePage() {
   }
 
   return (
-    <Page width="wide">
+    <Page>
       <PageHeader
         title="Your practice"
         description={`Counted from what you recorded, ${progress.since} to ${progress.until}.`}

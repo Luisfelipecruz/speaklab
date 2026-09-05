@@ -153,14 +153,15 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 
 ## Measured
 
-Counted against the running system on 2026-09-05, not recalled. Anything not listed here
-has not been measured yet and is not claimed.
+Counted against the running system on 2026-09-05, not recalled — except the frontend
+suite, recounted on 2026-09-06. Anything not listed here has not been measured yet and is
+not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | API test suite | **562** — 528 pass with no model services running; the other 34 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **130** across 18 suites, Jest and React Testing Library, no services needed |
+| Frontend test suite | **182** across 27 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |

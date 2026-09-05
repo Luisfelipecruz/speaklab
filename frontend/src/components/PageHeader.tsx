@@ -1,49 +1,54 @@
 /**
- * The two things every screen inside the shell declares for itself: how wide it wants to
- * be, and what it is called.
+ * The frame every screen inside the shell shares, and the heading block at the top of it.
  *
- * **Width is a property of the page, not of the frame.** The shell used to cap everything
- * at 1024 px, which is a reasonable measure for a paragraph and an absurd one for a
- * heatmap of forty sounds across twelve weeks — on a wide display it left most of the
- * screen as margin and squeezed the one thing that needed the room. So the frame imposes
- * nothing and each page says which of three answers applies to it. Three, not a free
- * value: an open `max-w-*` on every page is how a product ends up with eleven slightly
- * different content widths.
+ * **One measure for the whole application.** Each page used to choose between three
+ * container widths, so moving from the catalogue to a scenario to the history moved the
+ * left edge of the content from 1120 px to 768 px to 1024 px. Every navigation shifted the
+ * page under the pointer, which reads as three products rather than one — and the reason
+ * given for it, that a heatmap wants more room than a paragraph, is real but was solved at
+ * the wrong level.
  *
- * - `prose` — text meant to be read in sequence. Around 65 characters, which is where
- *   the eye stops losing the start of the next line.
- * - `wide` — lists, forms and transcripts: wider than prose, still bounded, because a
- *   two-word row stretched across 2560 px is unreadable in the other direction.
- * - `full` — charts and grids, which are the only things that genuinely improve with
- *   more room.
+ * It is solved here at the right one: the *frame* never moves, and running text narrows
+ * itself with `Prose`. A paragraph gets its comfortable measure without the card above it
+ * changing size, which is the actual requirement.
+ *
+ * The cap is generous rather than absent. Wide displays are the case that motivated the
+ * old `full`, and a grid of scenarios or a row of forty sounds does genuinely improve with
+ * the room; a page with no maximum at all just makes a different mistake at 2560 px.
  */
 
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type PageWidth = "prose" | "wide" | "full";
-
-const WIDTH: Record<PageWidth, string> = {
-  prose: "max-w-3xl",
-  wide: "max-w-5xl",
-  full: "max-w-[110rem]",
-};
-
 export function Page({
-  width,
   className,
   children,
 }: {
-  width: PageWidth;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={cn("mx-auto flex w-full flex-col gap-8", WIDTH[width], className)}>
+    <div className={cn("mx-auto flex w-full max-w-[96rem] flex-col gap-8", className)}>
       {children}
     </div>
   );
+}
+
+/**
+ * A column of running text, at the width the eye can track.
+ *
+ * Around 70 characters, which is where a reader stops losing the start of the next line.
+ * It narrows its own contents and nothing else — the page around it keeps its size.
+ */
+export function Prose({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return <div className={cn("w-full max-w-[70ch]", className)}>{children}</div>;
 }
 
 /**
@@ -67,7 +72,7 @@ export function PageHeader({
       <div className="flex min-w-0 flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
         {description && (
-          <div className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+          <div className="max-w-[70ch] text-sm text-muted-foreground sm:text-base">
             {description}
           </div>
         )}

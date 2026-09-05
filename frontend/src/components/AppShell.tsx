@@ -10,9 +10,8 @@
  * identity slot in the rail's footer waits, and it waits by reserving space rather than
  * by spinning.
  *
- * **It imposes no maximum width.** It used to cap the whole application at 1024 px, which
- * made a phoneme heatmap and a login form exactly as wide as each other on a 27-inch
- * display. Each page now declares its own measure.
+ * **It imposes no maximum width.** The measure belongs to `Page`, which gives every
+ * screen the same one — the shell's job is the padding around it, not the size of it.
  *
  * The top bar exists for one control — the button that opens the rail on a phone, where
  * it is a sheet rather than a permanent column. It also carries the sign-out, which needs
@@ -96,7 +95,11 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        {/* A div, not a `<main>`. `SidebarInset` is itself the main landmark, and a
+            second one nested inside it leaves a screen reader offering two "main"
+            regions to jump to, neither of which is wrong and only one of which is the
+            page. */}
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

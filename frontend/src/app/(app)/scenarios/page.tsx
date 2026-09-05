@@ -56,7 +56,7 @@ export default async function ScenariosPage({
   const categories = [...new Set(scenarios.map((one) => one.category))].sort();
 
   return (
-    <Page width="full">
+    <Page>
       <PageHeader
         title="Choose a scenario"
         description="Each one is a role-play with a goal and a persona who will push back.

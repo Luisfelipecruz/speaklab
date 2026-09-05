@@ -19,6 +19,14 @@ catalogue of eight scenarios that knew nothing about you.
 operation was added or moved — 25 of 30, unchanged — and no runtime dependency was
 installed. What changed is where things are and how much room they get.
 
+**Then the frame was looked at, and three of its decisions were wrong.** Not wrong in
+principle — each was reasoned and each is still the right requirement — but wrong once the
+pages were on a screen together. Per-page widths moved the content box on every
+navigation; a type scale nobody set left 56 of 76 text nodes on the catalogue at 12 px;
+and four metric families on one page meant eleven charts each holding a single
+measurement. [Decision 0010](decisions/0010-reading-the-interface.md) records all three and
+supersedes §3 of 0009.
+
 **A rail instead of a row, and it carries what the sections contain.** Five entries, each
 with the fact that decides whether it is worth opening: how many conversations are stored,
 how many readings have been scored, whether the progress figures are behind the practice
@@ -50,16 +58,19 @@ focus to its own trigger, and this one is opened by a button outside it.
   a theme applied from an effect is a white flash on every navigation for anybody who
   chose dark. The rule exists twice — as that script and as functions — and a test runs
   the script and compares its result against the functions over all six cases.
-- **`components/PageHeader.tsx`** — a page's title and its measure. Three named widths,
-  `prose`, `wide` and `full`, replacing one maximum imposed on everything.
+- **`components/PageHeader.tsx`** — a page's title and the measure every screen shares,
+  with `Prose` for the narrower column running text sits in.
+- **`components/SectionTabs.tsx`** — sections as links rather than a tab widget, so the
+  section is in the URL and works with the back button, with sharing, and before any
+  JavaScript arrives.
 - **`app/(app)/home/page.tsx`** — the signed-in home, with a designed empty state for an
   account that has never practised.
 - **`app/status/page.tsx`** — the service-status table, moved off the front page.
 - **`components/ui/{sidebar,sheet,dropdown-menu,skeleton,tooltip}.tsx`** and
   `hooks/use-mobile.ts`, from the component registry.
 - **Tests for the three components that had none** — `AppShell`, `AuthProvider` and
-  `PhonemeTable.helpers` — plus the new files. **174 frontend tests across 26 suites**, up
-  from 130 across 18. Twenty-one components, twenty-one test files.
+  `PhonemeTable.helpers` — plus the new files. **182 frontend tests across 27 suites**, up
+  from 130 across 18. Twenty-two components, twenty-two test files.
 
 ### Changed
 
@@ -70,8 +81,21 @@ focus to its own trigger, and this one is opened by a button outside it.
   the control that opens the rail on a phone, the theme toggle, and sign-out.
 - **`app/page.tsx`** is a front door rather than a health check.
 - **`DEFAULT_AFTER_LOGIN`** is `/home`, not `/scenarios`.
-- **The progress page** stops being one column of seven full-width panels; they sit in two
-  from `xl` up, with the phoneme trend full width because it is one row per sound.
+- **The progress page shows one metric family at a time.** All four at once is eleven
+  series, and on this project's corpus every one of them holds a single measurement — so
+  the page was eleven near-empty charts and some fifty figures at 11 px. The families are
+  independent of each other, so there is nothing to compare across them; each is now its
+  own section, and the overview answers "how am I doing" with the totals, what to practise
+  next, and one line per family. Breadth moved next to the family it qualifies.
+- **A series with one measured period is drawn as a reading, not as a chart.** One dot in
+  the middle of an empty box is the shape of a chart that failed to load. The number is set
+  large with the week it came from and what a second point would take.
+- **The type scale moves up one step at the small end**, where this product lives:
+  `text-xs` 12 → 13 px, `text-sm` 14 → 15 px, `text-base` 16 → 17 px, `text-lg` 18 → 19 px,
+  defined once rather than at a hundred call sites. The four hand-written `text-[10px]` and
+  `text-[11px]` literals are gone.
+- **One `main` landmark per page, not two.** The vendored `SidebarInset` is itself a
+  `<main>` and the shell rendered another inside it.
 - **The catalogues** go to three and four columns where there is room for them.
 
 ### Known
@@ -79,7 +103,7 @@ focus to its own trigger, and this one is opened by a button outside it.
 - **Opening any menu or tooltip in a test costs several seconds** in jsdom, and it is the
   positioning library rather than anything in this repository — an open tooltip, which has
   neither a focus scope nor a scroll lock, costs the same as an open menu. The frontend
-  suite went from about 2 s at 130 tests to 43–136 s at 174, on a machine also running
+  suite went from about 2 s at 130 tests to 34–136 s at 182, on a machine also running
   Ollama and a virtual machine — the spread is that load, the floor is the popper. The theme tests drive the menu with the keyboard to avoid most of it.
   `docs/decisions/0009` §7 records what was ruled out.
 - **The component generator added a dependency and rewrote three files' imports** while
@@ -87,6 +111,13 @@ focus to its own trigger, and this one is opened by a button outside it.
   what they were; recorded because it would have gone in unnoticed.
 - Holding the record button in Chrome and Safari is **still unverified by a person**, and
   this milestone does not change that.
+- **The signed-in pages have not been looked at in a browser.** The layout, the type scale
+  and the landmark were measured against the live DOM at 375, 1440 and 2560 px; the tab row
+  and the reading blocks were verified by reading the server-rendered HTML, because the
+  browser available to the agent runs in a container that cannot hold the session.
+- **The frontend container's `node_modules` predates this milestone's dev dependencies**,
+  so a build inside it fails on `jest.setup.ts` while the same build passes on the host. It
+  needs rebuilding, and nothing here does that.
 
 ### Not in this release
 

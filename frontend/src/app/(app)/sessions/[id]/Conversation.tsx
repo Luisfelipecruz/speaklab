@@ -76,7 +76,7 @@ export function Conversation({
 
   if (session.phase === "gone") {
     return (
-      <Page width="prose">
+      <Page>
         <Alert variant="destructive">
           <AlertDescription>
             This conversation no longer exists.{" "}
@@ -91,7 +91,7 @@ export function Conversation({
   }
 
   return (
-    <Page width="wide" className="gap-6">
+    <Page className="gap-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{speaker}</h1>

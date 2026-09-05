@@ -80,6 +80,15 @@ test("every section is one click away, whichever one you are on", () => {
   }
 });
 
+test("the page is one main region, not two", () => {
+  // The vendored `SidebarInset` is itself a `<main>`, so wrapping the page in another one
+  // inside it is the easy mistake — nothing looks wrong and a screen reader is offered two
+  // main regions to skip to.
+  renderShell();
+
+  expect(screen.getAllByRole("main")).toHaveLength(1);
+});
+
 test("the section you are in is marked for a screen reader, not only in colour", () => {
   pathname = "/sessions/12";
   renderShell();

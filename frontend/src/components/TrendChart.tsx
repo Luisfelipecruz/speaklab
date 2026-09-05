@@ -13,6 +13,12 @@
  * Joining across it would draw two distant sessions as continuous practice, which is the
  * most flattering lie a progress chart can tell.
  *
+ * **One measured period is a reading, not a trend, and it is drawn as one.** A single dot
+ * in the middle of an empty box is the shape of a broken chart, and for the first months
+ * of an account that is every series on the page — eleven boxes, eleven dots, nothing
+ * legible. The same number set large, with the week it came from and what a second point
+ * would take, says more and takes less room.
+ *
  * **The verdict is separate from the numbers.** A direction is rendered only when the API
  * sent one, and it only sends one for a metric with a defensibly better end and enough
  * points to compare. Speech rate arrives with no direction for ever, on purpose.
@@ -52,6 +58,31 @@ const DIRECTION_LABEL: Record<string, string> = {
   flat: "unchanged",
 };
 
+/**
+ * The label, the unit, the latest figure and any verdict — the same row whether what
+ * follows it is a line or a single number.
+ */
+function Caption({ series, latest }: { series: TrendSeries; latest: number }) {
+  return (
+    <figcaption className="flex flex-wrap items-baseline gap-2">
+      <span className="text-sm font-medium">{series.label}</span>
+      {series.unit && <span className="text-xs text-muted-foreground">{series.unit}</span>}
+      <span className="ml-auto text-sm font-semibold tabular-nums">
+        {format(latest, series.unit)}
+      </span>
+      {series.direction && (
+        <Badge
+          variant={series.direction === "slipping" ? "secondary" : "default"}
+          className="text-xs"
+          data-testid="direction"
+        >
+          {DIRECTION_LABEL[series.direction]}
+        </Badge>
+      )}
+    </figcaption>
+  );
+}
+
 export function TrendChart({ series }: TrendChartProps) {
   const drawable = drawablePoints(series);
 
@@ -63,6 +94,27 @@ export function TrendChart({ series }: TrendChartProps) {
           {series.gate.reason}
         </p>
       </div>
+    );
+  }
+
+  if (drawable.length === 1) {
+    const only = drawable[0];
+    return (
+      <figure className="flex flex-col gap-2 rounded-md border border-border p-4">
+        <Caption series={series} latest={only.value as number} />
+        <p className="text-3xl font-semibold tabular-nums" data-testid="single-reading">
+          {format(only.value as number, series.unit)}
+          {series.unit && series.unit !== "ratio" && (
+            <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+              {series.unit}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Measured once, in the week of {when(only.start)}. A line needs a second week
+          with practice in it.
+        </p>
+      </figure>
     );
   }
 
@@ -96,28 +148,11 @@ export function TrendChart({ series }: TrendChartProps) {
 
   return (
     <figure className="flex flex-col gap-2">
-      <figcaption className="flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-medium">{series.label}</span>
-        {series.unit && (
-          <span className="text-xs text-muted-foreground">{series.unit}</span>
-        )}
-        <span className="ml-auto text-sm font-semibold tabular-nums">
-          {format(values[values.length - 1], series.unit)}
-        </span>
-        {series.direction && (
-          <Badge
-            variant={series.direction === "slipping" ? "secondary" : "default"}
-            className="text-[10px]"
-            data-testid="direction"
-          >
-            {DIRECTION_LABEL[series.direction]}
-          </Badge>
-        )}
-      </figcaption>
+      <Caption series={series} latest={values[values.length - 1]} />
 
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-18 w-full text-primary"
+        className="h-24 w-full text-primary"
         preserveAspectRatio="none"
         role="img"
         aria-label={`${series.label} over ${drawable.length} periods`}
@@ -152,7 +187,7 @@ export function TrendChart({ series }: TrendChartProps) {
 
       {/* The same numbers as text. It is what a screen reader gets, and it is what makes
           the component testable without asserting against SVG path arithmetic. */}
-      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+      <ul className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {series.points.map((point) => (
           <li
             key={point.start}

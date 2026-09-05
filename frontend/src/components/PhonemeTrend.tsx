@@ -68,7 +68,7 @@ export function PhonemeTrend({ phones, gate }: PhonemeTrendProps) {
                     {phone.samples} instance{phone.samples === 1 ? "" : "s"}
                   </span>
                   {phone.z === null ? (
-                    <Badge variant="outline" className="ml-auto text-[10px]">
+                    <Badge variant="outline" className="ml-auto text-xs">
                       no baseline yet
                     </Badge>
                   ) : (

@@ -56,7 +56,7 @@ export default async function StatusPage() {
 
   return (
     <main className="px-4 py-10 sm:px-6">
-      <Page width="prose">
+      <Page>
         <PageHeader
           title="Status"
           description="Read live on every request. A cached health check is not a health check."

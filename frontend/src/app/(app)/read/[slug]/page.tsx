@@ -34,7 +34,7 @@ export default async function PassagePage({
   }
 
   return (
-    <Page width="wide">
+    <Page>
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{passage.cefr_band}</Badge>

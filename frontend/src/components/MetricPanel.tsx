@@ -31,7 +31,7 @@ export function MetricPanel({ family }: MetricPanelProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{family.label}</CardTitle>
+        <CardTitle className="text-lg">{family.label}</CardTitle>
         <CardDescription>{family.description}</CardDescription>
       </CardHeader>
 
@@ -53,7 +53,10 @@ export function MetricPanel({ family }: MetricPanelProps) {
           </p>
         )}
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        {/* Three columns where there is room for them. A family holds up to five series and
+            they are read one at a time, not compared left to right, so the useful thing is
+            fitting them on one screen rather than lining them up. */}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {family.series.map((series) => (
             <TrendChart key={series.metric} series={series} />
           ))}

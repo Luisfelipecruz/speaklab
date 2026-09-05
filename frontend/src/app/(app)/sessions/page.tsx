@@ -48,19 +48,21 @@ export default async function SessionsPage({
 
   if (!page) {
     return (
-      <Alert>
-        <AlertDescription>
-          <Link href="/login?next=/sessions" className="underline">
-            Sign in
-          </Link>{" "}
-          to see the conversations you have practised.
-        </AlertDescription>
-      </Alert>
+      <Page>
+        <Alert>
+          <AlertDescription>
+            <Link href="/login?next=/sessions" className="underline">
+              Sign in
+            </Link>{" "}
+            to see the conversations you have practised.
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
   return (
-    <Page width="wide">
+    <Page>
       <PageHeader
         title="Your conversations"
         description={

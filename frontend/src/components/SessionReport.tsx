@@ -332,12 +332,12 @@ function ErrorRow({ item }: { item: LanguageErrorItem }) {
         <span className="font-medium">{item.correction}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="outline" className="text-xs">
           {readable(item.category.toLowerCase())}
           {item.subcategory ? ` · ${readable(item.subcategory)}` : ""}
         </Badge>
         {!item.counted && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             {item.asr_suspect ? "may be a mishearing" : "low confidence"}
           </Badge>
         )}

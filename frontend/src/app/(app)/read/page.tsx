@@ -54,7 +54,7 @@ export default async function ReadPage({
   const focuses = [...new Set(passages.flatMap((one) => one.phoneme_focus))].sort();
 
   return (
-    <Page width="full">
+    <Page>
       <PageHeader
         title="Read aloud"
         description="Each passage is built to make you produce one group of sounds over

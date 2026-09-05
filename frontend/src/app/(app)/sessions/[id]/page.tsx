@@ -48,7 +48,7 @@ export default async function SessionPage({
 
   if (!session) {
     return (
-      <Page width="prose">
+      <Page>
         <Alert>
           <AlertDescription>
             That conversation is not available. It may belong to another account, or you
@@ -91,7 +91,7 @@ async function ReadingSitting({
   const readings = page?.items ?? [];
 
   return (
-    <Page width="wide" className="gap-6">
+    <Page className="gap-6">
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary">Read aloud</Badge>

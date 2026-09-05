@@ -81,6 +81,12 @@ broken product, and "start here, and here is what each one does" reads as an ins
 
 ## 3. Width
 
+> **Superseded by [0010](0010-reading-the-interface.md) §1.** Three per-page measures made
+> the content box change size on every navigation. The requirement below is still the
+> requirement; it is now met with one frame measure and a narrower column that running text
+> opts into.
+
+
 `max-w-5xl` sat on both the header and `<main>`, so every screen was 1024 px at every
 viewport. On a 2560 px display roughly 60 % of the screen was margin, and the page that
 suffered most was the one with a heatmap of forty sounds across twelve weeks.
