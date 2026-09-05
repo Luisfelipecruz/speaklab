@@ -329,6 +329,10 @@ class StubProvider:
     def __init__(self, replies=None, model: str = "stub-model") -> None:
         self.replies = list(replies or ["That sounds reasonable. What happened next?"])
         self.calls: list[list] = []
+        # What each call asked for, in the same order as `calls`. Analysis asks for a
+        # temperature of zero because labelling is a measurement, and a test that only
+        # checked the reply could not tell whether it did.
+        self.temperatures: list[float | None] = []
         self._model = model
 
     @property
@@ -349,11 +353,12 @@ class StubProvider:
             latency_ms=1,
         )
 
-    async def complete(self, messages, max_tokens=None):
+    async def complete(self, messages, max_tokens=None, temperature=None):
         self.calls.append(messages)
+        self.temperatures.append(temperature)
         return self._completion(messages, self._next())
 
-    async def stream(self, messages, max_tokens=None):
+    async def stream(self, messages, max_tokens=None, temperature=None):
         import re
 
         self.calls.append(messages)
@@ -372,11 +377,11 @@ class BrokenProvider(StubProvider):
 
         self._error = error or LlmUnavailable("ConnectError: [Errno 111] refused")
 
-    async def complete(self, messages, max_tokens=None):
+    async def complete(self, messages, max_tokens=None, temperature=None):
         self.calls.append(messages)
         raise self._error
 
-    async def stream(self, messages, max_tokens=None):
+    async def stream(self, messages, max_tokens=None, temperature=None):
         self.calls.append(messages)
         raise self._error
         yield  # pragma: no cover — makes this an async generator, as the protocol says
@@ -396,6 +401,39 @@ def provider():
     app.dependency_overrides[get_provider] = lambda: stub
     yield stub
     app.dependency_overrides.pop(get_provider, None)
+
+
+class RecordingAnalyser:
+    """Records the turns analysis was launched for, and runs none of them.
+
+    Analysis is a background task that opens its own database session. Left real in the
+    suite it would reach for the module-level factory — which points at the *development*
+    database, not the test one — and call an Ollama that is deliberately unreachable
+    here. It would work in production and be silently untestable, which is the worse of
+    the two failure modes. This is the seam that stops it.
+    """
+
+    def __init__(self) -> None:
+        self.launched: list[int] = []
+        self.ensured: list[int] = []
+
+    def launch(self, turn_id: int) -> None:
+        self.launched.append(turn_id)
+
+    async def ensure_session(self, session_id: int) -> tuple[int, int]:
+        self.ensured.append(session_id)
+        return 0, 0
+
+
+@pytest.fixture(autouse=True)
+def analyser():
+    """Every test gets the recorder. A test that wants the real job calls it directly."""
+    from services.analysis import get_analyser
+
+    recorder = RecordingAnalyser()
+    app.dependency_overrides[get_analyser] = lambda: recorder
+    yield recorder
+    app.dependency_overrides.pop(get_analyser, None)
 
 
 @pytest.fixture

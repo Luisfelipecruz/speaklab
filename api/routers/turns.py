@@ -53,6 +53,7 @@ from services.asr_client import (
     AsrUnavailable,
     transcribe,
 )
+from services.analysis import Analyser, get_analyser
 from services.audio import AudioTooLarge, store_recording
 from services.conversation import build_messages, select_history, summarise
 from services.llm import LlmError, LlmProvider, get_provider
@@ -86,6 +87,7 @@ async def add_turn(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
     provider: LlmProvider = Depends(get_provider),
+    analyser: Analyser = Depends(get_analyser),
 ) -> TurnResponse:
     """Speak; be heard; be answered."""
     started = time.perf_counter()
@@ -166,6 +168,12 @@ async def add_turn(
         # The turn first, and committed, before anything else is attempted with it.
         await db.commit()
         await _fold_digest(db, session.id, provider)
+
+    # Committed before the job is launched. It opens its own connection and would not see
+    # a turn that is still inside this transaction — it would find nothing and mark
+    # nothing, which is a job that appears to have run.
+    await db.commit()
+    analyser.launch(user_turn.id)
 
     total_ms = round((time.perf_counter() - started) * 1000)
 
@@ -280,6 +288,10 @@ async def _persist_user_turn(
         words=[word.model_dump() for word in transcription.words],
         asr_confidence=transcription.confidence,
         asr_model=transcription.model,
+        # Owed analysis from the moment it exists. Set here rather than defaulted in the
+        # schema because an assistant turn is not analysed at all, and a default would
+        # leave every persona reply permanently owing work nothing will ever do.
+        analysis_status="pending",
     )
     db.add(turn)
     return turn

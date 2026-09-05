@@ -281,6 +281,59 @@ export interface SessionSummary {
  * judgement, which is the point — flattening them is one refactor away from plotting a
  * model's opinion on a trend chart.
  */
+/**
+ * One correction, as the report carries it.
+ *
+ * `counted` is not decoration and not derivable here: an error can be shown and still be
+ * kept out of every rate, either because the recogniser was unsure of the words under it
+ * or because the model that proposed it hedged. The API decides which; the UI renders the
+ * difference rather than recomputing it against a threshold it would have to duplicate.
+ */
+export interface LanguageErrorItem {
+  turn_id: number;
+  category: string;
+  subcategory: string | null;
+  span_start: number | null;
+  span_end: number | null;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  confidence: number;
+  asr_suspect: boolean;
+  counted: boolean;
+}
+
+export interface SessionAnalysis {
+  /** False when the report was written before every turn had been analysed. */
+  complete: boolean;
+  turns_analysed: number;
+  turns_outstanding: number;
+  fluency: {
+    words_spoken: number;
+    speech_rate_wpm: number | null;
+    articulation_rate_wpm: number | null;
+    pause_ratio: number | null;
+    mean_length_run: number | null;
+    filler_count: number;
+    fillers_per_100_words: number;
+    mean_pause_before_speaking_ms: number | null;
+  } | null;
+  grammar_usage: Record<string, number>;
+  target_forms: { declared: string[]; elicited: string[]; not_elicited: string[] };
+  errors: {
+    total: number;
+    counted: number;
+    asr_suspect: number;
+    low_confidence: number;
+    per_100_words: number | null;
+    by_category: Record<string, number>;
+    items: LanguageErrorItem[];
+    rejected: number;
+    rejection_rate: number | null;
+    rejected_reasons: Record<string, number>;
+  };
+}
+
 export interface SessionReportShape {
   schema: number;
   scenario: string | null;
@@ -294,6 +347,8 @@ export interface SessionReportShape {
     reached_min_turns: boolean | null;
     min_turns: number | null;
   };
+  /** Null on a report written before the analysers existed. */
+  analysis?: SessionAnalysis | null;
   narrative:
     | ({ status: "ok"; by: string; model: string; summary: string; goal_met: boolean | null; note: string })
     | ({ status: "skipped" | "unavailable" | "unparseable"; detail?: string; model?: string })

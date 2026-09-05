@@ -3,7 +3,7 @@
 Three properties, on a scratch database of their own so nothing here can disturb the
 suite's seeded one:
 
-1. **`upgrade head` builds all twelve tables** and the three enum types.
+1. **`upgrade head` builds all twelve tables** and every enum type.
 2. **`downgrade base` removes all of it**, types included. A downgrade that leaves an
    enum behind fails on the *next* upgrade, minutes later, as `type already exists` —
    so up, down and up again is run in one test.
@@ -45,7 +45,12 @@ EXPECTED_TABLES = {
     "users",
 }
 
-EXPECTED_ENUMS = {"attempt_status", "session_mode", "session_status"}
+EXPECTED_ENUMS = {
+    "analysis_status",
+    "attempt_status",
+    "session_mode",
+    "session_status",
+}
 
 
 @pytest.fixture

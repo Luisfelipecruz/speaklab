@@ -47,7 +47,7 @@ test-frontend:                     ## Run the frontend suite (Jest + RTL) in a c
 
 # `--exclude eval` on both, and the reason is structural rather than stylistic. Inside
 # the container /app is api/, and eval/ is mounted into it READ-ONLY so that the corpus a
-# system is evaluated on cannot be rewritten by the system being evaluated (invariant I7).
+# system is evaluated on cannot be rewritten by the system being evaluated.
 # A formatter pointed at /app therefore tries to write to a read-only mount and fails.
 # CI lints `api` from the repository root, where eval/ is a sibling and never in scope —
 # so this exclusion makes the two agree rather than letting them differ silently.
@@ -69,7 +69,7 @@ pron-up:                           ## Start the pronunciation service (m8). 1.78
 	docker compose --profile pron up -d
 
 pron-fetch:                        ## Download the pronunciation probe recording
-	@echo "eval/golden/pron holds no audio in git (*.wav is ignored — trap 4), so this"
+	@echo "eval/golden/pron holds no audio in git (*.wav is ignored), so this"
 	@echo "is how the probe gets onto a machine rather than an audit step."
 	python3 eval/golden/pron/fetch.py
 
@@ -110,7 +110,7 @@ tts-latency:                       ## Measure synthesis latency against the live
 
 tts-sample:                        ## Synthesise a WAV you can actually listen to
 	@echo "Voice quality is a judgement no assertion makes for you. This writes a file;"
-	@echo "play it. spike/ is gitignored, so the audio cannot reach a commit (trap 4)."
+	@echo "play it. spike/ is gitignored, so the audio cannot reach a commit."
 	@mkdir -p spike/tts-sample
 	@curl -sf -X POST http://localhost:8102/synthesize \
 		-H 'content-type: application/json' \
@@ -137,6 +137,24 @@ turn-latency-noflow:               ## The same measurement with PRD 9.1's first 
 		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
 		-e LLM_STREAM_TO_TTS=0 \
 		test python -m pytest /app/tests/test_conversation_live.py -v -s -k whole_turn
+
+analyze:                           ## Analyse the user turns nothing has analysed yet
+	@echo "Grammar, fluency and error labelling over every outstanding turn. Needs"
+	@echo "\`make up\` and Ollama on the host. About a second and a half per turn."
+	docker compose exec api python -m scripts.analyze_backfill --all
+
+analyze-dry:                       ## List what analysis is outstanding, and stop
+	docker compose exec api python -m scripts.analyze_backfill --dry-run
+
+error-precision:                   ## Score error detection against the hand-labelled set
+	@echo "Seven real turns, labelled by reading them before any detector existed."
+	@echo "Prints precision and recall; asserts only that the machinery holds, because"
+	@echo "a figure over this few proposals says more about the sample than the model."
+	@echo "Rebuild the set first if the corpus has grown:"
+	@echo "  docker compose exec api python /app/eval/golden/errors/build.py"
+	docker compose --profile tools run --rm \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		test python -m pytest /app/tests/test_error_precision.py -v -s
 
 pron-golden:                       ## Measure GOP against the live pron service
 	@echo "The m0 experiment, re-run through the real service: real human speech scored"

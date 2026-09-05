@@ -29,6 +29,7 @@ from db_models import PracticeSession, Scenario, Turn, User
 from dependencies import current_user, get_owned_or_404
 from models.session import SessionCreate, SessionDetail, SessionPage, SessionSummary
 from models.turn import TurnOut
+from services.analysis import Analyser, get_analyser, summarise
 from services.audio import delete_unreferenced_assets
 from services.conversation import build_messages, build_report, narrate_report
 from services.llm import LlmError, LlmProvider, LlmRejected, get_provider
@@ -223,6 +224,7 @@ async def end_session(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
     provider: LlmProvider = Depends(get_provider),
+    analyser: Analyser = Depends(get_analyser),
 ) -> SessionDetail:
     """Close the session and produce its report.
 
@@ -250,6 +252,24 @@ async def end_session(
     )
 
     if session.status != "active":
+        # Already ended. The stored report is returned rather than regenerated — a
+        # narrative that reads differently every time you open it is not a record of
+        # anything — **unless** it was written before its own turns had been analysed.
+        # In that case the counts are rebuilt from the rows that have since appeared and
+        # the stored prose is kept, so a report cannot be permanently missing a turn
+        # because a model was slow on the evening it was written.
+        if _is_incomplete(session.report):
+            await db.commit()
+            await analyser.ensure_session(session.id)
+            session.report = build_report(
+                session,
+                scenario,
+                turns,
+                (session.report or {}).get("narrative"),
+                await summarise(db, session.id, scenario),
+            )
+            await db.flush()
+
         return SessionDetail(
             **_summary(
                 session,
@@ -262,6 +282,12 @@ async def end_session(
         )
 
     await db.commit()  # the narration is a model call; do not hold a connection for it
+
+    # Analysis runs behind each turn, so the only one usually outstanding here is the
+    # last thing the speaker said. It is waited for because the report is stored once:
+    # written a turn early, it would be missing that turn for ever.
+    await analyser.ensure_session(session.id)
+
     narrative = await narrate_report(provider, scenario, turns)
 
     session.ended_at = func.now()
@@ -269,7 +295,9 @@ async def end_session(
     await db.refresh(session, ["ended_at"])
 
     session.status = "completed"
-    session.report = build_report(session, scenario, turns, narrative)
+    session.report = build_report(
+        session, scenario, turns, narrative, await summarise(db, session.id, scenario)
+    )
     await db.flush()
 
     return SessionDetail(
@@ -282,6 +310,14 @@ async def end_session(
         turns=[TurnOut.of(turn) for turn in turns],
         report=session.report,
     )
+
+
+def _is_incomplete(report: dict | None) -> bool:
+    """Whether a stored report was written before its session's analysis had finished."""
+    if not report:
+        return False
+    analysis = report.get("analysis")
+    return analysis is None or not analysis.get("complete", False)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -7,6 +7,87 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] — 2026-09-05 · m9, grammar analysis and the closed error taxonomy
+
+What you said now gets analysed. Every user turn is parsed for the grammatical forms it
+actually contains, measured for speech rate and pausing, and put to a language model for
+corrections — which are then checked against a closed vocabulary and against the
+transcript before any of them reaches a screen.
+
+**The headline number is a failure and it is published.** Error detection scores **0.500
+precision** against a 0.70 bar. `gemma3:4b` usually finds the right words and files them
+under the wrong category; `mistral:7b`, measured on the same set with the same prompt,
+scored worse. The sample is six scored proposals over seven real turns, which is too few
+to settle the question in either direction — so the measurement suite prints its figures
+and asserts none of them. `docs/decisions/0006` has the tables.
+
+### Added
+
+- **`services/grammar.py`** — spaCy morphology and dependencies over 27 closed feature
+  names: nine tense/aspect combinations, six modal groups, clause structure, the three
+  conditionals, passive, comparison, reported speech, duration, polite requests.
+  Deterministic, and the only half of this milestone that anything will ever plot.
+- **`services/taxonomy.py`** — the nine error categories as code, and the gate that turns
+  a model's proposal into a row or into a counted refusal. Eleven refusal reasons; the
+  rate is a model-quality metric (FR-19).
+- **`services/errors.py`** — the labelling call, its worked examples, and the per-word
+  confidence gate.
+- **`services/fluency.py`** — speech rate, articulation rate, pause ratio, mean length of
+  run, fillers, and the silence before speaking, from stored word timings (FR-20).
+- **`services/analysis.py`** — the background job, in the same three phases as
+  pronunciation scoring, and the session-level summary the report reads.
+- **`scripts/analyze_backfill.py`** and `make analyze` — analysis for turns recorded
+  before the analysers existed. Resumable, and safe to run beside a live API.
+- **`eval/golden/errors/`** — four published turns, 123 words, five hand-labelled errors,
+  with `build.py` to rebuild it as the corpus grows. Three further turns are labelled
+  locally and gitignored: they are real speech about somebody's real job.
+- **`make error-precision`** — the measurement, against a live model.
+- **The session report** now carries fluency, the forms used against the forms the
+  scenario declared, and the corrections. `pending` is down to `pronunciation`.
+- **Migration `0003`** — five columns and one enum type. No tables: `fluency_metrics`,
+  `grammar_usage` and `language_errors` were created complete by `0001`.
+
+### Changed
+
+- **The LLM provider takes a `temperature`**, passed through only when a caller sets one.
+  Analysis sets it to zero. Labelling is a measurement, and at Ollama's default of 0.8 the
+  same turn produced different errors — and different *parse failures* — on consecutive
+  runs.
+- **The API image is 811 MB**, up from 424 MB. spaCy is 134 MB and numpy another 68 MB.
+  Still no torch and no speech model weights, which the health suite asserts.
+- **`ASR_CONFIDENCE_FLOOR` is now applied per word.** The turn-level score is the mean of
+  the per-word ones, so a single misheard word inside a confident turn is averaged away
+  and no turn-level threshold can reach it. Over the whole stored corpus the 0.60 floor
+  marks 28 of 272 words — 10.3 %, most of them transcribed correctly. It is still a
+  placeholder, and now there is a number for how wide a net it is.
+- **Ending a session waits for its own analysis**, bounded at 60 s against a median of
+  4.9 s per turn. The report is stored once; written a turn early it would be missing that
+  turn for ever. A report written short says how many turns it is missing and rebuilds its
+  counts — keeping the stored prose — when the session is opened again.
+
+### Fixed
+
+- **`going to` was invisible to the parser.** Excluding spaCy's lemmatizer to save time
+  meant `going` never reached `go`, and every rule naming a verb silently stopped firing.
+  Found by running against the stored corpus rather than against fixtures.
+- Three more parse errors that looked right: `more` in "know more about the price" counted
+  as a comparative, `at least` counted as a superlative, and every `to`-infinitive counted
+  as a subordinate clause.
+
+### Known not to work
+
+- **Criterion S5 is not met**, and cannot be decided on seven turns.
+- **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads
+  `message.content`, and Ollama puts a reasoning model's answer in `message.thinking`.
+  `gpt-oss:20b` returns the empty string with its whole token budget spent.
+- **No rule-based detector.** `language_errors.detector` allows `'rule'`; every row is
+  `'llm'`.
+- **Fillers are undercounted twice over** — the recogniser drops most of them, and bare
+  `like` is not counted because "like a dog or a cat" is an ordinary preposition. The whole
+  stored corpus contains zero.
+
+---
+
 ## [0.8.0] — 2026-08-30 · m8, pronunciation scoring
 
 The hardest milestone, and the one the m0 spike was run to de-risk seven milestones ago.

@@ -15,6 +15,7 @@ from datetime import date
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     Float,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     Integer,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -53,7 +55,11 @@ class FluencyMetrics(Base):
     filler_count: Mapped[int | None] = mapped_column(Integer)
     word_count: Mapped[int | None] = mapped_column(Integer)
 
-    # Time from the end of the persona's audio to the start of speech. A fluency signal
+    # Silence before the first word of the recording. A floor on response latency rather
+    # than the measurement itself: the clock starts when the speaker pressed record, not
+    # when the persona stopped talking. Closing that gap needs the browser to timestamp
+    # the button against the end of the reply audio, which nothing does yet — so what is
+    # stored is hesitation the speaker chose to record, which is still a fluency signal
     # the transcript cannot show.
     response_latency_ms: Mapped[int | None] = mapped_column(Integer)
 
@@ -112,6 +118,15 @@ class LanguageError(Base):
     # querying rather than by reading transcripts.
     detector: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # At least one word under this error's span was one the recogniser was unsure of, so
+    # the "error" may be a mishearing. The row is kept and shown — a transcript with a
+    # hole in it is worse than one with a doubtful correction on it — and excluded from
+    # every accuracy trend, because a trend that moves for the recogniser's reasons is
+    # worse than both.
+    asr_suspect: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=false()
+    )
 
     __table_args__ = (
         CheckConstraint("detector IN ('llm', 'rule')", name="detector"),

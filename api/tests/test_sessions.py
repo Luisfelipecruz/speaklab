@@ -230,7 +230,9 @@ async def test_ending_a_session_produces_a_report_and_closes_it(
     assert body["ended_at"] is not None
     assert body["report"]["measured"]["turns"]["total"] == 1
     assert body["report"]["narrative"]["goal_met"] is False
-    assert "taxonomy" in body["report"]["pending"]["errors"]
+    # The analysers exist now, so `pending` names only what read-aloud produces.
+    assert set(body["report"]["pending"]) == {"pronunciation"}
+    assert body["report"]["analysis"]["complete"] is True
 
 
 async def test_ending_a_session_twice_returns_the_same_report(

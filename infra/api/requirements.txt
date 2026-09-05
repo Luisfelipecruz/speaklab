@@ -1,9 +1,10 @@
 # SpeakLab API image.
 #
-# Invariant I5: NO torch and NO model weights in this image. Every model lives in asr,
+# NO torch and NO speech model weights in this image. Every speech model lives in asr,
 # tts or pron. api/tests/test_health.py asserts it rather than trusting this comment —
 # a transitive dependency that quietly pulls torch would add ~2 GB to the image that
-# has to start fastest.
+# has to start fastest. The one model that does live here is spaCy's small English
+# pipeline, ~12 MB of statistical parser with no deep-learning runtime behind it.
 
 fastapi==0.115.8
 uvicorn[standard]==0.34.0
@@ -48,6 +49,23 @@ pyjwt==2.10.1
 # standing between the table and two rows for the same person typed differently.
 email-validator==2.3.0
 
+# ── Analysis ────────────────────────────────────────────────────────────────
+#
+# The dependency parse and morphology behind deterministic grammar usage. spaCy brings
+# numpy, thinc and blis and **no torch** — `tests/test_health.py` asserts that rather
+# than trusting this comment, because a library that quietly acquired torch would add
+# two gigabytes to the image that has to start fastest.
+#
+# The model is pinned by URL because it is not on PyPI. `python -m spacy download` would
+# fetch whatever is current at build time, which makes two builds of the same commit
+# different — and the parse is what every grammar number is computed from, so "the
+# model changed" and "the learner changed" would be indistinguishable on a chart.
+#
+# The lemmatizer is not optional here. Without it `going`, `said` and `asked` never
+# reach their base forms and every rule that names a verb silently stops firing.
+spacy==3.8.16
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
 # ── Tests and lint ──────────────────────────────────────────────────────────
 pytest==8.3.4
 pytest-asyncio==0.25.3
@@ -56,14 +74,10 @@ black==25.1.0
 
 # ── Deliberately absent ─────────────────────────────────────────────────────
 #
-# spacy + en_core_web_sm  arrive with m9, which is the first milestone that parses
-#     anything. ~50 MB of wheel plus a ~12 MB model, carried by eight milestones that
-#     never import it, is the wrong trade — unlike the 2 MB above.
-#
-# torch, transformers, faster-whisper, piper-tts  never. I5. They belong to the model
-#     services and their absence here is what keeps this image at 422 MB rather than
-#     multiple gigabytes. Measured on 2026-08-29 with `docker images`.
+# torch, transformers, faster-whisper, piper-tts  never. They belong to the model
+#     services, and their absence is what keeps this image small enough to start in
+#     seconds rather than multiple gigabytes.
 #
 # langchain, llamaindex  never. Orchestration here is a handful of HTTP calls and a
 #     token budget, and a framework would hide the token budget — the part actually
-#     worth reviewing (D7).
+#     worth reviewing.

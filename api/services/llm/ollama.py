@@ -89,17 +89,27 @@ class OllamaProvider(LlmProvider):
         return self._model
 
     def _payload(
-        self, messages: list[ChatMessage], max_tokens: int | None, stream: bool
+        self,
+        messages: list[ChatMessage],
+        max_tokens: int | None,
+        stream: bool,
+        temperature: float | None = None,
     ) -> dict[str, Any]:
+        options: dict[str, Any] = {
+            "num_predict": max_tokens or LLM_MAX_OUTPUT_TOKENS,
+            # Stated, never inherited. See the module docstring and config.LLM_NUM_CTX.
+            "num_ctx": LLM_NUM_CTX,
+        }
+        if temperature is not None:
+            # Absent unless a caller asks, so a conversation keeps Ollama's own default
+            # and only the callers that need repeatability pay for it.
+            options["temperature"] = temperature
+
         return {
             "model": self._model,
             "messages": [message.model_dump() for message in messages],
             "stream": stream,
-            "options": {
-                "num_predict": max_tokens or LLM_MAX_OUTPUT_TOKENS,
-                # Stated, never inherited. See the module docstring and config.LLM_NUM_CTX.
-                "num_ctx": LLM_NUM_CTX,
-            },
+            "options": options,
             # How long the weights stay resident after this call. The default is five
             # minutes, which means a user who stops to think for six pays the ~2.6 s
             # load again on their next turn — a cold start wearing the costume of a slow
@@ -138,7 +148,10 @@ class OllamaProvider(LlmProvider):
         )
 
     async def complete(
-        self, messages: list[ChatMessage], max_tokens: int | None = None
+        self,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> Completion:
         """The whole reply in one call. Used when synthesis is not being overlapped."""
         client, owned = self._client_or_new()
@@ -147,7 +160,9 @@ class OllamaProvider(LlmProvider):
             try:
                 response = await client.post(
                     f"{self._base_url}/api/chat",
-                    json=self._payload(messages, max_tokens, stream=False),
+                    json=self._payload(
+                        messages, max_tokens, stream=False, temperature=temperature
+                    ),
                 )
             except httpx.RequestError as exc:
                 raise LlmUnavailable(f"{type(exc).__name__}: {exc}") from exc
@@ -166,7 +181,10 @@ class OllamaProvider(LlmProvider):
                 await client.aclose()
 
     async def stream(
-        self, messages: list[ChatMessage], max_tokens: int | None = None
+        self,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> AsyncIterator[str | Completion]:
         """Deltas as NDJSON lines arrive, then one `Completion` carrying the totals.
 
@@ -185,7 +203,9 @@ class OllamaProvider(LlmProvider):
                 async with client.stream(
                     "POST",
                     f"{self._base_url}/api/chat",
-                    json=self._payload(messages, max_tokens, stream=True),
+                    json=self._payload(
+                        messages, max_tokens, stream=True, temperature=temperature
+                    ),
                 ) as response:
                     if response.status_code >= 400:
                         # Nothing has been read yet on a streaming response, and
