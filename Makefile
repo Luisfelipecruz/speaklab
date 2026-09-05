@@ -156,6 +156,20 @@ error-precision:                   ## Score error detection against the hand-lab
 		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
 		test python -m pytest /app/tests/test_error_precision.py -v -s
 
+rollup:                            ## Rebuild the progress snapshots every account is owed
+	@echo "Collapses analysed turns and scored readings into one row per period. Ending"
+	@echo "a session already does this, so on a working stack it usually has nothing to"
+	@echo "do — it is here for read-aloud scoring and for turns filled in by a backfill."
+	docker compose exec api python -m scripts.rollup
+
+rollup-dry:                        ## Say which accounts are out of date, and stop
+	docker compose exec api python -m scripts.rollup --dry-run
+
+rollup-force:                      ## Recompute every snapshot, not only the stale ones
+	@echo "For after a change to the rollup arithmetic, when every stored snapshot is a"
+	@echo "number produced by code that no longer exists. Otherwise use \`make rollup\`."
+	docker compose exec api python -m scripts.rollup --force
+
 pron-golden:                       ## Measure GOP against the live pron service
 	@echo "The m0 experiment, re-run through the real service: real human speech scored"
 	@echo "against text containing phones the speaker did not produce. Gate is 8 of 10."

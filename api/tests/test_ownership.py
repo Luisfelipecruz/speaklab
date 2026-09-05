@@ -142,6 +142,11 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         ("DELETE", "/sessions/{session_id}"),
         ("POST", "/sessions/{session_id}/end"),
         ("POST", "/sessions/{session_id}/turns"),
+        # Progress. Scoped by having no other shape available: none of these takes a
+        # user id, so there is no request that could ask for somebody else's trends.
+        ("GET", "/progress"),
+        ("GET", "/progress/recommendations"),
+        ("POST", "/progress/refresh"),
     }
 
 

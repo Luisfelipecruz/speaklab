@@ -618,3 +618,150 @@ export function confusionPairs(
   }
   return [...tally.values()].sort((a, b) => b.count - a.count || a.worst - b.worst);
 }
+
+// ── Progress ────────────────────────────────────────────────────────────────
+
+/**
+ * Whether a series may be drawn, and what it is waiting for.
+ *
+ * `shown: false` is not an error and not an empty result — it is the ordinary state of a
+ * new account, and the reason is written for the person reading the page rather than for
+ * a developer reading a log. A chart that silently omits thin data looks exactly like a
+ * speaker who did not practise, which is the one wrong impression this page must not give.
+ */
+export interface Gate {
+  shown: boolean;
+  reason: string | null;
+  have: number;
+  need: number;
+}
+
+/**
+ * One period's value, or a hole with a reason.
+ *
+ * A hole is kept in the array rather than dropped, so a fortnight of silence occupies
+ * the width it actually occupied. Dropping it would close the gap and draw two distant
+ * points as consecutive practice.
+ */
+export interface TrendPoint {
+  start: string;
+  value: number | null;
+  samples: number;
+  withheld: string | null;
+}
+
+/**
+ * One metric over the window.
+ *
+ * `better` is the field that decides whether this series is allowed an opinion. Most
+ * fluency measures have no better end — faster is nerves as often as it is fluency — so
+ * they arrive with `better: null` and `direction: null`, and the component renders numbers
+ * without a verdict. That absence is the design, not a gap to be filled in later.
+ */
+export interface TrendSeries {
+  metric: string;
+  label: string;
+  unit: string | null;
+  better: "higher" | "lower" | null;
+  points: TrendPoint[];
+  gate: Gate;
+  change: number | null;
+  direction: "improving" | "slipping" | "flat" | null;
+}
+
+export interface MetricFamily {
+  name: string;
+  label: string;
+  description: string;
+  series: TrendSeries[];
+  /** Anything needed to read this family honestly. Only accuracy carries one. */
+  caveat: string | null;
+}
+
+/** One sound, against this speaker's own recent readings rather than against anybody else. */
+export interface PhoneTrend {
+  phone: string;
+  mean_gop: number;
+  z: number | null;
+  baseline_mean: number | null;
+  baseline_readings: number;
+  samples: number;
+}
+
+export interface Repertoire {
+  latest_period: string | null;
+  forms: Record<string, number>;
+  distinct_forms: number;
+  previous_distinct_forms: number | null;
+  /** Set when the range of forms narrowed while the error rate also fell. */
+  warning: string | null;
+}
+
+export interface ProgressTotals {
+  sessions: number;
+  turns: number;
+  words: number;
+  attempts: number;
+  phones: number;
+  periods: number;
+}
+
+export interface Progress {
+  period: string;
+  since: string;
+  until: string;
+  totals: ProgressTotals;
+  families: MetricFamily[];
+  phones: PhoneTrend[];
+  phone_gate: Gate;
+  repertoire: Repertoire;
+  /** Something was analysed or scored after the last rollup. The page offers a refresh. */
+  stale: boolean;
+}
+
+export interface Recommendation {
+  kind: "error_category" | "weak_phone" | "unused_form" | "practise";
+  title: string;
+  reason: string;
+  measured: number | null;
+  samples: number;
+  score: number;
+  scenario_slug: string | null;
+  passage_slug: string | null;
+}
+
+export interface Recommendations {
+  items: Recommendation[];
+  confidence: "none" | "low" | "moderate" | "good";
+  detail: string | null;
+}
+
+export function getProgress(
+  params: { period?: string; days?: number } = {},
+): Promise<Progress> {
+  return request<Progress>(`/progress${queryString(params)}`);
+}
+
+export function getRecommendations(
+  params: { days?: number } = {},
+): Promise<Recommendations> {
+  return request<Recommendations>(`/progress/recommendations${queryString(params)}`);
+}
+
+/** Recompute this account's snapshots. Idempotent, and cheap when nothing changed. */
+export function refreshProgress(
+  params: { period?: string; days?: number } = {},
+): Promise<Progress> {
+  return request<Progress>(`/progress/refresh${queryString(params)}`, { method: "POST" });
+}
+
+/**
+ * The points a chart can actually draw, in order.
+ *
+ * Shared by the chart and its tests because "which points are real" is the question the
+ * whole component is built around, and a second implementation of it in the test would
+ * assert against itself.
+ */
+export function drawablePoints(series: TrendSeries): TrendPoint[] {
+  return series.points.filter((point) => point.value !== null);
+}

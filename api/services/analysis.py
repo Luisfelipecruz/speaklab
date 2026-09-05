@@ -415,18 +415,36 @@ async def summarise(db, session_id: int, scenario: Scenario | None) -> dict:
         "complete": outstanding == 0,
         "turns_analysed": states.get("analyzed", 0),
         "turns_outstanding": outstanding,
-        "fluency": _fluency(measures),
+        "fluency": weighted_fluency(measures),
         "grammar_usage": {feature: int(count) for feature, count in features.items()},
         "target_forms": _target_forms(scenario, features),
         "errors": _errors(found, measures, rejects),
     }
 
 
-def _fluency(measures: list[FluencyMetrics]) -> dict | None:
-    """Session-level fluency, weighted by how much was said in each turn.
+def is_counted(row: LanguageError) -> bool:
+    """Whether this error may reach a rate.
+
+    Two exclusions, and they are different facts. `asr_suspect` means the words under the
+    correction may not be what the speaker said. Below the confidence floor means the
+    model that proposed it hedged. Both rows are shown to the learner; neither is counted.
+
+    One function rather than the condition written wherever it is needed, because the
+    session report and the trend must exclude exactly the same rows — a rate that differs
+    between the two screens showing it is worse than either number alone.
+    """
+    return not row.asr_suspect and row.confidence >= ERROR_CONFIDENCE_FLOOR
+
+
+def weighted_fluency(measures: list[FluencyMetrics]) -> dict | None:
+    """Fluency across many turns, weighted by how much was said in each.
 
     A plain mean across turns would let "Thank you." count as much as a sixty-word
     answer, which is how a session ends up reporting a speech rate nobody spoke at.
+
+    Shared with the rollups rather than reimplemented there, so a month of practice is
+    averaged the same way one session is and the two cannot disagree about the same
+    speech.
     """
     words = sum(m.word_count or 0 for m in measures)
     if not measures or not words:
@@ -510,11 +528,7 @@ def _errors(found: list[LanguageError], measures, rejects) -> dict:
     """
     words = sum(m.word_count or 0 for m in measures) if measures else 0
 
-    counted = [
-        row
-        for row in found
-        if not row.asr_suspect and row.confidence >= ERROR_CONFIDENCE_FLOOR
-    ]
+    counted = [row for row in found if is_counted(row)]
     by_category: dict[str, int] = {}
     for row in counted:
         by_category[row.category] = by_category.get(row.category, 0) + 1

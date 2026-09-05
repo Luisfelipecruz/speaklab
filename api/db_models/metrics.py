@@ -11,13 +11,14 @@ never stored here as if it were a finding.
 exactly one row per turn, forever, and a surrogate key would allow a second.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Index,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     false,
+    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -177,8 +179,19 @@ class ProgressSnapshot(Base):
 
     # An estimate, labelled as one. It is not calibrated against human raters, and the
     # column exists so the estimate is recorded rather than recomputed differently by
-    # each screen that shows it.
+    # each screen that shows it. Nothing writes it yet: a band assigned from a handful of
+    # turns would be a confident answer to a question this data cannot settle.
     cefr_estimate: Mapped[str | None] = mapped_column(Text)
+
+    # When this row was last computed. A materialised aggregate with no notion of its own
+    # age cannot be asked whether it is current, and the two available answers without it
+    # are both wrong: recompute on every page load, which is what a snapshot table exists
+    # to avoid, or assume it is fresh, which is how a chart quietly stops moving. The
+    # rows underneath carry their own timestamps, so "is there anything newer than this"
+    # has an exact answer.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         CheckConstraint("period IN ('day', 'week')", name="period"),
