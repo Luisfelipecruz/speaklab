@@ -23,6 +23,7 @@ import { HistoryIcon, MicIcon, MessagesSquareIcon } from "lucide-react";
 
 import { NextUpCard } from "@/components/NextUpCard";
 import { Page, PageHeader } from "@/components/PageHeader";
+import { StatTile } from "@/components/StatTile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,15 +48,6 @@ function when(iso: string): string {
   return new Date(iso).toISOString().slice(0, 16).replace("T", " ");
 }
 
-function Figure({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-2xl font-semibold tabular-nums">{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
 export default async function HomePage() {
   const [progress, recommendations, history] = await Promise.all([
     serverRequestOrNull<Progress>("/progress"),
@@ -70,7 +62,7 @@ export default async function HomePage() {
           title="SpeakLab"
           description="Practise spoken English against models running on this machine."
         />
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             <Link href="/login?next=/home" className="underline">
               Sign in
@@ -94,7 +86,7 @@ export default async function HomePage() {
             measure. Two things produce something worth looking at."
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid max-w-4xl gap-4 sm:grid-cols-2">
           <StartCard
             icon={<MessagesSquareIcon className="size-5" />}
             title="Have a conversation"
@@ -133,20 +125,19 @@ export default async function HomePage() {
         }
       />
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-x-10 gap-y-4 py-5">
-          <Figure label="conversations" value={String(totals.sessions)} />
-          <Figure label="turns you spoke" value={String(totals.turns)} />
-          <Figure label="words" value={String(totals.words)} />
-          <Figure label="scored readings" value={String(totals.attempts)} />
-          <Badge variant="outline" className="ml-auto">
-            {totals.periods} week{totals.periods === 1 ? "" : "s"} with practice in them
-          </Badge>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <StatTile label="conversations" value={totals.sessions} />
+        <StatTile label="turns you spoke" value={totals.turns} />
+        <StatTile label="words" value={totals.words} />
+        <StatTile label="scored readings" value={totals.attempts} />
+        <StatTile
+          label={`week${totals.periods === 1 ? "" : "s"} with practice`}
+          value={totals.periods}
+        />
+      </div>
 
       {progress.stale && (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             Something has been analysed or scored since these figures were computed.{" "}
             <Link href="/progress" className="underline">
@@ -162,7 +153,7 @@ export default async function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <HistoryIcon className="size-4" />
+              <HistoryIcon className="size-4 text-primary" />
               Where you left off
             </CardTitle>
             <CardDescription>
@@ -174,7 +165,10 @@ export default async function HomePage() {
               <>
                 <ul className="flex flex-col gap-3">
                   {history.items.map((session) => (
-                    <li key={session.id} className="flex items-center justify-between gap-4">
+                    <li
+                      key={session.id}
+                      className="flex items-center justify-between gap-4 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                    >
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <Link
                           href={`/sessions/${session.id}`}
@@ -226,11 +220,14 @@ function StartCard({
 }) {
   return (
     <Card className="flex flex-col">
-      <CardHeader className="gap-2">
-        <CardTitle className="flex items-center gap-2 text-base">
+      <CardHeader className="gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground"
+        >
           {icon}
-          {title}
-        </CardTitle>
+        </span>
+        <CardTitle className="text-lg">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto">

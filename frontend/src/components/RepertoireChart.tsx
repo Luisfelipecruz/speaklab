@@ -50,13 +50,10 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
       <CardContent className="flex flex-col gap-4">
         {repertoire.warning && (
           <p
-            className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed"
+            className="flex max-w-3xl gap-2 rounded-lg border border-chart-2/40 bg-chart-2/10 p-3 text-sm leading-relaxed"
             data-testid="repertoire-warning"
           >
-            <TriangleAlert
-              className="mt-0.5 size-3.5 shrink-0 text-amber-600"
-              aria-hidden="true"
-            />
+            <TriangleAlert className="mt-1 size-4 shrink-0 text-chart-2" aria-hidden="true" />
             <span>{repertoire.warning}</span>
           </p>
         )}
@@ -80,18 +77,23 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
               )}
             </p>
 
-            <ul className="flex flex-col gap-1.5">
+            {/* Each bar sits on a full-width track, so the longest bar is visibly the
+                whole and the others are visibly fractions of it. A bar on its own has
+                nothing to be a fraction of. */}
+            <ul className="flex flex-col gap-2">
               {forms.map(([form, count]) => (
-                <li key={form} className="flex items-center gap-3 text-xs">
+                <li key={form} className="flex items-center gap-3 text-sm">
                   <span className="w-44 shrink-0 truncate" title={readable(form)}>
                     {readable(form)}
                   </span>
-                  <span
-                    className="h-2 rounded-full bg-primary/70"
-                    style={{ width: `${Math.max(4, (count / most) * 100)}%` }}
-                    aria-hidden="true"
-                  />
-                  <span className="tabular-nums text-muted-foreground">{count}</span>
+                  <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className="block h-full rounded-full bg-chart-1"
+                      style={{ width: `${Math.max(4, (count / most) * 100)}%` }}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="w-8 text-right font-medium tabular-nums">{count}</span>
                 </li>
               ))}
             </ul>

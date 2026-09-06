@@ -65,7 +65,7 @@ export default async function ScenariosPage({
       />
 
       {failure && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-fit max-w-2xl">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       )}
@@ -105,7 +105,7 @@ export default async function ScenariosPage({
       </div>
 
       {!failure && scenarios.length === 0 ? (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             No scenarios match that filter. If the catalogue is empty everywhere, the
             seeds have not been loaded — run <code className="font-mono">make seed</code>.
@@ -131,7 +131,9 @@ function FilterRow({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="w-14 text-xs text-muted-foreground">{label}</span>
+      <span className="w-16 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </div>
   );

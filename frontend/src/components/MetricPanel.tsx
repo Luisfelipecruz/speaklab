@@ -38,16 +38,16 @@ export function MetricPanel({ family }: MetricPanelProps) {
       <CardContent className="flex flex-col gap-5">
         {family.caveat && (
           <p
-            className="flex gap-2 rounded-md border border-border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground"
+            className="flex max-w-3xl gap-2 rounded-lg border border-chart-2/40 bg-chart-2/10 p-3 text-sm leading-relaxed text-foreground"
             data-testid="caveat"
           >
-            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <Info className="mt-1 size-4 shrink-0 text-chart-2" aria-hidden="true" />
             <span>{family.caveat}</span>
           </p>
         )}
 
         {drawn.length === 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Nothing here has enough behind it to draw yet. Each line below says what it is
             waiting for.
           </p>
@@ -56,7 +56,7 @@ export function MetricPanel({ family }: MetricPanelProps) {
         {/* Three columns where there is room for them. A family holds up to five series and
             they are read one at a time, not compared left to right, so the useful thing is
             fitting them on one screen rather than lining them up. */}
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {family.series.map((series) => (
             <TrendChart key={series.metric} series={series} />
           ))}

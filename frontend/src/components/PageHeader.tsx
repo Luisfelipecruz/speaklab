@@ -12,9 +12,13 @@
  * itself with `Prose`. A paragraph gets its comfortable measure without the card above it
  * changing size, which is the actual requirement.
  *
- * The cap is generous rather than absent. Wide displays are the case that motivated the
- * old `full`, and a grid of scenarios or a row of forty sounds does genuinely improve with
- * the room; a page with no maximum at all just makes a different mistake at 2560 px.
+ * **The measure is 72 rem, and it used to be 96.** The wider cap was chosen so a grid of
+ * scenarios could use a large display, and what it did in practice was let a one-line
+ * notice, a row of four figures and a list of five links stretch across the entire width
+ * of a 1440 px screen with nothing in the right-hand two thirds of them. Content that is
+ * wide because it has nowhere to stop does not look generous; it looks empty. At 72 rem a
+ * three-column grid still has room and a notice is still a notice. The gutter *around*
+ * the frame is the shell's, and it is the same on every section.
  */
 
 import type { ReactNode } from "react";
@@ -29,7 +33,7 @@ export function Page({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("mx-auto flex w-full max-w-[96rem] flex-col gap-8", className)}>
+    <div className={cn("mx-auto flex w-full max-w-6xl flex-col gap-8", className)}>
       {children}
     </div>
   );
@@ -54,27 +58,38 @@ export function Prose({
 /**
  * A page's title, what it is for, and anything that acts on the whole page.
  *
+ * Every screen uses it, including the detail pages that used to write their own heading
+ * with a slightly different size and no rule under it. The `eyebrow` is what those pages
+ * needed and did not have: the level badge above a scenario's name, the date above a
+ * sitting's.
+ *
+ * The block is separated from what follows by a rule, so the heading is read as the
+ * heading and the first card is read as content rather than as more of the same grey.
  * `actions` sits on the same row from `sm` up and wraps beneath the text below it, rather
  * than being pushed off the edge — the narrow case is a phone, which is where a refresh
  * button being reachable matters most.
  */
 export function PageHeader({
+  eyebrow,
   title,
   description,
   actions,
 }: {
+  /** Badges or a date above the title — what kind of thing this page is about. */
+  eyebrow?: ReactNode;
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4">
+    <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-border pb-6">
       <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+        {eyebrow && <div className="flex flex-wrap items-center gap-2">{eyebrow}</div>}
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          {title}
+        </h1>
         {description && (
-          <div className="max-w-[70ch] text-sm text-muted-foreground sm:text-base">
-            {description}
-          </div>
+          <div className="max-w-[64ch] text-base text-muted-foreground">{description}</div>
         )}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

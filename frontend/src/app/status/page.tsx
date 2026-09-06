@@ -55,7 +55,9 @@ export default async function StatusPage() {
   const health = await getHealth();
 
   return (
-    <main className="px-4 py-10 sm:px-6">
+    // No shell — this page is for whoever runs the stack — but the same gutter the
+    // shell gives every other screen, so it does not look like a different product.
+    <main className="px-5 py-10 sm:px-8 lg:px-12 lg:py-14 2xl:px-16">
       <Page>
         <PageHeader
           title="Status"

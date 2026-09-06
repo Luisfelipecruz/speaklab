@@ -215,3 +215,20 @@ describe("what the rail says about each section", () => {
     expect(screen.getByRole("link", { name: "History" })).toBeInTheDocument();
   });
 });
+
+test("the space between the rail and the content is the same on every section", () => {
+  // Rendered twice with different addresses, because the complaint this guards against
+  // was that the content sat differently from one section to the next. The gutter lives
+  // on the shell, so the page inside it cannot choose its own.
+  const wrappers = ["/scenarios", "/progress"].map((route) => {
+    pathname = route;
+    const { unmount } = renderShell();
+    const wrapper = screen.getByText("page body").parentElement as HTMLElement;
+    const className = wrapper.className;
+    unmount();
+    return className;
+  });
+
+  expect(wrappers[0]).toBe(wrappers[1]);
+  expect(wrappers[0]).toMatch(/\bpx-/);
+});

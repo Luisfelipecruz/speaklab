@@ -20,6 +20,12 @@ only visible once the pages are on a screen together.
 
 ## 1. Width: the frame stopped moving
 
+> **Superseded by [0011](0011-contrast-gutters-and-the-font.md) §4.** One measure was the
+> right call and 96 rem was the wrong value for it: at 1440 px it let a one-line notice, a
+> row of four figures and a tab row's track each stretch across 1120 px with nothing in
+> their right-hand two thirds. The frame is now 72 rem and one-line things are as wide as
+> their line.
+
 0009 decided that width is a property of the page, and gave each page three named measures
 to choose from. The reasoning was sound — a paragraph and a heatmap of forty sounds do not
 want the same room — and the result was a product whose content box changed size on every

@@ -65,7 +65,7 @@ const DIRECTION_LABEL: Record<string, string> = {
 function Caption({ series, latest }: { series: TrendSeries; latest: number }) {
   return (
     <figcaption className="flex flex-wrap items-baseline gap-2">
-      <span className="text-sm font-medium">{series.label}</span>
+      <span className="text-sm font-semibold">{series.label}</span>
       {series.unit && <span className="text-xs text-muted-foreground">{series.unit}</span>}
       <span className="ml-auto text-sm font-semibold tabular-nums">
         {format(latest, series.unit)}
@@ -86,11 +86,14 @@ function Caption({ series, latest }: { series: TrendSeries; latest: number }) {
 export function TrendChart({ series }: TrendChartProps) {
   const drawable = drawablePoints(series);
 
+  // The three states share one box, so a family's series line up as a grid of equal
+  // panels whether each one is a line, a single reading or a reason. A gated series is
+  // the only one drawn with a dashed edge: it is a placeholder, and should look like one.
   if (!series.gate.shown) {
     return (
-      <div className="flex flex-col gap-1 rounded-md border border-dashed border-border p-3">
-        <span className="text-sm font-medium">{series.label}</span>
-        <p className="text-xs text-muted-foreground" data-testid="gate-reason">
+      <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-muted/40 p-4">
+        <span className="text-sm font-semibold">{series.label}</span>
+        <p className="text-sm text-muted-foreground" data-testid="gate-reason">
           {series.gate.reason}
         </p>
       </div>
@@ -100,9 +103,12 @@ export function TrendChart({ series }: TrendChartProps) {
   if (drawable.length === 1) {
     const only = drawable[0];
     return (
-      <figure className="flex flex-col gap-2 rounded-md border border-border p-4">
+      <figure className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
         <Caption series={series} latest={only.value as number} />
-        <p className="text-3xl font-semibold tabular-nums" data-testid="single-reading">
+        <p
+          className="text-3xl font-bold tracking-tight tabular-nums"
+          data-testid="single-reading"
+        >
           {format(only.value as number, series.unit)}
           {series.unit && series.unit !== "ratio" && (
             <span className="ml-1.5 text-sm font-normal text-muted-foreground">
@@ -146,31 +152,49 @@ export function TrendChart({ series }: TrendChartProps) {
   });
   if (run.length) runs.push(run);
 
+  const floor = HEIGHT - PADDING;
+
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
       <Caption series={series} latest={values[values.length - 1]} />
 
+      {/* The accent colour, at full strength for the line and faintly under it. A
+          hairline in grey was the chart the person could not see; the area is what makes
+          the line read as a quantity rather than as a scratch on the card. Each run gets
+          its own area, so a hole in the data is a hole in the fill too. */}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-24 w-full text-primary"
+        className="h-24 w-full text-chart-1"
         preserveAspectRatio="none"
         role="img"
         aria-label={`${series.label} over ${drawable.length} periods`}
         data-testid="trend-svg"
       >
-        {runs.map((points, position) => (
-          <polyline
-            key={position}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            points={points
-              .map((point) => `${x(point.index)},${y(point.value)}`)
-              .join(" ")}
-          />
-        ))}
+        {runs.map((points, position) => {
+          const path = points.map((point) => `${x(point.index)},${y(point.value)}`);
+          const first = x(points[0].index);
+          const last = x(points[points.length - 1].index);
+          return (
+            <g key={position}>
+              {points.length > 1 && (
+                <polygon
+                  fill="currentColor"
+                  fillOpacity={0.12}
+                  points={[...path, `${last},${floor}`, `${first},${floor}`].join(" ")}
+                />
+              )}
+              <polyline
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                points={path.join(" ")}
+              />
+            </g>
+          );
+        })}
         {drawable.map((point) => {
           const index = series.points.indexOf(point);
           return (
@@ -178,8 +202,11 @@ export function TrendChart({ series }: TrendChartProps) {
               key={point.start}
               cx={x(index)}
               cy={y(point.value as number)}
-              r={2.5}
+              r={3}
               fill="currentColor"
+              stroke="var(--card)"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
             />
           );
         })}

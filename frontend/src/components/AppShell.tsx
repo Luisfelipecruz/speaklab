@@ -13,6 +13,13 @@
  * **It imposes no maximum width.** The measure belongs to `Page`, which gives every
  * screen the same one — the shell's job is the padding around it, not the size of it.
  *
+ * **The padding is one value, `GUTTER`, and it is the same on every section.** The space
+ * between the rail and the content is what makes a page look placed rather than poured
+ * in, and it only does that if it is constant: a gutter that is 32 px on one section and
+ * 32 px on the next but with the content box a different width reads as movement. The
+ * top bar shares it, so the navigation control, the title and the first card all start
+ * on the same vertical line.
+ *
  * The top bar exists for one control — the button that opens the rail on a phone, where
  * it is a sheet rather than a permanent column. It also carries the sign-out, which needs
  * a router and so cannot live in a server layout.
@@ -37,6 +44,14 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+
+/**
+ * The horizontal space between the frame and whatever is inside it, on every signed-in
+ * screen. Exported so a test can assert that the sections share it rather than each
+ * choosing their own.
+ */
+export const GUTTER = "px-5 sm:px-8 lg:px-12 2xl:px-16";
 
 export function AppShell({
   children,
@@ -55,9 +70,14 @@ export function AppShell({
       <AppSidebar facts={facts} />
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <header
+          className={cn(
+            "sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75",
+            GUTTER,
+          )}
+        >
           <NavigationTrigger />
-          <Separator orientation="vertical" className="mr-1 h-4" />
+          <Separator orientation="vertical" className="mr-1 h-5" />
           <Link href="/home" className="text-sm font-medium tracking-tight md:hidden">
             SpeakLab
           </Link>
@@ -99,7 +119,7 @@ export function AppShell({
             second one nested inside it leaves a screen reader offering two "main"
             regions to jump to, neither of which is wrong and only one of which is the
             page. */}
-        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+        <div className={cn("flex-1 py-8 lg:py-10", GUTTER)}>{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

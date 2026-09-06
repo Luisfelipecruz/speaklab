@@ -35,8 +35,10 @@ export function SectionTabs({
   return (
     <nav aria-label={label}>
       {/* Scrolls rather than wraps: on a phone five tabs would otherwise become two rows
-          that push the content below the fold. */}
-      <ul className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+          that push the content below the fold. As wide as its tabs and no wider — a
+          block-level flex row would paint the grey track across the whole page, and a
+          track with five tabs in its left fifth is a bar of nothing. */}
+      <ul className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-muted p-1">
         {sections.map((section) => {
           const active = section.key === current;
           return (
@@ -47,7 +49,7 @@ export function SectionTabs({
                 className={cn(
                   "block rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                   active
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >

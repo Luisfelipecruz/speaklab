@@ -1298,7 +1298,7 @@ because nothing ran.
 
 ---
 
-### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE** — `4b0e79e` plus one uncommitted follow-on commit, unpushed
+### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE** — `4b0e79e` and `c321e36`, plus a third uncommitted commit (contrast, gutters, the font), unpushed
 
 **Goal.** A person who has signed in can see where they are, where else they can go, and
 what to do next — on a phone and on a 27-inch monitor.

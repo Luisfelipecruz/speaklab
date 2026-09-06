@@ -89,14 +89,14 @@ export function PhonemeTrend({ phones, gate }: PhonemeTrendProps) {
                   </p>
                 ) : (
                   <div
-                    className="relative h-2 w-full rounded-full bg-muted"
+                    className="relative h-2.5 w-full rounded-full bg-muted"
                     role="presentation"
                   >
-                    <span className="absolute inset-y-0 left-1/2 w-px bg-border" />
+                    <span className="absolute inset-y-0 left-1/2 w-0.5 bg-foreground/30" />
                     <span
                       className={cn(
                         "absolute inset-y-0 rounded-full",
-                        phone.z < 0 ? "bg-amber-500/70" : "bg-primary",
+                        phone.z < 0 ? "bg-chart-2" : "bg-chart-1",
                       )}
                       style={{
                         left: `${offset(phone.z).left}%`,

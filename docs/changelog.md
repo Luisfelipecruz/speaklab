@@ -27,6 +27,16 @@ and four metric families on one page meant eleven charts each holding a single
 measurement. [Decision 0010](decisions/0010-reading-the-interface.md) records all three and
 supersedes §3 of 0009.
 
+**And then it was looked at again, and the improvements were not visible.** Three
+complaints, all correct — components with one line in them stretched across the whole
+row, nothing had enough contrast to read at a glance, and there was no space between the
+rail and the content — and a fourth thing found while measuring the first: **every page
+had been rendering in Times New Roman.** The font variable was set on `<body>` and read on
+`<html>`, where it does not exist, so the declaration was dropped silently. The palette was
+also pure grey — `chart-1` measured 1.48:1 against a white card, the rail 1.04:1 against
+the page. [Decision 0011](decisions/0011-contrast-gutters-and-the-font.md) has the
+measurements before and after.
+
 **A rail instead of a row, and it carries what the sections contain.** Five entries, each
 with the fact that decides whether it is worth opening: how many conversations are stored,
 how many readings have been scored, whether the progress figures are behind the practice
@@ -97,6 +107,31 @@ focus to its own trigger, and this one is opened by a button outside it.
 - **One `main` landmark per page, not two.** The vendored `SidebarInset` is itself a
   `<main>` and the shell rendered another inside it.
 - **The catalogues** go to three and four columns where there is room for them.
+- **The font loads.** The `next/font` class moves from `<body>` to `<html>`, where the
+  `font-sans` rule that reads it lives. `getComputedStyle(document.body).fontFamily` went
+  from `"Times New Roman"` to `Geist, "Geist Fallback"`.
+- **The palette has a hue.** A cool off-white page, white cards with a border and a
+  hairline shadow, a rail a shade darker than the page, and one teal accent for the
+  primary button, the current section, active filters and the measurement on every chart.
+  Muted text goes from 4.73:1 to 7.12:1 on a card; `chart-1` from 1.48:1 to 4.34:1. Dark
+  mode is the same three surfaces inverted. The five chart colours are teal, amber,
+  indigo, rose and green, none of them grey.
+- **One gutter on the shell**, `px-5 sm:px-8 lg:px-12 2xl:px-16`, shared by the top bar so
+  the navigation control, the title and the first card start on one line. A test renders
+  two sections and asserts the wrapper is the same on both.
+- **The measure is 72 rem, not 96**, and one-line things are as wide as their line:
+  notices are `w-fit`, the tab row is `inline-flex`, the totals are a grid of tiles
+  (`StatTile`, new) rather than four numbers in one wide card, the history and the readings
+  of a sitting are one card with a rule between rows rather than a card per row.
+- **Every page heading is the same component**, with a rule under it and an `eyebrow`
+  slot for the badges the detail pages put above their titles. The scenario, passage and
+  sitting pages used to write their own.
+- **Trend charts** draw the line in the accent at 2 px with a faint area under each run,
+  in the same bordered panel a single reading and a gated series already used. Repertoire
+  bars sit on a full-width track so a fraction is visibly a fraction.
+- **The vendored card** gets `border border-border shadow-xs` in place of a ten-per-cent
+  ring, and a semibold title — the one vendored primitive this release edits, and 0011 §5
+  says why a token could not do it.
 
 ### Known
 
@@ -111,13 +146,17 @@ focus to its own trigger, and this one is opened by a button outside it.
   what they were; recorded because it would have gone in unnoticed.
 - Holding the record button in Chrome and Safari is **still unverified by a person**, and
   this milestone does not change that.
-- **The signed-in pages have not been looked at in a browser.** The layout, the type scale
-  and the landmark were measured against the live DOM at 375, 1440 and 2560 px; the tab row
-  and the reading blocks were verified by reading the server-rendered HTML, because the
-  browser available to the agent runs in a container that cannot hold the session.
-- **The frontend container's `node_modules` predates this milestone's dev dependencies**,
-  so a build inside it fails on `jest.setup.ts` while the same build passes on the host. It
-  needs rebuilding, and nothing here does that.
+- **The signed-in pages have been looked at with an empty account, and not yet with a
+  full one.** Every section, both modes, at 375, 1440 and 1920 px, signed in as a fresh
+  account with no practice — the browser this time ran on the host, which can reach the
+  API. The stat tiles with real figures, a trend line with its fill, the repertoire bars
+  and the sound-by-sound panel have been rendered by tests, not by eye; the account that
+  has practice cannot be signed into from an agent session.
+- **Lint, typecheck, the suite and the build all run inside Docker** with
+  `docker compose run --rm --no-deps frontend npm run <script>`: a `run` container gets a
+  fresh anonymous `node_modules` and `.next` from the image, so it neither sees the stale
+  volume the long-running container holds nor touches the dev server's build. The earlier
+  advice to build on the host and then clear `.next` is withdrawn.
 
 ### Not in this release
 

@@ -9,6 +9,12 @@ import { PRE_PAINT_SCRIPT } from "@/lib/theme";
 // The variable names are what globals.css reads in its `@theme inline` block. Naming
 // the sans font `--font-geist-sans` instead leaves `--font-sans` undefined and every
 // `font-sans` utility silently falls back to the browser default.
+//
+// The classes go on `<html>`, not `<body>`, and that is load-bearing too. globals.css
+// applies `font-sans` to `<html>`, which resolves `var(--font-sans)` *on that element*;
+// with the variable defined one level down on `<body>` the lookup failed silently and
+// every screen rendered in the browser's serif. A variable is visible to the element
+// that sets it and its descendants, never to its parent.
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
@@ -22,7 +28,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Synchronous, in the head, before anything paints. The stored theme lives in
             localStorage, which the server cannot read, so the class it decides has to be
@@ -32,7 +42,7 @@ export default function RootLayout({
             the intended behaviour rather than a bug. */}
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className="antialiased">
         {/* One session for the whole application. The provider is a client component
             taking `children` as a prop, which does not make those children client
             components — every page below here is still server-rendered by default. */}

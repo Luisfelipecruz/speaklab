@@ -139,13 +139,13 @@ export function AppSidebar({ facts }: { facts: ShellFacts | null }) {
         <Link
           href="/home"
           onClick={dismiss}
-          className="flex items-center gap-2 px-2 py-1.5 font-semibold tracking-tight"
+          className="flex h-10 items-center gap-2.5 px-2 text-base font-semibold tracking-tight"
         >
           <span
             aria-hidden="true"
-            className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
           >
-            <ClipboardListIcon className="size-3.5" />
+            <ClipboardListIcon className="size-4" />
           </span>
           <span className="truncate group-data-[collapsible=icon]:hidden">SpeakLab</span>
         </Link>
@@ -168,6 +168,11 @@ export function AppSidebar({ facts }: { facts: ShellFacts | null }) {
                         asChild
                         isActive={current}
                         tooltip={section.hint}
+                        // Taller than the vendored default, and the icon takes the
+                        // accent when the section is current: the highlight is the
+                        // answer to "where am I" for anyone who can see it, so it has
+                        // to be visible at a glance rather than on inspection.
+                        className="h-9 px-2.5 data-active:[&_svg]:text-primary"
                         // `aria-current` is what a screen reader uses to answer "where am
                         // I"; the highlight only answers it for someone who can see it.
                         aria-current={current ? "page" : undefined}

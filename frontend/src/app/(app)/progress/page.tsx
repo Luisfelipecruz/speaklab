@@ -31,6 +31,7 @@ import { RefreshProgress } from "@/app/(app)/progress/RefreshProgress";
 import { MetricPanel } from "@/components/MetricPanel";
 import { Page, PageHeader } from "@/components/PageHeader";
 import { NextUpCard } from "@/components/NextUpCard";
+import { StatTile } from "@/components/StatTile";
 import { PhonemeTrend } from "@/components/PhonemeTrend";
 import { RepertoireChart } from "@/components/RepertoireChart";
 import { familyStatus } from "@/app/(app)/progress/summary";
@@ -39,6 +40,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Progress, Recommendations } from "@/lib/api";
+import { ChevronRightIcon } from "lucide-react";
 import { serverRequestOrNull } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
@@ -46,16 +48,6 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Progress — SpeakLab" };
 
 const OVERVIEW = "overview";
-
-/** One large number and what it counts. The figures are the reason for the page. */
-function Figure({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-3xl font-semibold tabular-nums">{value}</span>
-      <span className="text-sm text-muted-foreground">{label}</span>
-    </div>
-  );
-}
 
 export default async function ProgressPage({
   searchParams,
@@ -71,7 +63,7 @@ export default async function ProgressPage({
   if (!progress || !recommendations) {
     return (
       <Page>
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             <Link href="/login?next=/progress" className="underline">
               Sign in
@@ -111,7 +103,7 @@ export default async function ProgressPage({
       />
 
       {progress.stale && (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             Something has been analysed or scored since these figures were last computed,
             so they are behind your practice. Rebuilding takes a moment.
@@ -123,23 +115,23 @@ export default async function ProgressPage({
 
       {view === OVERVIEW ? (
         <div className="flex flex-col gap-6">
-          <Card>
-            <CardContent className="flex flex-wrap items-start gap-x-12 gap-y-6 py-6">
-              <Figure label="conversations" value={totals.sessions} />
-              <Figure label="turns you spoke" value={totals.turns} />
-              <Figure label="words" value={totals.words} />
-              <Figure label="scored readings" value={totals.attempts} />
-              <Figure label="sounds scored" value={totals.phones} />
-              <Figure
-                label={`week${totals.periods === 1 ? "" : "s"} with practice in them`}
-                value={totals.periods}
-              />
-            </CardContent>
-          </Card>
+          {/* The figures are the reason for the page, and each gets a tile of its own
+              rather than a share of one wide card with nothing in its right half. */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+            <StatTile label="conversations" value={totals.sessions} />
+            <StatTile label="turns you spoke" value={totals.turns} />
+            <StatTile label="words" value={totals.words} />
+            <StatTile label="scored readings" value={totals.attempts} />
+            <StatTile label="sounds scored" value={totals.phones} />
+            <StatTile
+              label={`week${totals.periods === 1 ? "" : "s"} with practice`}
+              value={totals.periods}
+            />
+          </div>
 
           {!practised && (
-            <Card>
-              <CardContent className="flex flex-col items-start gap-3 py-6">
+            <Card className="max-w-2xl">
+              <CardContent className="flex flex-col items-start gap-3 py-2">
                 <p className="text-sm text-muted-foreground">
                   There is nothing to chart yet. One conversation produces corrections,
                   forms and timings; one reading produces per-sound scores.
@@ -160,17 +152,23 @@ export default async function ProgressPage({
             <NextUpCard recommendations={recommendations} />
 
             <Card>
-              <CardContent className="flex flex-col gap-1 py-2">
+              <CardContent className="flex flex-col divide-y divide-border py-0">
                 {progress.families.map((candidate) => (
                   <Link
                     key={candidate.name}
                     href={`/progress?view=${candidate.name}`}
-                    className="flex flex-col gap-0.5 rounded-md px-3 py-3 transition-colors hover:bg-muted"
+                    className="group flex items-center gap-4 py-3.5 transition-colors hover:text-primary"
                   >
-                    <span className="text-sm font-medium">{candidate.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {familyStatus(candidate)}
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-sm font-semibold">{candidate.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {familyStatus(candidate)}
+                      </span>
                     </span>
+                    <ChevronRightIcon
+                      className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+                      aria-hidden="true"
+                    />
                   </Link>
                 ))}
               </CardContent>

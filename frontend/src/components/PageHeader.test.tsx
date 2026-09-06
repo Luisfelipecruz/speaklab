@@ -71,3 +71,12 @@ test("actions sit in the header rather than being pushed off it", () => {
   const header = screen.getByRole("banner");
   expect(header).toContainElement(screen.getByRole("button", { name: "Rebuild" }));
 });
+
+test("an eyebrow sits above the title without becoming part of its name", () => {
+  render(<PageHeader eyebrow={<span>B2</span>} title="Apartment viewing" />);
+
+  expect(
+    screen.getByRole("heading", { level: 1, name: "Apartment viewing" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("B2")).toBeInTheDocument();
+});
