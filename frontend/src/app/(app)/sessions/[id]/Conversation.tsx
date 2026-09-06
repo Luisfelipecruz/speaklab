@@ -21,7 +21,7 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Page, PageHeader } from "@/components/PageHeader";
 import { RecordButton, type RecordPhase } from "@/components/RecordButton";
@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
 import { useSession } from "@/hooks/useSession";
 import type { SessionDetail, TurnTiming } from "@/lib/api";
+import { correctionsByTurn } from "@/lib/corrections";
 
 function timingLine(timing: TurnTiming): string {
   const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
@@ -55,6 +56,8 @@ export function Conversation({
 
   const speaker = session.session?.scenario_title ?? "The persona";
   const active = session.session?.status === "active";
+  const report = session.session?.report ?? null;
+  const corrections = useMemo(() => correctionsByTurn(report), [report]);
 
   const phase: RecordPhase =
     recorder.state === "unsupported" || !active
@@ -123,15 +126,23 @@ export function Conversation({
         }
       />
 
+      {corrections.size > 0 && (
+        <p className="w-fit max-w-2xl text-sm text-muted-foreground">
+          The corrections proposed for this conversation are marked on your turns, where
+          they happened, and listed under each one. The report below has the totals.
+        </p>
+      )}
+
       <TranscriptPane
         items={session.items}
         speakerLabel={speaker}
         lastSpeech={session.lastSpeech}
         autoPlayTurnId={session.lastReplyTurnId}
         onReplyPlayingChange={setReplyPlaying}
+        corrections={corrections}
       />
 
-      {session.session?.report && <SessionReport report={session.session.report} />}
+      {report && <SessionReport report={report} />}
 
       {session.error && (
         <Alert variant="destructive">

@@ -1,20 +1,20 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.6 — **m0 passed; m1 through m8 are merged into `main`, CI green** (plus the
-persona fix and the comment sweep, PRs #9 and #10). **m9 is CODE COMPLETE and uncommitted**
-— 426 API tests and 99 frontend tests green, and **criterion S5 is not met: error
-detection measures 0.500 precision against a 0.70 bar, on a sample too small to settle
-it.** That is the milestone's real finding and it is published. **m10 is next.** The
-repository exists at `Luisfelipecruz/speaklab`; every git command is still prepared in
-`GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-05 (m9 built)
+**Status:** v1.7 — **m0 passed; m1 through m12 are merged into `main`, CI green** (m12 as
+PR #14, `720b6f2`, 2026-09-06). **Two milestones were added on 2026-09-06 at the owner's
+request, and polish became m15:** m13 marks the analysis's corrections on the transcript
+where they happened, and is **CODE COMPLETE and uncommitted**; m14 is grammar practice,
+planned and not started. Three criteria — S4, S5, S7 — are blocked on speech only a person
+can produce, and no milestone changes that. The repository is `Luisfelipecruz/speaklab`;
+every git command is prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-09-06 (m13 built; m14 and m15 planned)
 **Companion to:** `../PRD.md`
 
 ---
 
 ## 0. How to read this
 
-Fourteen milestones, `m0` through `m13`. `m0` is a throwaway spike; `m1`–`m13` each
+Sixteen milestones, `m0` through `m15`. `m0` is a throwaway spike; `m1`–`m15` each
 become exactly one stacked pull request.
 
 Every milestone states:
@@ -360,7 +360,7 @@ tables precisely because they are queried across rows, aggregated by category an
 Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout` that m3
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
-against `app.openapi()` at m13, not recalled — this list is the forecast, the running
+against `app.openapi()` at m15, not recalled — this list is the forecast, the running
 system is the authority. **18 exist as of m7**, counted from the running app rather than
 from this list. m5 added none: its `POST /synthesize` is a model-service internal API, and
 the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
@@ -1298,14 +1298,14 @@ because nothing ran.
 
 ---
 
-### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE** — `4b0e79e` and `c321e36`, plus a third uncommitted commit (contrast, gutters, the font), unpushed
+### m12 — Navigation, layout and the signed-in shell · **MERGED (PR #14, 2026-09-06)** — `720b6f2`, three commits squashed
 
 **Goal.** A person who has signed in can see where they are, where else they can go, and
 what to do next — on a phone and on a 27-inch monitor.
 
 **Why here.** Two reasons, and neither is taste.
 
-The first is sequencing. m13 records a walkthrough, and a walkthrough of an interface that
+The first is sequencing. The polish milestone records a walkthrough, and a walkthrough of an interface that
 is about to be replaced is a recording made twice.
 
 The second is that m11 measured this product and got the same answer three times. S4 has
@@ -1319,7 +1319,7 @@ arriving late. m7 shipped `AppShell` as a header that exists, in its own words, 
 person who cannot get from a conversation back to the catalogue has to type a URL" — a
 stated minimum, not a design. The scope-creep rule is there to stop features being
 invented; it should not be used to rule an unmet quality bar out of scope. §9 now reads
-m1–m13.
+m1–m13 — and, since 2026-09-06, m1–m15.
 
 **What is wrong, counted rather than asserted.**
 
@@ -1372,7 +1372,7 @@ width its content did not ask for; and `npm run lint`, `npm run typecheck`, `npm
 `npm run build` are green.
 
 **Explicitly not here.** Empty states, loading skeletons and error boundaries for the
-*existing* pages stay in m13 — this milestone builds the frame, m13 finishes what sits
+*existing* pages stay in the polish milestone — this milestone builds the frame, polish finishes what sits
 inside it, and the one screen created here ships with its own empty state. No API change
 either: every number this milestone puts on screen is already served by an operation that
 exists, so the count stays at 25 of 30.
@@ -1383,7 +1383,7 @@ navigation, the type scale left the product at 12 px, and four metric families o
 meant eleven charts each holding a single measurement. All three are corrected on the same
 branch, in a second commit, with `docs/decisions/0010` superseding §3 of 0009. That is not
 scope creep arriving late — it is the same rule this milestone was admitted under: an unmet
-quality bar on work already delivered is not a new idea. What it does mean is that **m13's
+quality bar on work already delivered is not a new idea. What it does mean is that **the polish milestone's
 "empty states for the existing pages" is now smaller than it was**, because the emptiest
 page in the product has been dealt with.
 
@@ -1391,7 +1391,136 @@ page in the product has been dealt with.
 
 ---
 
-### m13 — Polish, documentation, demo
+### m13 — Corrections in the transcript · **CODE COMPLETE** (2026-09-06) — uncommitted; `GIT-COMMANDS.md` §A.13
+
+**Goal.** A learner reading back a conversation sees each proposed correction on the words
+it is about, not only in a block at the end.
+
+**Why here.** Two reasons. The first is that this is not a new idea: `language_errors` has
+carried `span_start` and `span_end` since m2, with a column comment saying they exist "so
+the UI underlines the words rather than restating them", and no screen ever read them. m9
+stored the offsets, m9's report listed the corrections, and the transcript stayed unmarked.
+The second is that the owner asked for it on 2026-09-06, in the same breath as grammar
+practice (m14): the corrections are that milestone's raw material, and a learner who
+cannot see where a mistake happened cannot practise avoiding it.
+
+**Deliverables.**
+```
+frontend/src/lib/corrections.ts                          the join and the placement, pure
+frontend/src/lib/corrections.test.ts
+frontend/src/components/Corrections.tsx                  the marks and the numbered list
+frontend/src/components/Corrections.test.tsx
+frontend/src/components/TurnBubble.tsx                   (extended: a `corrections` prop)
+frontend/src/components/TranscriptPane.tsx               (extended: corrections keyed by turn)
+frontend/src/app/(app)/sessions/[id]/Conversation.tsx    the join, from the report
+frontend/src/components/{TurnBubble,TranscriptPane}.test.tsx   (extended)
+docs/decisions/0012-corrections-in-the-transcript.md
+docs/changelog.md · README.md · api/config.py (version)
+```
+
+**Decisions.**
+- **The report is the source, not a new field on the turn.** The report already carries
+  every correction with its `turn_id` and offsets, and the transcript page already holds
+  the report. Joining the two in the browser adds no operation — 25 of 30 stays — and keeps
+  a property the report already has: a correction is shown once the session has been
+  ended and analysed, never mid-conversation. The persona does not correct the speaker on
+  purpose, and the transcript should not either while the conversation is going.
+- **The transcript's words win.** Offsets were located case-insensitively with flexible
+  whitespace, so the stored quote can differ from the words at its offsets. What is marked
+  is what the recogniser wrote; the check compares letters and digits only, the same
+  normalisation the server used.
+- **A correction whose offsets do not hold its words is listed and not marked.** Never an
+  underline under the wrong words. The row says it is unmarked.
+- **Overlaps are not nested.** The first by position is marked; the later one is listed
+  with a number and no mark.
+- **Two kinds of mark.** Counted corrections amber and solid; corrections on words the
+  recogniser was unsure of, or that the model hedged on, dotted and grey, with the badge
+  the report already uses. Absence is not a claim: a turn with no corrections renders no
+  heading, because it may simply not have been analysed.
+- **A numbered list under the bubble, not a tooltip.** A tooltip is unreachable on a
+  phone and unannounced by a screen reader; the number in the text and the row under it
+  are reachable by everyone, and the row carries the category, the explanation and
+  whether it counts.
+
+**Tests.** Placement is a pure function and is tested as one: text order, numbering, the
+recogniser's spelling kept, offsets that do not hold the quote, offsets past the end, null
+offsets, overlaps. The component tests assert that a mark covers the quoted words and
+nothing else, that a doubtful correction is drawn differently and says why, and that an
+unplaced one says it is unmarked. The bubble and pane tests assert corrections reach the
+turn they were found in and no other, and that a turn with none renders no list.
+
+**Done when.** A completed session's transcript marks every placeable correction on its
+words and lists every correction under its turn, in both modes and at 375 px; lint,
+typecheck, tests and build green. **Seen** on 2026-09-06 with a synthesised learner turn
+posted through the real pipeline on a throwaway account: four corrections, two counted and
+two marked as possible mishearings, on the words they quoted, at 1440 and 375 px in both
+modes. The verification session was deleted afterwards so the corpus is unchanged. **The
+build is unverified this session** — the container had no outbound network for the font
+fetch, and nothing failed to compile.
+
+**Explicitly not here.** No API change. No per-form accuracy, no rule layer, no way to
+practise a correction — all m14. The report's own list is untouched.
+
+**Branch** `feature/m13-corrections` · **PR** `feat: mark proposed corrections on the transcript where they happened`
+
+---
+
+### m14 — Grammar practice · **PLANNED**, not started
+
+**Goal.** A learner can see which grammar they get wrong, in their own sentences, and
+practise it — against a detector that is right often enough to be worth practising against.
+
+**Why here.** The owner asked for it on 2026-09-06. It is a new idea, and R8 says new ideas
+go to the PRD first: PRD §15.1 records it, dated. It comes after m13 because the
+corrections are its raw material, and before m15 because a walkthrough of a product about
+to gain a section is a recording made twice.
+
+**What exists already, so none of it is rebuilt.** Every user turn is parsed for 26
+grammatical features (`services/grammar.py`); every error is filed under nine closed
+categories with a correction and an explanation; rollups carry errors per category per 100
+words; the recommendation already picks a scenario from the weakest category and states
+the reason; `language_errors.detector` allows `'rule'` and every row so far is `'llm'`.
+
+**What is missing, in the order it has to be built.**
+
+1. **The rule layer (Q15).** Subject–verb agreement and article omission, proposed from
+   the parse with confidence 1.0 and no taxonomy gate. It raises precision without a bigger
+   model, and it makes the category mix partly a property of the detector — which the
+   report must say. Measured by `make error-precision`, per detector, before anything is
+   built on it.
+2. **Per-form accuracy.** Nothing links an error to the form it happened in, so "your
+   present perfect is 54 % right" cannot be computed. The join is a design decision: the
+   parser's verb-phrase spans against the error's span, and only for `VERB_TENSE`.
+3. **A grammar section.** The learner's categories with their own sentences — original,
+   correction, explanation — the forms they use and how correctly, and the scenario that
+   elicits the weakest one. Whether it is a family under `/progress` or a rail entry of its
+   own is decided when it is built.
+4. **One drill, and it is spoken.** Say it again: given one of the learner's own corrected
+   sentences, record it, transcribe it, score it against the correction with the word
+   error rate code that exists. Deterministic, no model call, measurable. A typed gap-fill
+   would be a different product.
+5. **Seeds that elicit the other categories.** Every scenario's target grammar is tense,
+   modal or conditional; nothing is written to elicit articles, prepositions or false
+   friends. Two or three scenarios that do, and `cefr_band` set on every scenario and
+   passage, because the band filter currently filters on nothing.
+
+**Decisions to make, not made.** Whether the drill lives on the session page or the
+grammar section; whether a rule-layer row is drawn differently from a model's row on the
+transcript; what the drill's pass mark is, and whether one exists.
+
+**Tests.** Rule proposals against a fixture of known sentences and against the golden set;
+the per-form join against hand-labelled turns; the drill's scoring against known
+transcripts; the section's empty state for an account with no corrections.
+
+**Done when.** `make error-precision` reports the rule layer's precision separately and
+above the model's; a learner with corrections can open the grammar section, see their own
+sentences, and complete one spoken drill that is scored; every seed carries a band.
+
+**Branch** `feature/m14-grammar` · **PR** `feat: add a rule layer, per-form accuracy and grammar practice`
+
+---
+
+### m15 — Polish, documentation, demo *(was m13 until 2026-09-06)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1406,6 +1535,7 @@ docs/changelog.md
 demo/{record.cjs,speaklab-walkthrough.mp4,cover.png}
 frontend/src/app/**                    empty states, loading skeletons, error boundaries
 api/main.py                            OpenAPI descriptions and examples
+api/routers/progress.py                GET /progress/export — FR-25, the one requirement with nothing behind it
 Makefile                               (all targets documented)
 ```
 
@@ -1418,7 +1548,7 @@ Makefile                               (all targets documented)
 **Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1),
 every S-criterion is verified and recorded, and the walkthrough is recorded.
 
-**Branch** `feature/m13-polish` · **PR** `feat: finalise documentation, demo and empty states`
+**Branch** `feature/m15-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
 ---
 
@@ -1437,7 +1567,9 @@ m1 scaffold
                                                                   └─ m10 progress
                                                                       └─ m11 eval
                                                                           └─ m12 shell
-                                                                              └─ m13 polish
+                                                                              └─ m13 corrections in the transcript
+                                                                                  └─ m14 grammar practice
+                                                                                      └─ m15 polish
 ```
 
 m4 and m5 are genuinely independent and could be worked in either order. Everything else
@@ -1457,7 +1589,7 @@ at `main` except m1.
 | R5 GOP varies with hardware | m10 | Within-user z-score, device fingerprint, sample gate |
 | R6 `pron` memory pressure | m1, m8 | Profiled service, graceful degradation tested |
 | R7 Persona drift | m6, m11 | Per-turn re-anchoring, summarised history, adherence suite |
-| R8 Scope creep | this document | m1–m13 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea |
+| R8 Scope creep | this document | m1–m15 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled |
 
 ---
 
@@ -1480,8 +1612,10 @@ Evenings-and-weekends pace, one developer.
 | m10 | 4 | Charts and rollup arithmetic |
 | m11 | 3 | |
 | m12 | 3–4 | The sidebar is the easy half; deciding what belongs on a signed-in home is not |
-| m13 | 3 | |
-| **Total** | **~40–44** | |
+| m13 | 1 | The join already existed in the report; the work is placement and the tests |
+| m14 | 4–5 | The rule layer has to be measured before anything is built on it |
+| m15 | 3 | |
+| **Total** | **~46–51** | |
 
 ---
 
@@ -1496,28 +1630,23 @@ record; the live version is below.
 
 ### The next three actions
 
-**m12 is built and uncommitted on `feature/m12-shell`, cut from `c502bd8`.**
+**m12 is merged as `720b6f2` (PR #14). m13 is built and uncommitted in a clean working
+tree on `main`; the branch is cut by `GIT-COMMANDS.md` §A.13.**
 
-1. **Commit and open the PR** — `GIT-COMMANDS.md` §A.12 and §B.10. The shell is a sidebar
-   that becomes a sheet below `md`, `/` split into a public front door and a signed-in
-   `/home`, width moved from the shell to three named measures the page picks from, the
-   `(app)` route group replacing four duplicated layouts, and dark mode wired up rather
-   than deleted. `docs/decisions/0009` records the seven decisions and what was ruled out.
-   Every route is where it was, no API operation moved, no dependency added. Lint,
-   typecheck, build and 174 frontend tests across 26 suites are green.
-2. **Read `docs/decisions/0008` §5 before touching `services/conversation.py`.** The
-   persona recites its brief in 30 of 40 attempts when an instruction is spoken inside the
-   scene, and the guardrail that forbids it has been in place since m6 unmeasured. **Q16**
-   carries the fix, and the reason it is not in m11 is that a prompt change needs measuring
-   across more than one model — which is now possible for the first time.
-3. **Then m13 — polish, documentation, demo**, last for a practical reason on top of the
-   original one: it records a walkthrough, and a walkthrough of an interface about to be
-   replaced is a recording made twice. It has **no decision doc of its own** unless
-   something is decided; it rewrites the README against measured reality, finalises
-   `docs/{architecture,data-model}.md`, records the walkthrough, and verifies every
-   S-criterion. Four are already adjudicated by `make eval`, so m13's job there is the other
-   six — and S9 and S10 are the two it should automate, because "the test count matches the
-   README" is a check, not a claim.
+1. **Commit m13 and open its PR** — §A.13, then §B.11. Two commits on
+   `feature/m13-corrections`: the plan and PRD changes first, so the branch starts with the
+   milestone written down, then the code. Frontend only — no API change (25 of 30), no
+   migration, no dependency. Lint, typecheck and **202 tests across 30 suites** are green
+   in Docker; the build is **unverified this session**, because the `run` container had no
+   outbound network for the font fetch (trap 70) — nothing failed to compile.
+2. **The person-only list, before anything else is built.** Five minutes of recording
+   (`spike/RECORD.md` — S4 and Q2); conversations on three separate days (S5 and S7); the
+   record button in Chrome and Safari; `make tts-sample` (Q10). None of m13, m14 or m15
+   moves a criterion. This does.
+3. **Then m14, and read `docs/decisions/0006` §6 first.** The rule layer comes before the
+   page and the drill, because a drill built on a detector that is right half the time
+   teaches the wrong thing half the time. Q15 is the design question and it is already
+   half-answered.
 
 **One thing PR #13's merge taught, and it is not about any milestone.** A commit made
 straight onto `main` is not finished until `git push` has run. `4508bf4` was not pushed, so
@@ -1525,12 +1654,12 @@ the squash absorbed it and the next `git pull --ff-only` refused on a genuine di
 Nothing was lost, and one command proved it — `git diff <pr-head> origin/main`, empty. The
 sheet's §D sections now end in a push and a check for exactly this reason.
 
-**What m13 must not do:** rewrite the README into something warmer than the measurements
+**What m15 must not do:** rewrite the README into something warmer than the measurements
 support. Three criteria are unmet, one has never run, and one is a role-integrity failure
 found by this project's own harness. A portfolio README that leads with those is a
 stronger document than one that buries them, and it is the only one consistent with S10.
 
-Three things still need a person, and none of them blocks m12 or m13 — but two are now what
+Three things still need a person, and none of them blocks m13, m14 or m15 — but two are now what
 stands between this project and three of its own success criteria:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in
