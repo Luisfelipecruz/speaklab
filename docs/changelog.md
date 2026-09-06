@@ -7,6 +7,74 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.13.0] — 2026-09-06 · m13, corrections in the transcript
+
+Every correction the analysis stores has carried character offsets into its turn since the
+schema was written, and no screen read them. The report at the end of a session listed the
+corrections; the transcript above it stayed unmarked, so a learner who read that "I have
+meet" should have been "I had met" had to scroll up and find the turn by eye.
+
+**Now the transcript marks them where they happened.** Once a session has been ended and
+its report exists, each of the speaker's turns draws its corrections on its own words — a
+counted one amber with a solid underline, one the system does not trust grey and dotted —
+with a superscript number, and lists them under the bubble: the original struck through,
+the replacement, the category, the doubt badge if any, and the explanation.
+[Decision 0012](decisions/0012-corrections-in-the-transcript.md) records what was decided
+and what the marking refuses to do.
+
+**Frontend only.** The report already carried every correction with its turn id and
+offsets; the join is a `Map` built in the browser. No API operation added or moved — 25 of
+30, unchanged — no migration, no dependency.
+
+### Added
+
+- **`lib/corrections.ts`** — the join from a report to its turns, and the placement: which
+  corrections can be marked, in what order, and the segments a bubble renders. The
+  transcript's own spelling is what gets marked, checked against the quote with the same
+  letters-and-digits normalisation the server used to locate it. Offsets that do not hold
+  their quote, run past the end, or overlap an earlier mark are listed and not marked.
+- **`components/Corrections.tsx`** — the marked paragraph and the numbered list. Each mark
+  carries a visually hidden "correction n" for a screen reader; each row is reachable
+  without hovering.
+
+### Changed
+
+- **`TurnBubble`** takes a `corrections` prop and, for a speaker's turn that has any,
+  renders the marked paragraph and the list. A turn with none renders no heading, because
+  absence is not a claim that the turn was analysed.
+- **`TranscriptPane`** takes corrections keyed by turn id and hands each bubble its own.
+- **The session page** builds the map from the report and says, above the transcript, that
+  the corrections are marked on the speaker's turns and totalled in the report.
+
+### Measured
+
+- Frontend suite **202 tests across 30 suites** (was 187 across 28); lint and typecheck
+  clean, all inside Docker.
+- Seen with a synthesised learner turn posted through the real pipeline on a throwaway
+  account: four corrections, two counted and two flagged as possible mishearings, marked on
+  the words they quoted at 1440 and 375 px in both modes. The session was deleted
+  afterwards so the corpus is unchanged.
+
+### Known
+
+- **The build was not verified in this release.** The container the checks run in had no
+  outbound network during the session and `next/font` fetches its family at build time.
+  Nothing in this change touches the layout or its configuration.
+- A session abandoned without being ended shows no marks, for the same reason it has no
+  report.
+- One of the four corrections seen was filed under word order for a verb-form mistake —
+  the labelling failure decision 0006 measured. Marking a correction on the right words
+  does not make its category right; that is the rule layer's job, and it is planned.
+
+### Not in this release
+
+Per-form accuracy, a rule-based detector, a grammar section and a spoken drill — planned
+as the next milestone. Empty states, loading skeletons and error boundaries for the
+existing pages, the README rewritten against measured reality, and the demo walkthrough —
+polish, now m15.
+
+---
+
 ## [0.12.0] — 2026-09-06 · m12, navigation, layout and the signed-in shell
 
 Everything this system measures was already being computed and served; what was missing
@@ -161,7 +229,8 @@ focus to its own trigger, and this one is opened by a button outside it.
 ### Not in this release
 
 Empty states, loading skeletons and error boundaries for the *existing* pages, the README
-rewritten against measured reality, and the demo walkthrough — all m13.
+rewritten against measured reality, and the demo walkthrough — all polish, which was m13
+when this was written and is m15 now.
 
 ---
 

@@ -5,13 +5,14 @@
 
 Every model runs on your machine. Nothing is sent anywhere.
 
-**Status: milestone 10 of 12.** Both practice modes work end to end, what you said is
+**Status: milestone 13 of 15.** Both practice modes work end to end, what you said is
 analysed, and it now adds up over time. Choose a scenario, hold a button, talk, and a
 persona answers out loud; or choose a passage, read it aloud, and get it back with every
 sound scored against the sound the text asked for — including which sound came out
 instead. End a conversation and the report tells you how fast you spoke, which grammatical
 forms you actually used against the ones the scenario was built to draw out, and what to
-correct. The progress page then collapses all of that into weekly figures, and mostly
+correct — and marks each correction on the transcript, on the words it was about. The
+progress page then collapses all of that into weekly figures, and mostly
 tells you what it is still waiting for. See
 [What does not exist yet](#what-does-not-exist-yet), which is still a real list: the
 evaluation harness is m11, **error detection does not yet meet its own accuracy bar**, and
@@ -161,7 +162,7 @@ not claimed.
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | API test suite | **562** — 528 pass with no model services running; the other 34 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **187** across 28 suites, Jest and React Testing Library, no services needed |
+| Frontend test suite | **202** across 30 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
@@ -295,6 +296,13 @@ recogniser wrote the punctuation and you did not. **25 % of proposals are curren
 refused**, and that rate is the measurement that says whether the model behind this is good
 enough.
 
+**Once a session has been ended, the transcript marks each accepted correction on the
+words it quotes** — a superscript number on the words, a numbered row under the turn with
+the replacement, the category and the explanation. A correction on words the recogniser
+was unsure of is drawn dotted and says it may be a mishearing; one whose offsets do not
+hold its words is listed and never underlined. The marks come from the same report the
+totals do, so nothing is marked while the conversation is still going.
+
 **An error sitting on a word the recogniser was unsure of is shown and marked, and counts
 towards nothing.** The gate is per word, not per turn, and that was settled by real speech:
 a stored turn scored 0.899 overall while containing "department" where the speaker said
@@ -383,6 +391,8 @@ Named explicitly so nothing here reads as a claim.
 | m11 | **A judge from a different model family.** `gemma3:4b` grading `gemma3:4b` shares its blind spots by construction. The calibration set is the only thing standing between that and a meaningless number, and swapping the judge needs nothing but an environment variable |
 | m11 | **A test that runs a deliberately broken suite.** The harness's self-tests feed fixtures to the adjudicator; nothing yet runs a suite that lies |
 | m12 | Documentation and a demo |
+| m13 | **Marks appear only on a session that has been ended.** They are read from the report, which is written at the end, so a conversation abandoned mid-way shows no corrections — for the same reason it has no report |
+| m13 | **A mark on the right words does not make the category right.** The labeller still files a verb-form mistake under word order at the rate decision 0006 measured; the rule layer that would change that is planned, not built |
 
 ---
 

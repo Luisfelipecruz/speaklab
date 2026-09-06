@@ -76,3 +76,32 @@ test("a reply that has just arrived speaks once, and not again on every re-rende
   rerender(<TranscriptPane items={HISTORY} autoPlayTurnId={3} />);
   expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
 });
+
+test("corrections reach the turn they were found in and no other", () => {
+  const corrections = new Map([
+    [
+      2,
+      [
+        {
+          turn_id: 2,
+          category: "VERB_TENSE",
+          subcategory: null,
+          span_start: 0,
+          span_end: 5,
+          original: "I led",
+          correction: "I have led",
+          explanation: null,
+          confidence: 0.8,
+          asr_suspect: false,
+          counted: true,
+        },
+      ],
+    ],
+  ]);
+  render(<TranscriptPane items={HISTORY} corrections={corrections} />);
+
+  const marks = document.querySelectorAll("mark");
+  expect(marks).toHaveLength(1);
+  expect(marks[0]).toHaveTextContent(/^I led/);
+  expect(screen.getAllByRole("list", { name: "Proposed corrections" })).toHaveLength(1);
+});

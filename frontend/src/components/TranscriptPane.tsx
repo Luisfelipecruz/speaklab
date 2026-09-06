@@ -19,7 +19,7 @@
 import * as React from "react";
 
 import { TurnBubble } from "@/components/TurnBubble";
-import type { Speech } from "@/lib/api";
+import type { LanguageErrorItem, Speech } from "@/lib/api";
 import type { TranscriptItem } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,11 @@ export interface TranscriptPaneProps {
    */
   autoPlayTurnId?: number | null;
   onReplyPlayingChange?: (playing: boolean) => void;
+  /**
+   * Corrections keyed by turn id, from the session's report. Absent while the
+   * conversation is still going — there is no report yet, and nothing to mark.
+   */
+  corrections?: ReadonlyMap<number, LanguageErrorItem[]>;
   className?: string;
 }
 
@@ -44,6 +49,7 @@ export function TranscriptPane({
   lastSpeech,
   autoPlayTurnId = null,
   onReplyPlayingChange,
+  corrections,
   className,
 }: TranscriptPaneProps) {
   const endRef = React.useRef<HTMLDivElement>(null);
@@ -81,6 +87,7 @@ export function TranscriptPane({
               ? onReplyPlayingChange
               : undefined
           }
+          corrections={item.kind === "stored" ? corrections?.get(item.turn.id) : undefined}
         />
       ))}
 

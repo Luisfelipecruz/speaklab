@@ -20,13 +20,21 @@
  * shows how long the recording was. The browser does not know what was said — the
  * recogniser is the only thing that does — so anything else in that space would be the
  * interface inventing a transcript.
+ *
+ * **Corrections are marked where they happened.** Once a session has its report, the
+ * corrections found in a turn arrive with it, and the turn draws them on its own words
+ * with a numbered list underneath. During the conversation there are none to draw: the
+ * persona does not correct the speaker, and analysis runs behind the turn, so the marks
+ * appear when the report does and not before.
  */
 
 import { AlertTriangle, Loader2, VolumeX } from "lucide-react";
 
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { audioUrl, type Speech, type Turn } from "@/lib/api";
+import { CorrectionList, MarkedText } from "@/components/Corrections";
+import { audioUrl, type LanguageErrorItem, type Speech, type Turn } from "@/lib/api";
 import type { TranscriptItem } from "@/hooks/useSession";
+import { markTranscript } from "@/lib/corrections";
 import { cn } from "@/lib/utils";
 
 export interface TurnBubbleProps {
@@ -41,6 +49,8 @@ export interface TurnBubbleProps {
   /** Speak this reply as soon as it appears. Set on the newest assistant turn only. */
   autoPlay?: boolean;
   onPlayingChange?: (playing: boolean) => void;
+  /** The corrections the analysis found in this turn, from the session's report. */
+  corrections?: LanguageErrorItem[];
 }
 
 function Frame({
@@ -73,6 +83,7 @@ export function TurnBubble({
   speech,
   autoPlay = false,
   onPlayingChange,
+  corrections,
 }: TurnBubbleProps) {
   if (item.kind === "pending") {
     return (
@@ -89,6 +100,10 @@ export function TurnBubble({
   const turn: Turn = item.turn;
   const mine = turn.role === "user";
   const src = audioUrl(turn.audio_url);
+  const marked =
+    mine && turn.transcript && corrections && corrections.length > 0
+      ? markTranscript(turn.transcript, corrections)
+      : null;
 
   return (
     <Frame mine={mine}>
@@ -104,7 +119,9 @@ export function TurnBubble({
         )}
       </div>
 
-      {turn.transcript ? (
+      {marked ? (
+        <MarkedText marked={marked} />
+      ) : turn.transcript ? (
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{turn.transcript}</p>
       ) : (
         <p className="text-sm text-muted-foreground italic">
@@ -137,6 +154,8 @@ export function TurnBubble({
               : "The voice was unavailable, so this reply is text only."}
         </p>
       )}
+
+      {marked && <CorrectionList corrections={marked.corrections} />}
     </Frame>
   );
 }

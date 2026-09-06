@@ -109,3 +109,52 @@ test("a turn with nothing transcribed says that, instead of rendering an empty b
 
   expect(screen.getByText(/Nothing was transcribed/)).toBeInTheDocument();
 });
+
+test("a corrected turn keeps every word and marks only the ones a correction quotes", () => {
+  const transcript = "Yesterday I complete the user story and sent it on.";
+  render(
+    <TurnBubble
+      item={{
+        kind: "stored",
+        turn: makeTurn({ id: 6, role: "user", transcript, audio_asset_id: null, audio_url: null }),
+      }}
+      corrections={[
+        {
+          turn_id: 6,
+          category: "VERB_TENSE",
+          subcategory: "missing_past_marker",
+          span_start: 10,
+          span_end: 35,
+          original: "I complete the user story",
+          correction: "I completed the user story",
+          explanation: "Yesterday needs the past simple.",
+          confidence: 0.9,
+          asr_suspect: false,
+          counted: true,
+        },
+      ]}
+    />,
+  );
+
+  const mark = document.querySelector("mark");
+  expect(mark).toHaveTextContent(/^I complete the user story/);
+  // The bubble's paragraph still reads as the whole sentence.
+  expect(mark?.closest("p")).toHaveTextContent(/^Yesterday I complete the user story\s*1.*and sent it on\.$/);
+  expect(screen.getByRole("list", { name: "Proposed corrections" })).toHaveTextContent(
+    "I completed the user story",
+  );
+});
+
+test("a turn with nothing flagged shows no correction list at all", () => {
+  // Absence is not a claim. A turn without corrections says nothing about whether it
+  // was analysed, so it must not render a heading that reads as "none found".
+  render(
+    <TurnBubble
+      item={{ kind: "stored", turn: makeTurn({ role: "user", transcript: "Thank you." }) }}
+      corrections={[]}
+    />,
+  );
+
+  expect(screen.queryByText("Proposed corrections")).not.toBeInTheDocument();
+  expect(document.querySelector("mark")).toBeNull();
+});
