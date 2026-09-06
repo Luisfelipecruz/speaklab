@@ -163,7 +163,8 @@ apartment viewing, explaining a technical incident to a non-technical stakeholde
 
 **On ending a session** the user gets a report: what they did well, the errors grouped by
 category with corrections, the forms they used, and the forms the scenario expected but
-never got out of them.
+never got out of them. The transcript itself marks each correction on the words it is
+about, once the report exists — the offsets every error carries are stored for that.
 
 ### 6.2 Read-aloud with pronunciation scoring
 
@@ -550,6 +551,17 @@ Streaming/full-duplex conversation · other target languages · native mobile ap
 multi-user or teacher dashboards · a spaced-repetition vocabulary trainer · prosody and
 intonation scoring beyond phone-level GOP · accent selection (GA vs RP) · user-authored
 scenarios in the UI · CEFR calibration against human raters · cloud deployment.
+
+### 15.1 Recorded after the milestones were fixed
+
+Ideas that arrived once m1–m12 were built. Each is dated, and each stays here until a
+milestone in the plan names it — recording is not scheduling.
+
+| Date | Idea | Status |
+|---|---|---|
+| 2026-09-06 | **Corrections marked on the transcript.** The offsets every error carries were stored so the interface could underline the words, and no screen read them | Not a new idea; delivered as plan m13 |
+| 2026-09-06 | **Grammar practice.** A rule-based detector for the categories a parse can decide, accuracy per grammatical form, a section that shows the learner's own corrected sentences, and one spoken drill — say the corrected sentence, scored by transcription | Scheduled as plan m14, after m13 and before polish |
+| 2026-09-06 | **Seeds that elicit articles, prepositions and false friends**, and a CEFR band on every scenario and passage — the band filter currently filters on nothing | Folded into m14 |
 
 ---
 
