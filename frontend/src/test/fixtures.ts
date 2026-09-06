@@ -22,6 +22,21 @@ import type {
   TrendSeries,
   Turn,
 } from "@/lib/api";
+import type { UserProfile } from "@/lib/auth";
+
+/** A signed-in account, for anything that renders around the session. */
+export function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
+  return {
+    id: 1,
+    email: "someone@example.com",
+    native_language: "es",
+    cefr_self_assessed: "B1",
+    retain_audio: true,
+    created_at: "2026-08-30T10:00:00Z",
+    ...overrides,
+  };
+}
+
 
 export function makeTurn(overrides: Partial<Turn> = {}): Turn {
   return {

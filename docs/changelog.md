@@ -7,6 +7,164 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.12.0] — 2026-09-06 · m12, navigation, layout and the signed-in shell
+
+Everything this system measures was already being computed and served; what was missing
+was an interface that put it in front of the person practising. The four sections were
+four text links in a row beside the wordmark, every screen was 1024 pixels wide at every
+viewport, the front page was a service-status table, and signing in dropped you on a
+catalogue of eight scenarios that knew nothing about you.
+
+**This is the frame, not a redesign.** Every screen still renders what it rendered, no API
+operation was added or moved — 25 of 30, unchanged — and no runtime dependency was
+installed. What changed is where things are and how much room they get.
+
+**Then the frame was looked at, and three of its decisions were wrong.** Not wrong in
+principle — each was reasoned and each is still the right requirement — but wrong once the
+pages were on a screen together. Per-page widths moved the content box on every
+navigation; a type scale nobody set left 56 of 76 text nodes on the catalogue at 12 px;
+and four metric families on one page meant eleven charts each holding a single
+measurement. [Decision 0010](decisions/0010-reading-the-interface.md) records all three and
+supersedes §3 of 0009.
+
+**And then it was looked at again, and the improvements were not visible.** Three
+complaints, all correct — components with one line in them stretched across the whole
+row, nothing had enough contrast to read at a glance, and there was no space between the
+rail and the content — and a fourth thing found while measuring the first: **every page
+had been rendering in Times New Roman.** The font variable was set on `<body>` and read on
+`<html>`, where it does not exist, so the declaration was dropped silently. The palette was
+also pure grey — `chart-1` measured 1.48:1 against a white card, the rail 1.04:1 against
+the page. [Decision 0011](decisions/0011-contrast-gutters-and-the-font.md) has the
+measurements before and after.
+
+**A rail instead of a row, and it carries what the sections contain.** Five entries, each
+with the fact that decides whether it is worth opening: how many conversations are stored,
+how many readings have been scored, whether the progress figures are behind the practice
+that produced them. They cost no extra request — the signed-in layout is a server
+component reading the same snapshot the progress page reads, so the counts are correct at
+first paint. Below the medium breakpoint the rail becomes a sheet, because practice
+happens on the device the microphone is in.
+
+**`/` split in two.** A public front door for a stranger; `/home` for somebody signed in,
+assembled from three responses that already existed and now where signing in lands. The
+service-status table moved to `/status`, reachable by address and deliberately not in the
+navigation — it is a diagnostic and it belongs to whoever runs the stack.
+
+**Dark mode ships rather than being deleted.** The `.dark` block and sixteen sidebar
+variables had been in `globals.css` since the beginning with nothing setting the class and
+nothing reading a variable. The rail is the first thing in the repository that reads them.
+
+Writing the shell's first test found two bugs and fixed both: two separate "Sign in"
+controls, and focus not being returned when the mobile sheet closed — a dialog restores
+focus to its own trigger, and this one is opened by a button outside it.
+
+### Added
+
+- **`components/AppSidebar.tsx`** — the rail. Five sections, `aria-current` on the current
+  one, a real `<nav>` landmark, badges from the practice snapshot, and an icon-only
+  collapsed state whose tooltips say what each section is for.
+- **`components/ThemeToggle.tsx`** and **`lib/theme.ts`** — light, dark, or the operating
+  system. The class is set by a synchronous script in `<head>` before first paint, because
+  a theme applied from an effect is a white flash on every navigation for anybody who
+  chose dark. The rule exists twice — as that script and as functions — and a test runs
+  the script and compares its result against the functions over all six cases.
+- **`components/PageHeader.tsx`** — a page's title and the measure every screen shares,
+  with `Prose` for the narrower column running text sits in.
+- **`components/SectionTabs.tsx`** — sections as links rather than a tab widget, so the
+  section is in the URL and works with the back button, with sharing, and before any
+  JavaScript arrives.
+- **`app/(app)/home/page.tsx`** — the signed-in home, with a designed empty state for an
+  account that has never practised.
+- **`app/status/page.tsx`** — the service-status table, moved off the front page.
+- **`components/ui/{sidebar,sheet,dropdown-menu,skeleton,tooltip}.tsx`** and
+  `hooks/use-mobile.ts`, from the component registry.
+- **Tests for the three components that had none** — `AppShell`, `AuthProvider` and
+  `PhonemeTable.helpers` — plus the new files. **182 frontend tests across 27 suites**, up
+  from 130 across 18. Twenty-two components, twenty-two test files.
+
+### Changed
+
+- **`app/(app)/`** replaces four near-identical `layout.tsx` files. The parentheses keep it
+  out of the URL: `/scenarios`, `/read`, `/sessions` and `/progress` are exactly where they
+  were, and the build output confirms all twelve routes are unmoved.
+- **`AppShell`** is rewritten around the rail and no longer caps width. The top bar carries
+  the control that opens the rail on a phone, the theme toggle, and sign-out.
+- **`app/page.tsx`** is a front door rather than a health check.
+- **`DEFAULT_AFTER_LOGIN`** is `/home`, not `/scenarios`.
+- **The progress page shows one metric family at a time.** All four at once is eleven
+  series, and on this project's corpus every one of them holds a single measurement — so
+  the page was eleven near-empty charts and some fifty figures at 11 px. The families are
+  independent of each other, so there is nothing to compare across them; each is now its
+  own section, and the overview answers "how am I doing" with the totals, what to practise
+  next, and one line per family. Breadth moved next to the family it qualifies.
+- **A series with one measured period is drawn as a reading, not as a chart.** One dot in
+  the middle of an empty box is the shape of a chart that failed to load. The number is set
+  large with the week it came from and what a second point would take.
+- **The type scale moves up one step at the small end**, where this product lives:
+  `text-xs` 12 → 13 px, `text-sm` 14 → 15 px, `text-base` 16 → 17 px, `text-lg` 18 → 19 px,
+  defined once rather than at a hundred call sites. The four hand-written `text-[10px]` and
+  `text-[11px]` literals are gone.
+- **One `main` landmark per page, not two.** The vendored `SidebarInset` is itself a
+  `<main>` and the shell rendered another inside it.
+- **The catalogues** go to three and four columns where there is room for them.
+- **The font loads.** The `next/font` class moves from `<body>` to `<html>`, where the
+  `font-sans` rule that reads it lives. `getComputedStyle(document.body).fontFamily` went
+  from `"Times New Roman"` to `Geist, "Geist Fallback"`.
+- **The palette has a hue.** A cool off-white page, white cards with a border and a
+  hairline shadow, a rail a shade darker than the page, and one teal accent for the
+  primary button, the current section, active filters and the measurement on every chart.
+  Muted text goes from 4.73:1 to 7.12:1 on a card; `chart-1` from 1.48:1 to 4.34:1. Dark
+  mode is the same three surfaces inverted. The five chart colours are teal, amber,
+  indigo, rose and green, none of them grey.
+- **One gutter on the shell**, `px-5 sm:px-8 lg:px-12 2xl:px-16`, shared by the top bar so
+  the navigation control, the title and the first card start on one line. A test renders
+  two sections and asserts the wrapper is the same on both.
+- **The measure is 72 rem, not 96**, and one-line things are as wide as their line:
+  notices are `w-fit`, the tab row is `inline-flex`, the totals are a grid of tiles
+  (`StatTile`, new) rather than four numbers in one wide card, the history and the readings
+  of a sitting are one card with a rule between rows rather than a card per row.
+- **Every page heading is the same component**, with a rule under it and an `eyebrow`
+  slot for the badges the detail pages put above their titles. The scenario, passage and
+  sitting pages used to write their own.
+- **Trend charts** draw the line in the accent at 2 px with a faint area under each run,
+  in the same bordered panel a single reading and a gated series already used. Repertoire
+  bars sit on a full-width track so a fraction is visibly a fraction.
+- **The vendored card** gets `border border-border shadow-xs` in place of a ten-per-cent
+  ring, and a semibold title — the one vendored primitive this release edits, and 0011 §5
+  says why a token could not do it.
+
+### Known
+
+- **Opening any menu or tooltip in a test costs several seconds** in jsdom, and it is the
+  positioning library rather than anything in this repository — an open tooltip, which has
+  neither a focus scope nor a scroll lock, costs the same as an open menu. The frontend
+  suite went from about 2 s at 130 tests to 34–136 s at 182, on a machine also running
+  Ollama and a virtual machine — the spread is that load, the floor is the popper. The theme tests drive the menu with the keyboard to avoid most of it.
+  `docs/decisions/0009` §7 records what was ruled out.
+- **The component generator added a dependency and rewrote three files' imports** while
+  pulling the sidebar in. Both were reverted and the three files are byte-identical to
+  what they were; recorded because it would have gone in unnoticed.
+- Holding the record button in Chrome and Safari is **still unverified by a person**, and
+  this milestone does not change that.
+- **The signed-in pages have been looked at with an empty account, and not yet with a
+  full one.** Every section, both modes, at 375, 1440 and 1920 px, signed in as a fresh
+  account with no practice — the browser this time ran on the host, which can reach the
+  API. The stat tiles with real figures, a trend line with its fill, the repertoire bars
+  and the sound-by-sound panel have been rendered by tests, not by eye; the account that
+  has practice cannot be signed into from an agent session.
+- **Lint, typecheck, the suite and the build all run inside Docker** with
+  `docker compose run --rm --no-deps frontend npm run <script>`: a `run` container gets a
+  fresh anonymous `node_modules` and `.next` from the image, so it neither sees the stale
+  volume the long-running container holds nor touches the dev server's build. The earlier
+  advice to build on the host and then clear `.next` is withdrawn.
+
+### Not in this release
+
+Empty states, loading skeletons and error boundaries for the *existing* pages, the README
+rewritten against measured reality, and the demo walkthrough — all m13.
+
+---
+
 ## [0.11.0] — 2026-09-05 · m11, the evaluation harness
 
 Every model-facing claim in this repository is now a number produced by a command, and

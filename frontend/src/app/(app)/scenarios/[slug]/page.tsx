@@ -13,7 +13,8 @@
 
 import { notFound } from "next/navigation";
 
-import { StartSession } from "@/app/scenarios/[slug]/StartSession";
+import { StartSession } from "@/app/(app)/scenarios/[slug]/StartSession";
+import { Page, PageHeader } from "@/components/PageHeader";
 import { humanise } from "@/components/ScenarioCard";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,17 +47,19 @@ export default async function ScenarioPage({
   const criteria = scenario.rubric.criteria ?? [];
 
   return (
-    <div className="flex max-w-3xl flex-col gap-8">
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{scenario.cefr_band}</Badge>
-          <Badge variant="outline">{humanise(scenario.category)}</Badge>
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight">{scenario.title}</h1>
-        <p className="text-muted-foreground">{scenario.description}</p>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow={
+          <>
+            <Badge variant="secondary">{scenario.cefr_band}</Badge>
+            <Badge variant="outline">{humanise(scenario.category)}</Badge>
+          </>
+        }
+        title={scenario.title}
+        description={scenario.description}
+      />
 
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle className="text-base">Your goal</CardTitle>
         </CardHeader>
@@ -65,7 +68,7 @@ export default async function ScenarioPage({
 
           {criteria.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">
+              <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 What the end-of-session report looks at
               </h3>
               <ul className="flex flex-col gap-1.5 text-sm">
@@ -81,7 +84,7 @@ export default async function ScenarioPage({
 
           {scenario.target_grammar.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">
+              <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 Forms this scenario is built to draw out
               </h3>
               <div className="flex flex-wrap gap-1.5">
@@ -97,6 +100,6 @@ export default async function ScenarioPage({
       </Card>
 
       <StartSession slug={scenario.slug} title={scenario.title} />
-    </div>
+    </Page>
   );
 }

@@ -136,3 +136,47 @@ describe("formatting", () => {
     expect(format(118.42, "wpm")).toBe("118");
   });
 });
+
+describe("one measured period", () => {
+  const single = {
+    points: [
+      { start: "2026-08-17", value: null, samples: 0, withheld: "nothing recorded" },
+      { start: "2026-08-24", value: 127.26, samples: 272, withheld: null },
+      { start: "2026-08-31", value: null, samples: 0, withheld: "nothing recorded" },
+    ],
+    direction: null,
+    change: null,
+  };
+
+  test("is a reading, not a chart with one dot in the middle of it", () => {
+    // For months of a new account this is every series on the page. A 320x72 box holding
+    // a single point is the shape of a chart that failed to load.
+    render(<TrendChart series={makeSeries(single)} />);
+
+    expect(screen.queryByTestId("trend-svg")).not.toBeInTheDocument();
+    expect(screen.getByTestId("single-reading")).toHaveTextContent("127");
+  });
+
+  test("says which week it came from and what a line would take", () => {
+    render(<TrendChart series={makeSeries(single)} />);
+
+    expect(screen.getByText(/week of 08\/24/)).toBeInTheDocument();
+    expect(screen.getByText(/second week/)).toBeInTheDocument();
+  });
+
+  test("two measured periods is a chart again", () => {
+    render(
+      <TrendChart
+        series={makeSeries({
+          points: [
+            { start: "2026-08-24", value: 8, samples: 200, withheld: null },
+            { start: "2026-08-31", value: 9, samples: 200, withheld: null },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId("trend-svg")).toBeInTheDocument();
+    expect(screen.queryByTestId("single-reading")).not.toBeInTheDocument();
+  });
+});

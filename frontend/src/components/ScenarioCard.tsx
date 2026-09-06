@@ -25,7 +25,7 @@ export function humanise(token: string): string {
 
 export function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
   return (
-    <Card className="relative transition-colors hover:border-primary/50">
+    <Card className="relative transition-[border-color,box-shadow] hover:border-primary/50 hover:shadow-md">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-lg">
@@ -33,7 +33,7 @@ export function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
               href={`/scenarios/${scenario.slug}`}
               // The pseudo-element makes the whole card the hit target while the anchor
               // itself stays a normal, focusable link with a readable accessible name.
-              className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="after:absolute after:inset-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {scenario.title}
             </Link>

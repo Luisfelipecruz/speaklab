@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 
+import { Page, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,18 +54,16 @@ export default async function ReadPage({
   const focuses = [...new Set(passages.flatMap((one) => one.phoneme_focus))].sort();
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Read aloud</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Each passage is built to make you produce one group of sounds over and over.
-          Read it out, and every sound you make is scored against the sound the text asked
-          for — including which sound came out instead.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Read aloud"
+        description="Each passage is built to make you produce one group of sounds over
+          and over. Read it out, and every sound you make is scored against the sound the
+          text asked for — including which sound came out instead."
+      />
 
       {failure && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-fit max-w-2xl">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       )}
@@ -104,19 +103,26 @@ export default async function ReadPage({
       </div>
 
       {!failure && passages.length === 0 ? (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             No passages match that filter. If the list is empty everywhere, the seeds have
             not been loaded — run <code className="font-mono">make seed</code>.
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {passages.map((passage) => (
-            <Card key={passage.slug} className="flex flex-col">
+            <Card
+              key={passage.slug}
+              className="relative flex flex-col transition-[border-color,box-shadow] hover:border-primary/50 hover:shadow-md"
+            >
               <CardHeader className="gap-2">
                 <CardTitle className="text-lg">
-                  <Link href={`/read/${passage.slug}`} className="hover:underline">
+                  <Link
+                    href={`/read/${passage.slug}`}
+                    // The whole card is the target, as on the scenario catalogue.
+                    className="after:absolute after:inset-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     {passage.title}
                   </Link>
                 </CardTitle>
@@ -136,14 +142,16 @@ export default async function ReadPage({
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
 function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="w-14 text-xs text-muted-foreground">{label}</span>
+      <span className="w-16 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </div>
   );

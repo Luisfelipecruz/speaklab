@@ -21,10 +21,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Conversation } from "@/app/sessions/[id]/Conversation";
+import { Conversation } from "@/app/(app)/sessions/[id]/Conversation";
+import { Page, PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import type { AttemptPage, SessionDetail } from "@/lib/api";
 import { serverRequestOrNull } from "@/lib/server-api";
 
@@ -47,16 +48,18 @@ export default async function SessionPage({
 
   if (!session) {
     return (
-      <Alert>
-        <AlertDescription>
-          That conversation is not available. It may belong to another account, or you may
-          need to{" "}
-          <Link href={`/login?next=/sessions/${sessionId}`} className="underline">
-            sign in
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
+      <Page>
+        <Alert>
+          <AlertDescription>
+            That conversation is not available. It may belong to another account, or you
+            may need to{" "}
+            <Link href={`/login?next=/sessions/${sessionId}`} className="underline">
+              sign in
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
@@ -88,21 +91,21 @@ async function ReadingSitting({
   const readings = page?.items ?? [];
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">Read aloud</Badge>
-          <span className="text-xs text-muted-foreground">
-            {new Date(startedAt).toLocaleString()}
-          </span>
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {readings.length === 1 ? "One reading" : `${readings.length} readings`}
-        </h1>
-      </header>
+    <Page className="gap-6">
+      <PageHeader
+        eyebrow={
+          <>
+            <Badge variant="secondary">Read aloud</Badge>
+            <span className="text-xs text-muted-foreground">
+              {new Date(startedAt).toLocaleString()}
+            </span>
+          </>
+        }
+        title={readings.length === 1 ? "One reading" : `${readings.length} readings`}
+      />
 
       {readings.length === 0 ? (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             This sitting has no readings in it. Start one from{" "}
             <Link href="/read" className="underline">
@@ -112,23 +115,24 @@ async function ReadingSitting({
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="flex flex-col gap-3">
-          {readings.map((reading) => (
-            <Card key={reading.id}>
-              <CardHeader className="gap-1">
-                <CardTitle className="text-lg">
+        /* One card, one row per reading — the same list the history page draws, so
+           the two screens that list sittings look like the same product. */
+        <Card className="max-w-3xl py-0">
+          <ul className="divide-y divide-border">
+            {readings.map((reading) => (
+              <li key={reading.id} className="flex flex-col gap-2 px-5 py-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <Link
                     href={`/read/${reading.passage_slug}`}
-                    className="hover:underline"
+                    className="text-base font-semibold hover:text-primary"
                   >
                     {reading.passage_title ?? reading.passage_slug}
                   </Link>
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(reading.created_at).toLocaleString()}
-                </span>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-4 text-sm">
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(reading.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-sm">
                 {reading.wer !== null && (
                   <span className="text-muted-foreground">
                     Word error rate{" "}
@@ -151,11 +155,12 @@ async function ReadingSitting({
                     reading.status
                   )}
                 </span>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
-    </div>
+    </Page>
   );
 }

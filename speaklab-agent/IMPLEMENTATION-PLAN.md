@@ -1298,7 +1298,7 @@ because nothing ran.
 
 ---
 
-### m12 — Navigation, layout and the signed-in shell
+### m12 — Navigation, layout and the signed-in shell · **CODE COMPLETE** — `4b0e79e` and `c321e36`, plus a third uncommitted commit (contrast, gutters, the font), unpushed
 
 **Goal.** A person who has signed in can see where they are, where else they can go, and
 what to do next — on a phone and on a 27-inch monitor.
@@ -1376,6 +1376,16 @@ width its content did not ask for; and `npm run lint`, `npm run typecheck`, `npm
 inside it, and the one screen created here ships with its own empty state. No API change
 either: every number this milestone puts on screen is already served by an operation that
 exists, so the count stays at 25 of 30.
+
+**What came back from looking at it.** The frame shipped and then failed three of its own
+tests once the pages were seen together: per-page widths moved the content box on every
+navigation, the type scale left the product at 12 px, and four metric families on one page
+meant eleven charts each holding a single measurement. All three are corrected on the same
+branch, in a second commit, with `docs/decisions/0010` superseding §3 of 0009. That is not
+scope creep arriving late — it is the same rule this milestone was admitted under: an unmet
+quality bar on work already delivered is not a new idea. What it does mean is that **m13's
+"empty states for the existing pages" is now smaller than it was**, because the emptiest
+page in the product has been dealt with.
 
 **Branch** `feature/m12-shell` · **PR** `feat: replace the header with a sidebar shell and a signed-in home`
 
@@ -1477,25 +1487,24 @@ Evenings-and-weekends pace, one developer.
 
 ## 11. First three actions
 
-**Superseded — m0 through m10 are merged, and m11 is built and uncommitted.** Kept for the
+**Superseded — m0 through m11 are merged, and m12 is built and uncommitted.** Kept for the
 record; the live version is below.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #12.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #13.
 
 ### The next three actions
 
-**m11 is merged. `main` is `f3647fd`, and m12 is the interface.**
+**m12 is built and uncommitted on `feature/m12-shell`, cut from `c502bd8`.**
 
-1. **Cut `feature/m12-shell` from `main` and build it.** Navigation, layout and the
-   signed-in shell — the interface work m7 deferred when it shipped a header and said so in
-   the file: a sidebar that collapses to a sheet, a signed-in home assembled from what m10
-   already computes, width that belongs to the page rather than to the shell, and the
-   `.dark` block either wired up or deleted. §7 opens the milestone with a table of what is
-   wrong, counted rather than asserted, so the first commit does not have to begin with a
-   survey. It gets `docs/decisions/0009`, because at least four of those are decisions
-   rather than preferences.
+1. **Commit and open the PR** — `GIT-COMMANDS.md` §A.12 and §B.10. The shell is a sidebar
+   that becomes a sheet below `md`, `/` split into a public front door and a signed-in
+   `/home`, width moved from the shell to three named measures the page picks from, the
+   `(app)` route group replacing four duplicated layouts, and dark mode wired up rather
+   than deleted. `docs/decisions/0009` records the seven decisions and what was ruled out.
+   Every route is where it was, no API operation moved, no dependency added. Lint,
+   typecheck, build and 174 frontend tests across 26 suites are green.
 2. **Read `docs/decisions/0008` §5 before touching `services/conversation.py`.** The
    persona recites its brief in 30 of 40 attempts when an instruction is spoken inside the
    scene, and the guardrail that forbids it has been in place since m6 unmeasured. **Q16**

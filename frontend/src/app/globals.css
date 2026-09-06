@@ -4,6 +4,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The type scale, one step up from the framework default at the small end.
+ *
+ * Almost nothing in this product is set in `text-base`. Cards, tables, captions and the
+ * navigation are all `text-sm` or `text-xs`, so those two sizes are the application — and
+ * at 14 and 12 px they were being read as small print. The numbers were the worst of it:
+ * a measurement is the thing a learner came here for, and it was rendered smaller than
+ * the label next to it.
+ *
+ * Redefining the scale here rather than editing every call site means the sizes stay
+ * named. A page still says `text-sm` and means "body copy"; what changes is what body
+ * copy measures.
+ */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.4rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.75rem;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -48,73 +71,100 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* The palette, and why it has a hue in it.
+ *
+ * The generated one was pure grey: every token had zero chroma, the page and the cards
+ * were both white, the rail was two per cent off white, and all five chart colours were
+ * shades of the same grey — the first of them at 87 % lightness, invisible on a white
+ * card. Nothing on a screen was distinguishable from anything else at a glance, which is
+ * the single complaint the person using it made.
+ *
+ * Three moves fix that, and each token below belongs to one of them:
+ *
+ * 1. **The page is tinted and the cards are not.** A cool off-white ground with white
+ *    cards on it, a visible border and a hairline shadow, is what makes a card read as a
+ *    thing rather than as a region of the page with a faint line round it. The rail is a
+ *    shade darker again, so the three surfaces — rail, page, card — are three surfaces.
+ * 2. **One accent, teal, and it means "act here" or "this is the measurement".** The
+ *    primary button, the current section, an active filter, the line on a chart and the
+ *    bar on a repertoire row all share it. Everything else stays neutral, so the accent
+ *    is a signal rather than decoration.
+ * 3. **Text has three weights of grey, not two.** Foreground is near-black with a little
+ *    blue in it; muted is dark enough to pass 4.5:1 on white rather than sit at the edge
+ *    of it; borders are a third, lighter step. Headings differ from body by weight and
+ *    size, not by being the same grey slightly larger.
+ *
+ * Dark mode is the same three surfaces inverted, with the accent lightened enough to
+ * carry text on the dark ground. The chart colours are chosen to be separable from each
+ * other in both modes, and none of them is grey.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.972 0.005 250);
+  --foreground: oklch(0.2 0.02 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.2 0.02 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.2 0.02 260);
+  --primary: oklch(0.5 0.12 200);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.935 0.012 250);
+  --secondary-foreground: oklch(0.28 0.02 260);
+  --muted: oklch(0.94 0.01 250);
+  --muted-foreground: oklch(0.46 0.02 260);
+  --accent: oklch(0.925 0.035 200);
+  --accent-foreground: oklch(0.32 0.08 200);
+  --destructive: oklch(0.55 0.22 27);
+  --border: oklch(0.87 0.012 250);
+  --input: oklch(0.87 0.012 250);
+  --ring: oklch(0.6 0.12 200);
+  --chart-1: oklch(0.55 0.13 200);
+  --chart-2: oklch(0.72 0.16 60);
+  --chart-3: oklch(0.55 0.19 285);
+  --chart-4: oklch(0.62 0.2 20);
+  --chart-5: oklch(0.6 0.16 145);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.95 0.008 250);
+  --sidebar-foreground: oklch(0.28 0.02 260);
+  --sidebar-primary: oklch(0.5 0.12 200);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.9 0.04 200);
+  --sidebar-accent-foreground: oklch(0.3 0.09 200);
+  --sidebar-border: oklch(0.86 0.012 250);
+  --sidebar-ring: oklch(0.6 0.12 200);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.16 0.015 260);
+  --foreground: oklch(0.955 0.005 250);
+  --card: oklch(0.215 0.015 260);
+  --card-foreground: oklch(0.955 0.005 250);
+  --popover: oklch(0.215 0.015 260);
+  --popover-foreground: oklch(0.955 0.005 250);
+  --primary: oklch(0.78 0.11 195);
+  --primary-foreground: oklch(0.17 0.03 200);
+  --secondary: oklch(0.28 0.015 260);
+  --secondary-foreground: oklch(0.955 0.005 250);
+  --muted: oklch(0.27 0.015 260);
+  --muted-foreground: oklch(0.72 0.015 250);
+  --accent: oklch(0.3 0.05 200);
+  --accent-foreground: oklch(0.9 0.08 195);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.7 0.11 195);
+  --chart-1: oklch(0.78 0.11 195);
+  --chart-2: oklch(0.8 0.15 70);
+  --chart-3: oklch(0.72 0.15 285);
+  --chart-4: oklch(0.72 0.17 20);
+  --chart-5: oklch(0.75 0.15 145);
+  --sidebar: oklch(0.135 0.015 260);
+  --sidebar-foreground: oklch(0.9 0.005 250);
+  --sidebar-primary: oklch(0.78 0.11 195);
+  --sidebar-primary-foreground: oklch(0.17 0.03 200);
+  --sidebar-accent: oklch(0.28 0.05 200);
+  --sidebar-accent-foreground: oklch(0.9 0.08 195);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.7 0.11 195);
 }
 
 @layer base {
@@ -124,6 +174,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* `font-sans` resolves to `var(--font-sans)`, and that variable is defined by the
+     class `next/font` puts on the element the layout chooses. It has to be this element
+     or one above it: a variable set on `<body>` is invisible to a rule on `<html>`, the
+     lookup fails, and the whole product falls back to the browser's serif — which is
+     exactly what happened. `app/layout.tsx` puts the class on `<html>` for this reason. */
   html {
     @apply font-sans;
   }

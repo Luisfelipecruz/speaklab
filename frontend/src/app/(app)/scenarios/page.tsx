@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 
+import { Page, PageHeader } from "@/components/PageHeader";
 import { ScenarioCard } from "@/components/ScenarioCard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -55,17 +56,16 @@ export default async function ScenariosPage({
   const categories = [...new Set(scenarios.map((one) => one.category))].sort();
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Choose a scenario</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Each one is a role-play with a goal and a persona who will push back. You speak,
-          it answers out loud, and at the end you get a report of what actually happened.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Choose a scenario"
+        description="Each one is a role-play with a goal and a persona who will push back.
+          You speak, it answers out loud, and at the end you get a report of what actually
+          happened."
+      />
 
       {failure && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-fit max-w-2xl">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       )}
@@ -105,20 +105,20 @@ export default async function ScenariosPage({
       </div>
 
       {!failure && scenarios.length === 0 ? (
-        <Alert>
+        <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             No scenarios match that filter. If the catalogue is empty everywhere, the
             seeds have not been loaded — run <code className="font-mono">make seed</code>.
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {scenarios.map((scenario) => (
             <ScenarioCard key={scenario.slug} scenario={scenario} />
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -131,7 +131,9 @@ function FilterRow({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="w-14 text-xs text-muted-foreground">{label}</span>
+      <span className="w-16 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </div>
   );

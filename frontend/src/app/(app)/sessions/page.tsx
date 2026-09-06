@@ -12,7 +12,8 @@
 
 import Link from "next/link";
 
-import { DeleteSessionButton } from "@/app/sessions/DeleteSessionButton";
+import { DeleteSessionButton } from "@/app/(app)/sessions/DeleteSessionButton";
+import { Page, PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,31 +48,33 @@ export default async function SessionsPage({
 
   if (!page) {
     return (
-      <Alert>
-        <AlertDescription>
-          <Link href="/login?next=/sessions" className="underline">
-            Sign in
-          </Link>{" "}
-          to see the conversations you have practised.
-        </AlertDescription>
-      </Alert>
+      <Page>
+        <Alert className="w-fit max-w-2xl">
+          <AlertDescription>
+            <Link href="/login?next=/sessions" className="underline">
+              Sign in
+            </Link>{" "}
+            to see the conversations you have practised.
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Your conversations</h1>
-        <p className="text-muted-foreground">
-          {page.total === 0
+    <Page>
+      <PageHeader
+        title="Your conversations"
+        description={
+          page.total === 0
             ? "Nothing yet."
-            : `${page.total} session${page.total === 1 ? "" : "s"}, newest first.`}
-        </p>
-      </header>
+            : `${page.total} session${page.total === 1 ? "" : "s"}, newest first.`
+        }
+      />
 
       {page.items.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-start gap-3 py-6">
+        <Card className="max-w-2xl">
+          <CardContent className="flex flex-col items-start gap-3 py-2">
             <p className="text-sm text-muted-foreground">
               You have not practised anything yet.
             </p>
@@ -81,34 +84,39 @@ export default async function SessionsPage({
           </CardContent>
         </Card>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {page.items.map((session) => (
-            <li key={session.id}>
-              <Card className="relative">
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-                  <div className="flex flex-col gap-1">
-                    <Link
-                      href={`/sessions/${session.id}`}
-                      className="font-medium after:absolute after:inset-0 hover:underline"
-                    >
-                      {session.scenario_title ?? "Read-aloud session"}
-                    </Link>
-                    <span className="text-xs text-muted-foreground">
-                      {when(session.started_at)} · {session.turn_count} turns
-                    </span>
-                  </div>
+        /* One card with a rule between rows, not a card per row. Twenty separate cards
+           each holding one line is twenty boxes of mostly nothing; a list reads as a
+           list. Each row is still one link — the pseudo-element covers the row, and
+           the controls on the right sit above it. */
+        <Card className="py-0">
+          <ul className="divide-y divide-border">
+            {page.items.map((session) => (
+              <li
+                key={session.id}
+                className="relative flex flex-wrap items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex min-w-0 flex-col gap-1">
+                  <Link
+                    href={`/sessions/${session.id}`}
+                    className="truncate font-semibold after:absolute after:inset-0 hover:text-primary"
+                  >
+                    {session.scenario_title ?? "Read-aloud session"}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">
+                    {when(session.started_at)} · {session.turn_count} turns
+                  </span>
+                </div>
 
-                  <div className="relative flex items-center gap-2">
-                    <Badge variant={session.status === "active" ? "default" : "secondary"}>
-                      {session.status}
-                    </Badge>
-                    <DeleteSessionButton id={session.id} />
-                  </div>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
+                <div className="relative flex items-center gap-2">
+                  <Badge variant={session.status === "active" ? "default" : "secondary"}>
+                    {session.status}
+                  </Badge>
+                  <DeleteSessionButton id={session.id} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       {(offset > 0 || offset + page.items.length < page.total) && (
@@ -123,6 +131,6 @@ export default async function SessionsPage({
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

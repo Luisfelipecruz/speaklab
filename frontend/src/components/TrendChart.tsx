@@ -13,6 +13,12 @@
  * Joining across it would draw two distant sessions as continuous practice, which is the
  * most flattering lie a progress chart can tell.
  *
+ * **One measured period is a reading, not a trend, and it is drawn as one.** A single dot
+ * in the middle of an empty box is the shape of a broken chart, and for the first months
+ * of an account that is every series on the page — eleven boxes, eleven dots, nothing
+ * legible. The same number set large, with the week it came from and what a second point
+ * would take, says more and takes less room.
+ *
  * **The verdict is separate from the numbers.** A direction is rendered only when the API
  * sent one, and it only sends one for a metric with a defensibly better end and enough
  * points to compare. Speech rate arrives with no direction for ever, on purpose.
@@ -52,17 +58,69 @@ const DIRECTION_LABEL: Record<string, string> = {
   flat: "unchanged",
 };
 
+/**
+ * The label, the unit, the latest figure and any verdict — the same row whether what
+ * follows it is a line or a single number.
+ */
+function Caption({ series, latest }: { series: TrendSeries; latest: number }) {
+  return (
+    <figcaption className="flex flex-wrap items-baseline gap-2">
+      <span className="text-sm font-semibold">{series.label}</span>
+      {series.unit && <span className="text-xs text-muted-foreground">{series.unit}</span>}
+      <span className="ml-auto text-sm font-semibold tabular-nums">
+        {format(latest, series.unit)}
+      </span>
+      {series.direction && (
+        <Badge
+          variant={series.direction === "slipping" ? "secondary" : "default"}
+          className="text-xs"
+          data-testid="direction"
+        >
+          {DIRECTION_LABEL[series.direction]}
+        </Badge>
+      )}
+    </figcaption>
+  );
+}
+
 export function TrendChart({ series }: TrendChartProps) {
   const drawable = drawablePoints(series);
 
+  // The three states share one box, so a family's series line up as a grid of equal
+  // panels whether each one is a line, a single reading or a reason. A gated series is
+  // the only one drawn with a dashed edge: it is a placeholder, and should look like one.
   if (!series.gate.shown) {
     return (
-      <div className="flex flex-col gap-1 rounded-md border border-dashed border-border p-3">
-        <span className="text-sm font-medium">{series.label}</span>
-        <p className="text-xs text-muted-foreground" data-testid="gate-reason">
+      <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-muted/40 p-4">
+        <span className="text-sm font-semibold">{series.label}</span>
+        <p className="text-sm text-muted-foreground" data-testid="gate-reason">
           {series.gate.reason}
         </p>
       </div>
+    );
+  }
+
+  if (drawable.length === 1) {
+    const only = drawable[0];
+    return (
+      <figure className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+        <Caption series={series} latest={only.value as number} />
+        <p
+          className="text-3xl font-bold tracking-tight tabular-nums"
+          data-testid="single-reading"
+        >
+          {format(only.value as number, series.unit)}
+          {series.unit && series.unit !== "ratio" && (
+            <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+              {series.unit}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Measured once, in the week of {when(only.start)}. A line needs a second week
+          with practice in it.
+        </p>
+      </figure>
     );
   }
 
@@ -94,48 +152,49 @@ export function TrendChart({ series }: TrendChartProps) {
   });
   if (run.length) runs.push(run);
 
-  return (
-    <figure className="flex flex-col gap-2">
-      <figcaption className="flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-medium">{series.label}</span>
-        {series.unit && (
-          <span className="text-xs text-muted-foreground">{series.unit}</span>
-        )}
-        <span className="ml-auto text-sm font-semibold tabular-nums">
-          {format(values[values.length - 1], series.unit)}
-        </span>
-        {series.direction && (
-          <Badge
-            variant={series.direction === "slipping" ? "secondary" : "default"}
-            className="text-[10px]"
-            data-testid="direction"
-          >
-            {DIRECTION_LABEL[series.direction]}
-          </Badge>
-        )}
-      </figcaption>
+  const floor = HEIGHT - PADDING;
 
+  return (
+    <figure className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+      <Caption series={series} latest={values[values.length - 1]} />
+
+      {/* The accent colour, at full strength for the line and faintly under it. A
+          hairline in grey was the chart the person could not see; the area is what makes
+          the line read as a quantity rather than as a scratch on the card. Each run gets
+          its own area, so a hole in the data is a hole in the fill too. */}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-18 w-full text-primary"
+        className="h-24 w-full text-chart-1"
         preserveAspectRatio="none"
         role="img"
         aria-label={`${series.label} over ${drawable.length} periods`}
         data-testid="trend-svg"
       >
-        {runs.map((points, position) => (
-          <polyline
-            key={position}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            points={points
-              .map((point) => `${x(point.index)},${y(point.value)}`)
-              .join(" ")}
-          />
-        ))}
+        {runs.map((points, position) => {
+          const path = points.map((point) => `${x(point.index)},${y(point.value)}`);
+          const first = x(points[0].index);
+          const last = x(points[points.length - 1].index);
+          return (
+            <g key={position}>
+              {points.length > 1 && (
+                <polygon
+                  fill="currentColor"
+                  fillOpacity={0.12}
+                  points={[...path, `${last},${floor}`, `${first},${floor}`].join(" ")}
+                />
+              )}
+              <polyline
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                points={path.join(" ")}
+              />
+            </g>
+          );
+        })}
         {drawable.map((point) => {
           const index = series.points.indexOf(point);
           return (
@@ -143,8 +202,11 @@ export function TrendChart({ series }: TrendChartProps) {
               key={point.start}
               cx={x(index)}
               cy={y(point.value as number)}
-              r={2.5}
+              r={3}
               fill="currentColor"
+              stroke="var(--card)"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
             />
           );
         })}
@@ -152,7 +214,7 @@ export function TrendChart({ series }: TrendChartProps) {
 
       {/* The same numbers as text. It is what a screen reader gets, and it is what makes
           the component testable without asserting against SVG path arithmetic. */}
-      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+      <ul className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {series.points.map((point) => (
           <li
             key={point.start}

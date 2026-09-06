@@ -44,6 +44,8 @@ const config = {
     "src/**/*.{ts,tsx}",
     "!src/**/*.test.{ts,tsx}",
     "!src/components/ui/**",
+    // Vendored beside the ui primitives it exists for, and kebab-cased to say so.
+    "!src/hooks/use-mobile.ts",
     "!src/app/**/layout.tsx",
   ],
 };

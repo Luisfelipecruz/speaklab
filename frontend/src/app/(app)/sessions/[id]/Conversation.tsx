@@ -23,6 +23,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { Page, PageHeader } from "@/components/PageHeader";
 import { RecordButton, type RecordPhase } from "@/components/RecordButton";
 import { SessionReport } from "@/components/SessionReport";
 import { TranscriptPane } from "@/components/TranscriptPane";
@@ -75,24 +76,26 @@ export function Conversation({
 
   if (session.phase === "gone") {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          This conversation no longer exists.{" "}
-          <Link href="/sessions" className="underline">
-            Back to your history
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
+      <Page>
+        <Alert variant="destructive">
+          <AlertDescription>
+            This conversation no longer exists.{" "}
+            <Link href="/sessions" className="underline">
+              Back to your history
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      </Page>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{speaker}</h1>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <Page className="gap-6">
+      <PageHeader
+        title={speaker}
+        description={
+          <div className="flex items-center gap-2 text-sm">
             <Badge variant={active ? "default" : "secondary"}>
               {session.session?.status ?? "loading"}
             </Badge>
@@ -106,18 +109,19 @@ export function Conversation({
               </Link>
             )}
           </div>
-        </div>
-
-        {active && (
-          <Button
-            variant="outline"
-            onClick={() => void session.end()}
-            disabled={session.phase === "ending"}
-          >
-            {session.phase === "ending" ? "Writing the report…" : "End and get a report"}
-          </Button>
-        )}
-      </header>
+        }
+        actions={
+          active && (
+            <Button
+              variant="outline"
+              onClick={() => void session.end()}
+              disabled={session.phase === "ending"}
+            >
+              {session.phase === "ending" ? "Writing the report…" : "End and get a report"}
+            </Button>
+          )
+        }
+      />
 
       <TranscriptPane
         items={session.items}
@@ -176,6 +180,6 @@ export function Conversation({
           </Button>
         </div>
       )}
-    </div>
+    </Page>
   );
 }

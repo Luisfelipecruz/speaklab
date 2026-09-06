@@ -89,7 +89,7 @@ export function NextUpCard({ recommendations }: NextUpCardProps) {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{item.title}</span>
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-xs">
                     {KIND_LABEL[item.kind]}
                   </Badge>
                 </div>

@@ -10,6 +10,7 @@
 
 import { notFound } from "next/navigation";
 
+import { Page, PageHeader } from "@/components/PageHeader";
 import { PassageReader } from "@/components/PassageReader";
 import { Badge } from "@/components/ui/badge";
 import { ApiError, type PassageDetail } from "@/lib/api";
@@ -33,23 +34,23 @@ export default async function PassagePage({
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{passage.cefr_band}</Badge>
-          {passage.phoneme_focus.map((phone) => (
-            <Badge key={phone} variant="outline" className="font-mono">
-              {phone}
-            </Badge>
-          ))}
-          <span className="text-xs text-muted-foreground">
-            {passage.word_count} words
-          </span>
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight">{passage.title}</h1>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow={
+          <>
+            <Badge variant="secondary">{passage.cefr_band}</Badge>
+            {passage.phoneme_focus.map((phone) => (
+              <Badge key={phone} variant="outline" className="font-mono">
+                {phone}
+              </Badge>
+            ))}
+            <span className="text-xs text-muted-foreground">{passage.word_count} words</span>
+          </>
+        }
+        title={passage.title}
+      />
 
       <PassageReader passage={passage} />
-    </div>
+    </Page>
   );
 }
