@@ -31,7 +31,7 @@ async def test_health_returns_200_and_the_documented_shape(client):
     assert set(body) == {"status", "version", "database", "models"}
     assert body["status"] in {"ok", "degraded"}
     assert body["database"]["status"] == "ok"
-    assert set(body["models"]) == set(MODEL_SERVICES)
+    assert set(body["models"]) == set(MODEL_SERVICES) | {"llm"}
 
 
 async def test_unreachable_model_services_are_degraded_not_fatal(client, monkeypatch):
@@ -84,6 +84,28 @@ async def test_health_models_is_200_even_with_nothing_running(client, monkeypatc
 
     assert response.status_code == 200
     assert response.json()["ready"] is False
+
+
+async def test_a_model_that_is_not_pulled_is_enough_to_degrade_the_stack(
+    client, monkeypatch
+):
+    """The fresh-clone state this probe was added for: every container healthy, Ollama
+    running, and the model never pulled. Every conversation fails in that state, so
+    neither endpoint may call it fine."""
+
+    async def _all_but_the_model():
+        models = await _all_ok()
+        models["llm"] = {
+            "status": "error",
+            "url": "http://host.docker.internal:11434",
+            "detail": "gemma3:4b is not pulled. Run: ollama pull gemma3:4b",
+        }
+        return models
+
+    monkeypatch.setattr(health_module, "probe_model_services", _all_but_the_model)
+
+    assert (await client.get("/health")).json()["status"] == "degraded"
+    assert (await client.get("/health/models")).json()["ready"] is False
 
 
 # ── The probe ───────────────────────────────────────────────────────────────
@@ -144,6 +166,95 @@ async def test_probe_survives_a_service_answering_with_something_that_is_not_jso
     assert "reports" not in result
 
 
+# ── The LLM probe ───────────────────────────────────────────────────────────
+#
+# Ollama has no /health; the question is whether the configured model is in the list
+# /api/tags returns. The shapes below are Ollama's own: each entry carries `name` and
+# `model`, both the tagged name.
+
+
+def _tags(*names: str):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/tags"
+        return httpx.Response(
+            200, json={"models": [{"name": n, "model": n} for n in names]}
+        )
+
+    return handler
+
+
+async def test_llm_probe_is_ok_when_the_configured_model_is_pulled(monkeypatch):
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma3:4b")
+
+    async with _mock_client(_tags("mistral:7b", "gemma3:4b")) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "ok"
+    assert result["reports"] == {"model": "gemma3:4b"}
+    assert "latency_ms" in result
+
+
+async def test_llm_probe_names_the_pull_command_when_the_model_is_missing(
+    monkeypatch,
+):
+    """Ollama answering is not the same as a conversation working. A different size of
+    the same family does not count either — the model that is configured is the one the
+    persona is sent to."""
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma3:4b")
+
+    async with _mock_client(_tags("gemma3:12b", "mistral:7b")) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "error"
+    assert result["detail"] == "gemma3:4b is not pulled. Run: ollama pull gemma3:4b"
+
+
+@pytest.mark.parametrize(
+    ("configured", "pulled"),
+    [("gemma3", "gemma3:latest"), ("gemma3:latest", "gemma3")],
+)
+async def test_llm_probe_treats_an_untagged_name_as_latest(
+    monkeypatch, configured, pulled
+):
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL", configured)
+
+    async with _mock_client(_tags(pulled)) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "ok"
+
+
+async def test_llm_probe_never_raises_when_ollama_is_not_running():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    async with _mock_client(handler) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "unreachable"
+    assert "ConnectError" in result["detail"]
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(500, text="internal error"),
+        httpx.Response(200, text="<html>not ollama</html>"),
+        httpx.Response(200, json={"something": "else"}),
+        httpx.Response(200, json={"models": ["gemma3:4b"]}),
+    ],
+    ids=["http-500", "not-json", "no-model-list", "entries-not-objects"],
+)
+async def test_llm_probe_calls_anything_else_that_answers_an_error(response):
+    """Something answered at the configured address and it was not a usable model list.
+    That is up and unwell, not absent — and never `ok`."""
+    async with _mock_client(lambda request: response) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "error"
+    assert result["detail"]
+
+
 # ── Invariant I5 ────────────────────────────────────────────────────────────
 
 
@@ -171,15 +282,18 @@ def test_the_api_image_contains_no_model_runtimes(package):
 # ── Fakes ───────────────────────────────────────────────────────────────────
 
 
+_EVERY_PROBE = {**MODEL_SERVICES, "llm": "http://host.docker.internal:11434"}
+
+
 async def _all_unreachable():
     return {
         name: {"status": "unreachable", "url": url, "detail": "ConnectError: no route"}
-        for name, url in MODEL_SERVICES.items()
+        for name, url in _EVERY_PROBE.items()
     }
 
 
 async def _all_ok():
     return {
         name: {"status": "ok", "url": url, "latency_ms": 1.0}
-        for name, url in MODEL_SERVICES.items()
+        for name, url in _EVERY_PROBE.items()
     }

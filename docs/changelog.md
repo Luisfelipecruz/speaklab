@@ -7,6 +7,83 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.13.1] — 2026-09-10 · a fresh clone that can hold a conversation
+
+Following the Quick start exactly, a new developer got a healthy stack that could not
+start a conversation. The README never said to install Ollama or pull `gemma3:4b`,
+`POST /sessions` asks the model for the persona's opening line before it answers, and
+`/health` did not probe the model at all — so `make health` looked fine while the headline
+feature returned a 503. Found by reviewing the repository as a clone of `main` would see
+it, not by a failure anybody reported.
+
+### Added
+
+- **`/health` probes the conversation model**, as `llm` beside `asr`, `tts` and `pron`.
+  Ollama has no `/health`; the probe reads `/api/tags` and is `ok` only when the configured
+  model is in that list. A model that is not pulled is `error`, with
+  `"<model> is not pulled. Run: ollama pull <model>"` as its detail, and it makes
+  `/health/models` report `ready: false` — an Ollama without the model fails a
+  conversation exactly as an absent one does. `gemma3` and `gemma3:latest` compare equal.
+- **`make setup`** — from a fresh clone: writes `.env` if there is none, builds, starts and
+  waits for healthy, migrates, seeds, then runs `make llm-check`. Idempotent, so it is also
+  the command after a `git pull`.
+- **`make llm-check`** — asks the API, not the host, whether it can reach Ollama with the
+  model pulled, and names the fix when it cannot. From inside the container is the view
+  that matters: on Linux the host's Ollama listens on 127.0.0.1 and a check run from the
+  host would say everything is fine.
+- **`/status` shows the `llm` row**, and for any service answering `error` it shows the
+  detail, so the `ollama pull` command is on the page.
+- **README: prerequisites and a troubleshooting table.** Ollama is now a stated
+  prerequisite with its pull command, and the disk and memory lines say which figures are
+  measured and which are not.
+
+### Fixed
+
+- **Sixteen keys in `.env.example` were read by nothing.** The api service had no
+  `env_file`, so the LLM estimator, the progress gates, paging, keep-alive and the
+  confidence floor were documented, editable, and never reached `config.py`. The api
+  service now takes the whole of `.env`; `environment:` still wins where both set a key.
+  Every value in `.env.example` equals its default, checked key by key, so copying it
+  changes nothing until a value is edited.
+- **`make llm-up` could not pull the default model.** The `ollama` image was pinned to
+  `0.5.13`, which predates Gemma 3 support (0.6.0). Pinned to `0.34.0`, the version on the
+  development host, and `llm-up` now prints the `.env` line that points the API at it.
+- `.env.example` lists `CORS_ORIGINS`, `NEXT_PUBLIC_API_URL` and `INTERNAL_API_URL`, which
+  compose reads and the example omitted, and no longer says the model "is already pulled
+  on this machine".
+- The README's link to the recording protocol pointed into gitignored `spike/`; it now
+  points at `eval/golden/pron/`.
+
+### Measured
+
+- API suite **572 tests — 539 pass and 33 skip** with Postgres and no model services (was
+  562: 529 and 33); ruff and black clean. Frontend suite **206 tests across 31 suites** (was
+  202 across 30); lint, typecheck and the production build clean, 13 routes.
+- The probe run against the host's real Ollama: `gemma3:4b` found in 23 ms; `gemma3` and
+  an absent model each reported as not pulled with the right command.
+- `make llm-check` driven through all four states against the real API: model present
+  (exit 0), model absent, Ollama unreachable, API not answering (each exit non-zero, with
+  the fix printed).
+- Two mutations — a missing model reported as `ok`, and no tag normalisation — each fail
+  exactly the tests that name them.
+- `docker compose config` valid with and without a `.env`, for every profile; with
+  `.env.example` as `.env`, the tuning keys reach the api service and not the frontend,
+  and the test service still points at `ollama.invalid`.
+
+### Known
+
+- **`make setup` has not been run end to end.** Docker was not running during this
+  change, so the build, `--wait`, migrate and seed steps are verified by `make -n` and by
+  each command having worked separately before, not by a cold run. That run is criterion
+  S1, and it belongs on a machine that has never had this stack on it.
+- Host ports are still fixed in `docker-compose.yml`, `PIPER_NUM_THREADS=8` was tuned on a
+  16-core machine, and the frontend container runs `next dev`, so each route compiles on
+  its first visit.
+- The recording protocol for the pronunciation pairs is still only in gitignored
+  `spike/RECORD.md`; `eval/golden/pron/README.md` points there too.
+
+---
+
 ## [0.13.0] — 2026-09-06 · m13, corrections in the transcript
 
 Every correction the analysis stores has carried character offsets into its turn since the

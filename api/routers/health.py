@@ -1,8 +1,8 @@
 """Liveness, and an honest account of what is degraded.
 
 The distinction this module exists to make: **the database is a dependency, the model
-services are not.** Without Postgres this container cannot answer anything and should
-say so with a 503. Without `asr`, `tts` and `pron` it can still serve scenarios,
+layer is not.** Without Postgres this container cannot answer anything and should say so
+with a 503. Without `asr`, `tts`, `pron` and the LLM it can still serve scenarios,
 sessions, auth and progress, and it starts and answers while those services are still
 loading their weights. A stack reporting `degraded` here is working as designed.
 
@@ -12,9 +12,9 @@ Two endpoints, because they answer two different questions:
     GET /health/models  Which model services are up, and what did each one say?
 
 `/health` is what the compose healthcheck curls every ten seconds, so its cost matters.
-The three model probes run concurrently under a single timeout ceiling
+The four model probes run concurrently under a single timeout ceiling
 (`HEALTH_PROBE_TIMEOUT_S`, 1.5 s), which means an entirely dead model layer adds that
-ceiling once — not three times, and never unbounded.
+ceiling once — not four times, and never unbounded.
 """
 
 import asyncio
@@ -25,7 +25,13 @@ import httpx
 from fastapi import APIRouter, Response
 from sqlalchemy import text
 
-from config import HEALTH_PROBE_TIMEOUT_S, MODEL_SERVICES, VERSION
+from config import (
+    HEALTH_PROBE_TIMEOUT_S,
+    MODEL_SERVICES,
+    OLLAMA_BASE_URL,
+    OLLAMA_MODEL,
+    VERSION,
+)
 from database import engine
 
 router = APIRouter(tags=["health"])
@@ -106,18 +112,75 @@ async def _probe_service(
     return result
 
 
-async def probe_model_services() -> dict[str, dict[str, Any]]:
-    """Probe all three concurrently. Never raises.
+def _with_tag(model: str) -> str:
+    """`gemma3` and `gemma3:latest` are one model to Ollama, so compare them as one."""
+    return model if ":" in model else f"{model}:latest"
 
-    One client for the three requests, and `asyncio.gather` rather than a loop, so the
-    wall-clock cost of a completely absent model layer is one timeout rather than three.
+
+async def _probe_llm(client: httpx.AsyncClient) -> dict[str, Any]:
+    """Ask Ollama whether the configured model is there to answer.
+
+    Ollama has no `/health`. `/api/tags` lists the models it has pulled, which is the
+    question that matters: an Ollama without the model fails a conversation exactly as
+    an absent Ollama does, because `POST /sessions` asks for the persona's opening line
+    before it returns. So a missing model is `error` — up, and unable to serve — with the
+    command that fixes it in `detail`, never `ok` with a flag the way a loading model
+    service is. `ready` must be false whenever a conversation would fail.
+
+    Cheap enough for a probe that runs every ten seconds: listing tags reads a manifest
+    directory and loads no weights.
+    """
+    url = OLLAMA_BASE_URL
+    started = time.perf_counter()
+    try:
+        response = await client.get(f"{url}/api/tags")
+    except Exception as exc:
+        return {
+            "status": UNREACHABLE,
+            "url": url,
+            "detail": f"{type(exc).__name__}: {exc}",
+        }
+
+    result: dict[str, Any] = {
+        "status": ERROR,
+        "url": url,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+    }
+    if not response.is_success:
+        result["detail"] = f"HTTP {response.status_code}"
+        return result
+    try:
+        pulled = {
+            _with_tag(entry.get("name") or entry.get("model") or "")
+            for entry in response.json()["models"]
+        }
+    except (ValueError, KeyError, TypeError, AttributeError):
+        result["detail"] = "answered, but not with Ollama's model list"
+        return result
+
+    result["reports"] = {"model": OLLAMA_MODEL}
+    if _with_tag(OLLAMA_MODEL) not in pulled:
+        result["detail"] = (
+            f"{OLLAMA_MODEL} is not pulled. Run: ollama pull {OLLAMA_MODEL}"
+        )
+        return result
+    result["status"] = OK
+    return result
+
+
+async def probe_model_services() -> dict[str, dict[str, Any]]:
+    """Probe all four concurrently. Never raises.
+
+    One client for the four requests, and `asyncio.gather` rather than a loop, so the
+    wall-clock cost of a completely absent model layer is one timeout rather than four.
     """
     async with httpx.AsyncClient(timeout=HEALTH_PROBE_TIMEOUT_S) as client:
         names = list(MODEL_SERVICES)
-        results = await asyncio.gather(
-            *(_probe_service(client, name, MODEL_SERVICES[name]) for name in names)
+        *services, llm = await asyncio.gather(
+            *(_probe_service(client, name, MODEL_SERVICES[name]) for name in names),
+            _probe_llm(client),
         )
-    return dict(zip(names, results))
+    return {**dict(zip(names, services)), "llm": llm}
 
 
 @router.get("/health")
