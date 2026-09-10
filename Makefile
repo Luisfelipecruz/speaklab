@@ -1,12 +1,12 @@
 # SpeakLab — every operation worth having a name.
 #
-# Five services run by default as of m5: postgres, api, frontend, asr and tts. Only the
-# pronunciation service is still behind a profile, because a profiled service is excluded
-# from `up` AND from `build`, which is what lets docker-compose.yml declare the infra/pron
-# build context that m8 has not created yet.
+# Five services run by default: postgres, api, frontend, asr and tts. The pronunciation
+# service is behind a profile, because it is the only image with torch in it and the
+# stack has to stay usable by somebody who never downloads it (D10). The conversation
+# model is not a service here at all: it is Ollama on the host (see `llm-check`).
 
-.PHONY: help up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
-        pron-up llm-up migrate migrate-down migrate-status seed eval eval-local asr-wer \
+.PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
+        pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
         persona-adherence corpus analyze analyze-dry error-precision rollup rollup-dry \
         rollup-force
@@ -14,6 +14,54 @@
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+
+# ── First run ───────────────────────────────────────────────────────────────
+#
+# One command from a fresh clone to a stack you can talk to. Every step is idempotent, so
+# it is also the command to run after a `git pull`: it rebuilds what changed, applies new
+# migrations and re-seeds, which keys on slug and changes nothing that is already current.
+#
+# `--wait` returns when every container reports healthy. The model services report
+# healthy while their weights are still loading — a cold start is minutes and must not
+# read as a crash — so this waits for processes, not for Whisper's first download.
+setup:                             ## First run, and after every pull: build, start, migrate, seed
+	@test -f .env || { cp .env.example .env && echo "wrote .env from .env.example"; }
+	docker compose up -d --build --wait
+	docker compose exec api alembic upgrade head
+	docker compose exec api python -m scripts.seed
+	@echo ""
+	@$(MAKE) --no-print-directory llm-check || true
+	@echo ""
+	@echo "Open http://localhost:3003/register"
+	@echo "Use localhost, not a LAN address: browsers grant the microphone only on a secure"
+	@echo "origin. On a first run asr is still downloading Whisper's weights for a few"
+	@echo "minutes; \`make health\` shows \"model_loaded\": true under asr once it is done."
+
+# The check asks the API rather than the host, on purpose. What matters is whether the
+# api container can reach Ollama — on Linux the host's Ollama listens on 127.0.0.1 and a
+# container cannot see it, while a curl from the host would say everything is fine.
+define LLM_CHECK
+import json, sys
+llm = json.load(sys.stdin)["services"]["llm"]
+if llm["status"] == "ok":
+    print(f"llm: ok, {llm['reports']['model']} at {llm['url']}")
+    sys.exit(0)
+print(f"llm: {llm['status']}. {llm.get('detail', '')}")
+print("Conversations will not work until this is fixed. Everything else does.")
+if llm["status"] == "unreachable":
+    print(f"Nothing answered at {llm['url']}, as seen from inside the api container.")
+    print("  1. Install Ollama from https://ollama.com/download and start it.")
+    print("  2. ollama pull gemma3:4b   (or whatever OLLAMA_MODEL is set to in .env)")
+    print("  On Linux, start Ollama with OLLAMA_HOST=0.0.0.0 so containers can reach it.")
+print("Then: make llm-check")
+sys.exit(1)
+endef
+export LLM_CHECK
+
+llm-check:                         ## Can the API reach Ollama, with the model pulled?
+	@body=$$(curl -sf --max-time 10 http://localhost:8002/health/models) \
+		|| { echo "The API is not answering on localhost:8002. Start the stack: make setup"; exit 1; }; \
+	echo "$$body" | python3 -c "$$LLM_CHECK"
 
 # ── Everyday ────────────────────────────────────────────────────────────────
 
@@ -101,6 +149,10 @@ llm-up:                            ## Start the CONTAINERISED LLM. On macOS you 
 	@echo "This target is for a Linux host with a GPU, or for CI. Ctrl-C to stop."
 	docker compose --profile llm up -d ollama
 	docker compose --profile llm exec ollama ollama pull $${OLLAMA_MODEL:-gemma3:4b}
+	@echo ""
+	@echo "The API still points at the host until you tell it otherwise. Set"
+	@echo "  OLLAMA_BASE_URL=http://ollama:11434"
+	@echo "in .env, then recreate the api container and check: make restart && make llm-check"
 
 # ── Data ────────────────────────────────────────────────────────────────────
 

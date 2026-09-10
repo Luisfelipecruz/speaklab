@@ -20,7 +20,7 @@ import os
 # drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
 # which is the small version of the rule this project runs on: a number is reported by
 # the thing it describes, never written down beside it.
-VERSION = "0.13.0"
+VERSION = "0.13.1"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).

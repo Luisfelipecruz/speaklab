@@ -65,6 +65,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Every key in .env reaches the API, not only the ones `environment:` below names.
+    # Without this, the tuning keys in .env.example — the LLM estimator, the progress
+    # gates, paging — were documented, editable, and read by nothing: config.py only sees
+    # what the container is given. `environment:` still wins where both set a key, so
+    # the explicit entries below behave exactly as before, and config.py stays the one
+    # place a default lives. Optional, because CI and a fresh clone have no .env.
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
       SQL_ECHO: ${SQL_ECHO:-0}
@@ -276,7 +285,11 @@ services:
     # Opt-in and NOT the default target on this machine — see the api service above for
     # why. This definition exists for a Linux host with a GPU, and for CI, where a
     # self-contained stack matters more than throughput.
-    image: ollama/ollama:0.5.13
+    #
+    # Pinned to the version the development host ran on 2026-09-10, so the container and
+    # the host serve the model the same way. It was 0.5.13, which predates Gemma 3
+    # support (0.6.0), so `make llm-up` could not pull the default model at all.
+    image: ollama/ollama:0.34.0
     profiles: ["llm"]
     volumes:
       - ollama_models:/root/.ollama

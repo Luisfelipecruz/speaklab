@@ -43,6 +43,7 @@ const MODEL_SERVICES = [
     name: "pron",
     role: "Forced alignment and per-phoneme GOP",
   },
+  { name: "llm", role: "The persona's words, from Ollama on the host" },
 ] as const;
 
 function StatusBadge({ status }: { status: ServiceStatus | string }) {
@@ -111,12 +112,13 @@ export default async function StatusPage() {
           <CardHeader>
             <CardTitle>Model services</CardTitle>
             <CardDescription>
-              <code className="font-mono text-xs">asr</code> and{" "}
-              <code className="font-mono text-xs">tts</code> are what a conversation needs;
+              <code className="font-mono text-xs">asr</code>,{" "}
+              <code className="font-mono text-xs">tts</code> and{" "}
+              <code className="font-mono text-xs">llm</code> are what a conversation needs;
               the stack still serves everything that is not speech while they are absent or
-              still loading their weights. Conversation also needs Ollama on the host — it
-              is deliberately not a Compose service, because Docker on macOS cannot pass
-              the GPU through.
+              still loading their weights. <code className="font-mono text-xs">llm</code>{" "}
+              is Ollama on the host with the configured model pulled — deliberately not a
+              Compose service, because Docker on macOS cannot pass the GPU through.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
@@ -129,6 +131,14 @@ export default async function StatusPage() {
                     <div className="flex flex-col gap-0.5">
                       <span className="font-mono font-medium">{name}</span>
                       <span className="text-muted-foreground">{role}</span>
+                      {/* Only for `error`: up and unwell is the state with a fix to name
+                          — a model not pulled says which command pulls it. An
+                          unreachable service is what the badge already says. */}
+                      {probe?.status === "error" && probe.detail ? (
+                        <span className="font-mono text-xs text-destructive">
+                          {probe.detail}
+                        </span>
+                      ) : null}
                     </div>
                     <StatusBadge status={probe?.status ?? "unknown"} />
                   </div>

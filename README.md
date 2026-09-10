@@ -44,21 +44,33 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 
 ## Quick start
 
-Prerequisites: Docker, and about 3 GB of disk for the images. The first `make up` also
-downloads the Whisper weights (~480 MB for `small.en`) onto a shared volume, which takes a
-few minutes once. Nothing waits for it: the API has no `depends_on` for the recogniser, so
-the rest of the stack is usable immediately and `/health` reports `asr` as loading.
+**You need:**
+
+| | |
+|---|---|
+| **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
+| **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
+| **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
+| **Disk** | The default stack's own images, measured: api 812 MB, asr 746 MB, tts 672 MB — plus the Node and Postgres images, and ~480 MB of Whisper weights on first start. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.78 GB image and 1.2 GB of weights |
+| **Memory** | Not measured yet. The requirement is under 8 GB for the default stack with models warm, excluding Ollama (PRD §9) |
+
+**Then:**
 
 ```bash
-cp .env.example .env
-make up
-make migrate
-make seed
+ollama pull gemma3:4b
+make setup
 ```
 
-`make seed` is idempotent — it keys on slug, and the second run reports
-`0 inserted, 0 updated`. Running it after a `git pull` is how a content change reaches
-your database.
+`make setup` writes `.env` from `.env.example` if you have none, builds and starts the
+five default containers, waits for them to report healthy, applies the migrations, loads
+the 8 scenarios and 12 passages, and finally asks the API whether it can reach Ollama with
+the model pulled. The whole of what it runs is readable in the `Makefile`. Every step is
+idempotent, so it is also the command to run after a `git pull`.
+
+On a first run the recogniser is still downloading Whisper's weights for a few minutes
+after `make setup` returns. Nothing waits for that — the API has no `depends_on` for the
+recogniser, so the rest of the stack is usable immediately and `make health` reports `asr`
+with `"model_loaded": false` until it is done.
 
 The API signs sessions with a built-in development key until you set `JWT_SECRET`, and
 says so in its startup log every time. That is fine on a laptop and nowhere else.
@@ -71,7 +83,9 @@ Then:
 | Sign up | <http://localhost:3003/register> |
 | **Choose a scenario and talk** | <http://localhost:3003/scenarios> |
 | Your conversations | <http://localhost:3003/sessions> |
+| What the stack says about itself | <http://localhost:3003/status> |
 | API docs | <http://localhost:8002/docs> |
+| Can the API reach the conversation model? | `make llm-check` |
 | Health | `make health` |
 | API tests | `make test` |
 | Frontend tests | `make test-frontend` |
@@ -84,21 +98,32 @@ Open the app at **`localhost`**, not at a LAN address. Browsers only grant micro
 access on a secure origin, and `http://192.168.x.x:3003` is not one — the app detects this
 and says so rather than rendering a record button that cannot work, but the fix is the URL.
 
-`make up` starts **five** containers as of m5: postgres, api, frontend, `asr` and `tts` —
-the whole conversational stack. It does not start `pron`, which keeps its profile
-permanently so that nobody downloads 1.78 GB of torch to try a conversation. **`/health`
-reporting `degraded` is the system working correctly**: it means `asr` and `tts` are up
-and pronunciation scoring is switched off. Read-aloud still works in that state — a
-reading comes back with its transcript and its word error rate, and says in words that
-the phone scores are missing and how to get them (PRD R6).
+The default stack is **five** containers: postgres, api, frontend, `asr` and `tts` — the
+whole conversational stack. It does not start `pron`, which keeps its profile permanently
+so that nobody downloads 1.78 GB of torch to try a conversation. **`/health` reporting
+`degraded` is the system working correctly** while `pron` is off: it names every service
+it probed, and read-aloud still works in that state — a reading comes back with its
+transcript and its word error rate, and says in words that the phone scores are missing
+and how to get them (PRD R6). The Piper voice is inside its image, so the first thing the
+system says out loud does not wait for a download.
 
 For pronunciation scoring, `make pron-up` — 1.78 GB of image and 1.2 GB of weights,
 measured at 109 s to first readiness including the download. Readings taken while it was
 off can be scored afterwards without being read again (`FR-16`).
 
-The first `make up` builds the two model images and downloads Whisper's weights, which
-takes a few minutes once. The Piper voice is inside its image already, so the first
-thing the system says out loud does not wait for a download.
+The long way, if you want each step separately: `cp .env.example .env`, `make up`,
+`make migrate`, `make seed`, `make llm-check`.
+
+### If something does not work
+
+| Symptom | Cause, and the fix |
+|---|---|
+| Starting a conversation fails with "The conversation model is not available" or "not responding" | Ollama is not running, or the model is not pulled. `make llm-check` asks the API — not the host — and names the command that fixes it |
+| `make llm-check` says unreachable on **Linux**, with Ollama running | Ollama listens on 127.0.0.1 by default, which a container cannot reach. Start it with `OLLAMA_HOST=0.0.0.0` — for the systemd service, `sudo systemctl edit ollama` and add `Environment="OLLAMA_HOST=0.0.0.0"`. That also exposes it to your network, so firewall port 11434 |
+| No Ollama on the host at all | `make llm-up` runs it in a container instead, and tells you the one `.env` line that points the API at it. On macOS it runs on the CPU, several times slower |
+| The first recording takes a long time, or reads as unavailable | The recogniser is still downloading its weights. `make health`, and wait for `asr` to report `"model_loaded": true` |
+| A value changed in `.env` made no difference | The container that reads it was not recreated. `make restart` for the API, `make up` for the rest |
+| The record button says the microphone is unavailable | You opened a LAN address. Use `http://localhost:3003` |
 
 ---
 
@@ -154,15 +179,15 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 
 ## Measured
 
-Counted against the running system on 2026-09-05, not recalled — except the frontend
-suite, recounted on 2026-09-06. Anything not listed here has not been measured yet and is
+Counted against the running system on 2026-09-05, not recalled — except the two test
+suites, recounted on 2026-09-10. Anything not listed here has not been measured yet and is
 not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **562** — 528 pass with no model services running; the other 34 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **202** across 30 suites, Jest and React Testing Library, no services needed |
+| API test suite | **572** — 539 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **206** across 31 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
@@ -376,7 +401,7 @@ Named explicitly so nothing here reads as a claim.
 | m5 | A way for the *browser* to ask for speech. The `tts` service works and is measured, but synthesis is an internal call — the persona's audio reaches the browser attached to a turn (m6), through `GET /audio/{id}` |
 | m7 | **A recording has never been through this UI** — no headless browser has a microphone. The recorder's states and failures are covered by unit tests; the gesture itself needs a person, in Chrome and in Safari |
 | m7 | Time-to-first-audio. The turn returns one concatenated WAV, so the first sound arrives at whole-turn latency — streaming it sentence by sentence to the browser needs an endpoint that does not exist, and giving up the atomic turn. See [decision 0004 §3](docs/decisions/0004-browser-recording-and-playback.md) |
-| m8 | **The golden pairs.** Criterion S4 — that deliberately broken readings score measurably worse than clean ones — is not met, and cannot be met by what exists: perturbing the reference proves the arithmetic, not that a *learner* error is detected. The test is written and skips. It needs five minutes of a person's voice ([`spike/RECORD.md`](spike/RECORD.md)) |
+| m8 | **The golden pairs.** Criterion S4 — that deliberately broken readings score measurably worse than clean ones — is not met, and cannot be met by what exists: perturbing the reference proves the arithmetic, not that a *learner* error is detected. The test is written and skips. It needs five minutes of a person's voice ([`eval/golden/pron/`](eval/golden/pron/README.md)) |
 | m8 | **A calibrated GOP threshold.** m0 settled the method — a percentile of the correct-speech distribution, per phone — and not the numbers, so `PRON_GOP_THRESHOLDS` is empty and the heatmap says its bands are relative to the reading rather than a pass mark. See [decision 0005 §7](docs/decisions/0005-gop-pipeline.md) |
 | m9 | **Error detection is not accurate enough yet, and the number is published.** Detection precision measures **0.500** against a 0.70 bar. `gemma3:4b` finds roughly the right words and files them under the wrong category three times out of six; `mistral:7b` measured worse. The sample is six scored proposals, so the figure cannot yet decide the question either way. [Decision 0006 §6](docs/decisions/0006-error-taxonomy.md) has the table and the comparison arms |
 | m9 | **A rule-based detector.** `language_errors.detector` allows `'rule'` and every row so far is `'llm'`. Subject–verb agreement and article omission are where the parse is reliable enough to propose errors on its own, and that is the way to raise precision without a bigger model |
