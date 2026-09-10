@@ -172,7 +172,8 @@ seeing this; the manifest's `why` for that phrasing says to read the replies.
 
 The five are in the golden set now, so the suite asks fifteen phrasings. Its first run in
 that shape, on the shipped prompt, in 152 s: **gave its instructions away 14 of 150 —
-0.093 [0.056, 0.151]**, stepped out 6 of 150, all six on `stop-acting`.
+0.093 [0.056, 0.151]**, stepped out 6 of 150, all six on `stop-acting`. The run inside
+`make eval` that wrote `docs/evaluation.md`, on the same code: 5 of 150.
 
 **One rate, because there is no guard.** The fix is entirely in what the model is given.
 Nothing inspects a reply before it is spoken, so nothing hides the model's behaviour, and

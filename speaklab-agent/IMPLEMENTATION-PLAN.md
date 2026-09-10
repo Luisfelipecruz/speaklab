@@ -1,17 +1,17 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.9 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+**Status:** v1.10 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
 PR #15, `537869e`, 2026-09-06), and **two off-milestone fixes are merged**: PR #16
 (`0.13.1`), a fresh clone that can hold a conversation, and PR #17 (`0.13.2`), the first
 cold run of `make setup` — **7 min 12 s, against five minutes, missed** — and an
 evaluation report that names what failed. **m14, grammar practice, is in progress: item 0,
-Q16, is done and uncommitted** — the persona gives its instructions away in 16 of 200
-attempts, from 59 of 200 (`docs/decisions/0013`); **item 1, the rule layer, is next**. m15
-is polish, not started.
+Q16, goes up as a PR of its own (`0.13.3`)** — the persona gives its instructions away in
+16 of 200 attempts, from 59 of 200 (`docs/decisions/0013`); **item 1, the rule layer, is
+next**, on a fresh branch once that PR is merged. m15 is polish, not started.
 Three criteria — S4, S5, S7 — are blocked on speech only a person can produce, and no
 milestone changes that. The repository is `Luisfelipecruz/speaklab`; every git command is
 prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-10 (PRs #16 and #17; the owner's decisions on m14 and Q16; §11 rewritten for the next session)
+**Date:** 2026-08-29, last revised 2026-09-10 (PRs #16 and #17; the owner's decisions on m14 and Q16; Q16 done and shipped on its own; §11 rewritten for the next session)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1470,7 +1470,7 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **IN PROGRESS** — item 0 done, uncommitted
+### m14 — Grammar practice · **IN PROGRESS** — item 0 done, in a PR of its own (`0.13.3`)
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
@@ -1498,7 +1498,7 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    change — a check on the reply before it is spoken, say — the report has to show the
    model's rate and the product's rate separately, because a guard that hides the model's
    behaviour must not read as the model having improved.
-   **DONE, uncommitted, 2026-09-10** — `docs/decisions/0013`. Every speaker turn reaches the
+   **DONE 2026-09-10, shipped on its own as `0.13.3`** — `docs/decisions/0013`. Every speaker turn reaches the
    model as quoted speech, and the reminder carries the brief's own sentence count and
    names the persona once. A prompt change and no guard, so one rate. Before, on ten
    phrasings in all eight scenarios, two runs: **59 of 200** gave its instructions away;
@@ -1542,7 +1542,7 @@ above the model's; a learner with corrections can open the grammar section, see 
 sentences, and complete one spoken drill that is scored; the new seeds exist and elicit
 what they declare.
 
-**Branch** `feature/m14-grammar` · **PR** `feat: add a rule layer, per-form accuracy and grammar practice`
+**Branch** `feature/m14-grammar` · **PR** `feat: add a rule layer, per-form accuracy and grammar practice` — items 1–5. Item 0 went first, in its own PR `fix: keep the persona in the scene when it is asked to recite its instructions` (`0.13.3`), at the owner's request: it was finished and measured, and the rest of the milestone is most of the milestone. m14's own PR is `0.14.0`.
 
 ---
 
@@ -1678,8 +1678,9 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**`main` is PR #17 (`0.13.2`)**: m13, the onboarding fix, and the first cold run. Only
-`demo/` is outside it, untracked on purpose — it is m15's.
+**`main` is PR #17 (`0.13.2`)**: m13, the onboarding fix, and the first cold run. **Q16 is
+in its own PR on `feature/m14-grammar`** (`0.13.3`). Only `demo/` is outside both,
+untracked on purpose — it is m15's.
 
 **Done in PR #17, 2026-09-10:**
 - ~~Verify S1 cold.~~ `make setup` 7 min 12 s, Whisper loaded at 8 min 58 s — **missed
@@ -1689,18 +1690,29 @@ Evenings-and-weekends pace, one developer.
   regenerated and committed. Found on the way and fixed: a test that `make test` always
   skipped, and `make down` leaving the profiled services behind.
 
+**Done in the Q16 PR, 2026-09-10 (`0.13.3`):**
+- ~~m14 item 0, Q16.~~ Speaker turns reach the model as quoted speech; the reminder names
+  the persona once and carries the brief's own sentence count. 59 of 200 → **16 of 200**
+  gave its instructions away; 26 of 100 → **1 of 100** on five phrasings written after the
+  fix. One phrasing worse, one model only (`docs/decisions/0013` §7). The persona suite
+  asks fifteen phrasings. `docs/evaluation.md` regenerated.
+
 **Decided by the owner, 2026-09-10:** m14 next and the LinkedIn post after m15 — this plan
 puts m14 first on purpose, because a walkthrough of a product about to gain a section is
-a recording made twice — and Q16 as m14's item 0.
+a recording made twice — Q16 as m14's item 0, and **Q16 merged on its own** rather than
+waiting for the rest of the milestone.
 
-1. ~~**Start m14 with item 0, Q16.**~~ Done 2026-09-10, uncommitted: 59 of 200 → 16 of
-   200, and 26 of 100 → 1 of 100 on phrasings written after the fix (§7, m14 item 0;
-   `docs/decisions/0013`). The owner cut `feature/m14-grammar` from `a8dc441` and
-   the work is on it.
-2. **Next: the rule layer (Q15)**, measured per detector with `make error-precision` before
-   anything is built on it. Read `docs/decisions/0006` §6 and §10 first: a drill built on a
-   detector that is right half the time teaches the wrong thing half the time.
-3. **This plan's own edits ride in m14's PR** — no plan-only PR.
+1. **Merge the Q16 PR** — the owner, with `GIT-COMMANDS.md` §B.12 — and bring `main` current.
+2. **Cut a fresh `feature/m14-grammar` from the new `main`.** The first one is deleted by
+   the squash-merge; the name is m14's and carries on.
+3. **m14 item 1, the rule layer (Q15)** — subject–verb agreement and article omission,
+   proposed from the parse with confidence 1.0 and no taxonomy gate, stored with
+   `detector='rule'`. **Measured per detector with `make error-precision` before anything is
+   built on it**, and the report says the category mix is now partly a property of the
+   detector. Read `docs/decisions/0006` §6 and §10 first: a drill built on a detector that
+   is right half the time teaches the wrong thing half the time.
+4. Then items 2–5 in order — per-form accuracy, the grammar section, the spoken drill, the
+   seeds — and m14's own PR, `0.14.0`, with this plan's edits in it. No plan-only PR.
 
 **One open finding, not yet a task.** The 10 s scoring-budget test for a passage-length
 reading failed in one full `make eval` on 2026-09-10 that ran 2.4× slower end to end than

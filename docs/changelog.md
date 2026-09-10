@@ -7,7 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — grammar practice, in progress
+## [0.13.3] — 2026-09-10 · the persona stays in the scene
+
+The first item of grammar practice, shipped on its own: the persona read its own
+instructions aloud when asked to out loud, and grammar practice is also about what the
+model is asked to do. The rest of grammar practice follows separately.
 
 ### Fixed
 
