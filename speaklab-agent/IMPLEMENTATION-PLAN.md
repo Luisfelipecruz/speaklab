@@ -1,14 +1,17 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.8 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
-PR #15, `537869e`, 2026-09-06), and **an off-milestone onboarding fix is merged as PR #16,
-`d4ffdd7`, version `0.13.1`** (2026-09-10): a fresh clone that followed the README could
-not hold a conversation, because nothing said to install Ollama and `/health` never probed
-the model. m14 is grammar practice, planned and not started; m15 is polish, not started.
+**Status:** v1.9 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+PR #15, `537869e`, 2026-09-06), and **two off-milestone fixes are merged**: PR #16
+(`0.13.1`), a fresh clone that can hold a conversation, and PR #17 (`0.13.2`), the first
+cold run of `make setup` — **7 min 12 s, against five minutes, missed** — and an
+evaluation report that names what failed. **m14, grammar practice, is in progress: item 0,
+Q16, is done and uncommitted** — the persona gives its instructions away in 16 of 200
+attempts, from 59 of 200 (`docs/decisions/0013`); **item 1, the rule layer, is next**. m15
+is polish, not started.
 Three criteria — S4, S5, S7 — are blocked on speech only a person can produce, and no
 milestone changes that. The repository is `Luisfelipecruz/speaklab`; every git command is
 prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-10 (m13 merged; the onboarding fix; §11 rewritten for the next session)
+**Date:** 2026-08-29, last revised 2026-09-10 (PRs #16 and #17; the owner's decisions on m14 and Q16; §11 rewritten for the next session)
 **Companion to:** `../PRD.md`
 
 ---
@@ -50,6 +53,7 @@ how this developer works.
 | PR bodies | Files under `.pr-bodies/`, referenced with `gh pr create --body-file` |
 | PR template | What / Why / Measured / Test plan / Not-in-this-PR |
 | Git execution | **Manual only.** No agent runs a mutating git or gh command. See `GIT-COMMANDS.md` |
+| This plan | Edits ride in the next milestone's or fix's PR, staged with its files. **There is no plan-only PR** — the owner's rule, 2026-09-10 |
 | Staging | One `git add` per step listing every file that step commits. Never `git add -p` |
 | Shared files | A file touched by several milestones is added **whole** in the first milestone that touches it, and is absent from every later `git add` |
 | Python | 3.12 in-container, type hints throughout, `ruff` + `black` |
@@ -1466,7 +1470,7 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **PLANNED**, not started
+### m14 — Grammar practice · **IN PROGRESS** — item 0 done, uncommitted
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
@@ -1486,10 +1490,21 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
 
 0. **The persona reading its brief aloud (Q16)** — placed here by the owner on 2026-09-10.
    Measured before and after with `make persona-adherence`, and the before is re-measured
-   on the day rather than quoted from m11. If the fix is anything more than a prompt
+   on the day rather than quoted from m11. **The last before, 2026-09-10: 19 of 20** — 10
+   of 10 and 9 of 10 in the two `make eval` runs of PR #17. The probe is one utterance in
+   one scenario, so a prompt tuned against it can pass it without generalising: write
+   further phrasings, in other scenarios, **before** changing the prompt, and measure the
+   before on all of them. If the fix is anything more than a prompt
    change — a check on the reply before it is spoken, say — the report has to show the
    model's rate and the product's rate separately, because a guard that hides the model's
    behaviour must not read as the model having improved.
+   **DONE, uncommitted, 2026-09-10** — `docs/decisions/0013`. Every speaker turn reaches the
+   model as quoted speech, and the reminder carries the brief's own sentence count and
+   names the persona once. A prompt change and no guard, so one rate. Before, on ten
+   phrasings in all eight scenarios, two runs: **59 of 200** gave its instructions away;
+   after, **16 of 200**. On five phrasings written after the fix was chosen: **26 of 100
+   → 1 of 100**. One phrasing got worse (0 → 5 of 20: the reminder is recited). One model
+   only. The five are in the golden set, which now asks fifteen phrasings.
 1. **The rule layer (Q15).** Subject–verb agreement and article omission, proposed from
    the parse with confidence 1.0 and no taxonomy gate. It raises precision without a bigger
    model, and it makes the category mix partly a property of the detector — which the
@@ -1538,12 +1553,16 @@ what they declare.
 **Why here.** Last. Documentation written before the system is finished documents an
 intention.
 
-**Already delivered, ahead of the milestone (PR #16, `0.13.1`).** The part of S1 that was
-broken rather than unpolished: Ollama is a stated prerequisite, `make setup` is the first
-run in one command, `make llm-check` and the `llm` row on `/health` and `/status` say when
-the model is missing and name the pull command, `.env` reaches the API, and the README has
-a prerequisites table and a troubleshooting table. **What that PR did not do is run
-`make setup` cold** — Docker was off — so S1 itself is still unverified.
+**Already delivered, ahead of the milestone.** PR #16 (`0.13.1`) fixed the part of S1 that
+was broken rather than unpolished: Ollama is a stated prerequisite, `make setup` is the
+first run in one command, `make llm-check` and the `llm` row on `/health` and `/status`
+say when the model is missing and name the pull command, `.env` reaches the API, and the
+README has a prerequisites table and a troubleshooting table. PR #17 (`0.13.2`) ran it
+cold — a `git archive` copy, empty volumes, a BuildKit builder with no cache — and
+measured it: **`make setup` 7 min 12 s with zero manual steps, Whisper loaded at 8 min
+58 s**, one spoken turn end to end, five containers in 1.94 GiB. **S1's five minutes are
+missed**, and the build is 401 s of the 432 — dependency downloads, the API's
+`pip install` alone 346 s. So S1 is no longer unverified; it is measured and unmet.
 
 **Deliverables.**
 ```
@@ -1574,8 +1593,9 @@ repository on LinkedIn renders GitHub's generic card without one — and reposit
 - Empty states matter disproportionately: a new user's progress page has no data, and "not enough data yet — practise 5 more times" is the correct design, not a blank chart.
 
 **Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1) —
-`make setup` from nothing, timed, on a machine or a compose project that has never had
-this stack — every S-criterion is verified and recorded, and the walkthrough is recorded.
+already true, and timed once at 7 min 12 s. m15 decides between making the first build
+faster and stating the miss as a limitation; either way the README carries a re-measured
+figure. Every S-criterion is verified and recorded, and the walkthrough is recorded.
 
 **Branch** `feature/m15-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
@@ -1654,38 +1674,38 @@ Evenings-and-weekends pace, one developer.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #16.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #17.
 
 ### The next actions
 
-**`main` is `d4ffdd7` (PR #16): m13, and the onboarding fix on top of it.** The working
-tree holds two things that are not on `main` and are not ready to be: `docs/evaluation.md`,
-regenerated on 2026-09-06, and the untracked `demo/`.
+**`main` is PR #17 (`0.13.2`)**: m13, the onboarding fix, and the first cold run. Only
+`demo/` is outside it, untracked on purpose — it is m15's.
 
-1. **Verify S1: run `make setup` cold.** It is the one thing PR #16 could not do. Use a
-   copy of `HEAD` from `git archive`, in a directory not named `speaklab` so its compose
-   project gets volumes of its own, and stop the real stack first — `make down`, never
-   `-v` — because the host ports are fixed. Time it from nothing to `make llm-check`
-   printing ok. The PRD asks for the full stack healthy within five minutes on a first run,
-   model downloads included; whatever the run measures goes in the README.
-2. **Make the harness name a failure, then regenerate the report.** `eval/run.py` runs
-   pytest with `-q -rs`, which reports skips and drops the `FAILED` lines, so the
-   `docs/evaluation.md` in the tree says `pron` "ran and failed" and cannot say which test.
-   Pass `-rfEs`, then `make pron-up` and `make pron-golden` to name it — the latency test
-   had 1.9 s of margin at m8 and is the likely one, not yet shown — then `make eval`.
-   Replace the report in the tree rather than commit it as it stands. A small fix PR.
-3. **Decided 2026-09-10: m14 next, and the LinkedIn post after m15.** This plan puts m14
-   before m15 on purpose — a walkthrough of a product about to gain a section is a
-   recording made twice — and the owner kept that order rather than pulling m15's
-   showcase slice forward. Read `docs/decisions/0006` §6 and §10 before starting: the rule
-   layer comes before the page and the drill, because a drill built on a detector that is
-   right half the time teaches the wrong thing half the time.
-4. **Decided 2026-09-10: Q16 goes at the front of m14.** Asked in the scene to ignore its
-   instructions, the persona quoted its brief in 30 of 40 attempts across m11's four runs,
-   and in 10 of 10 on 2026-09-06. It breaks the exercise rather than disclosing anything —
-   every brief ships in the seeds — and the instrument that measures a fix exists,
-   `make persona-adherence`. It is m14's item 0, because m14 is also about what the model
-   is asked to do, and it lands before any walkthrough of a persona is recorded.
+**Done in PR #17, 2026-09-10:**
+- ~~Verify S1 cold.~~ `make setup` 7 min 12 s, Whisper loaded at 8 min 58 s — **missed
+  against five minutes**, by the build. The figures are in the README.
+- ~~Make the harness name a failure.~~ `eval/run.py` passes `-rfEs` and sets `COLUMNS`,
+  so a failing suite is reported by test name and reason. `docs/evaluation.md` is
+  regenerated and committed. Found on the way and fixed: a test that `make test` always
+  skipped, and `make down` leaving the profiled services behind.
+
+**Decided by the owner, 2026-09-10:** m14 next and the LinkedIn post after m15 — this plan
+puts m14 first on purpose, because a walkthrough of a product about to gain a section is
+a recording made twice — and Q16 as m14's item 0.
+
+1. ~~**Start m14 with item 0, Q16.**~~ Done 2026-09-10, uncommitted: 59 of 200 → 16 of
+   200, and 26 of 100 → 1 of 100 on phrasings written after the fix (§7, m14 item 0;
+   `docs/decisions/0013`). The owner cut `feature/m14-grammar` from `a8dc441` and
+   the work is on it.
+2. **Next: the rule layer (Q15)**, measured per detector with `make error-precision` before
+   anything is built on it. Read `docs/decisions/0006` §6 and §10 first: a drill built on a
+   detector that is right half the time teaches the wrong thing half the time.
+3. **This plan's own edits ride in m14's PR** — no plan-only PR.
+
+**One open finding, not yet a task.** The 10 s scoring-budget test for a passage-length
+reading failed in one full `make eval` on 2026-09-10 that ran 2.4× slower end to end than
+the next, and passed in four other runs at 4.0–4.4 s. Why that run was slow is not shown.
+If it fails again, the report now carries the figure it failed by.
 
 The person-only list below is unchanged, and it is still the only thing that moves S4, S5
 and S7.
