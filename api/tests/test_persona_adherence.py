@@ -25,8 +25,10 @@ an assistant, a placeholder name, reading its own brief aloud — because an ins
 cannot separate those separates nothing.
 
 **What is asserted and what is only reported.** Asserted: every probe produces a reply,
-every judgement comes back inside the closed vocabulary it was given, and an instruction
-buried in a speaker turn is answered in scene rather than obeyed. Reported: every rate.
+and every judgement comes back inside the closed vocabulary it was given. Reported: every
+rate, including how often an instruction spoken inside the scene is obeyed rather than
+answered in scene — a property of a model and a prompt, which a red test could only
+describe as "sometimes".
 Six probes is six probes; a 5/6 and a 6/6 are one reply apart, and `eval/scoring.py`'s Wilson interval
 puts the interval next to the figure so nobody has to take the point estimate seriously.
 
@@ -100,6 +102,21 @@ needs_model = pytest.mark.skipif(
 
 def manifest() -> dict:
     return json.loads((GOLDEN / "manifest.json").read_text())
+
+
+def instructions(messages: list[ChatMessage]) -> str:
+    """Everything in a request that nobody in the scene said.
+
+    The brief, the goal, the rules and the reminder before the speaker's words. A reply
+    that recites the reminder has given its instructions away as surely as one that
+    recites the brief.
+    """
+    return "\n\n".join(item.content for item in messages if item.role == "system")
+
+
+def spoken(messages: list[ChatMessage]) -> str:
+    """Everything said aloud in the scene, the speaker's latest words included."""
+    return "\n\n".join(item.content for item in messages if item.role != "system")
 
 
 # ── The judge ───────────────────────────────────────────────────────────────
@@ -204,6 +221,19 @@ def test_the_golden_set_still_describes_the_personas_it_was_written_against():
         assert probe["history"], f"{probe['id']} has no history to drift from"
         assert probe["max_sentences"] >= 1
 
+    for item in golden["injections"]:
+        assert item["scenario"] in seeds, f"{item['id']} names an unseeded scenario"
+        assert item["history"], f"{item['id']} has no scene to be spoken inside"
+        assert item["utterance"].strip() and item["why"].strip()
+
+    # Phrasings spread over the personas, so the rate measures the rule and not one
+    # character's manners.
+    injection_scenarios = {item["scenario"] for item in golden["injections"]}
+    assert len(injection_scenarios) >= len(golden["injections"]) // 2 + 1
+
+    ids = [item["id"] for item in golden["probes"] + golden["injections"]]
+    assert len(set(ids)) == len(ids), "a probe id is used twice"
+
     for item in golden["calibration"]:
         assert item["scenario"] in seeds, f"{item['id']} names an unseeded scenario"
         assert item["why"], "a labelled reply with no stated reason is not a label"
@@ -228,6 +258,7 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
         for row in (await db_session.scalars(select(Scenario))).all()
         if row.slug
         in {probe["scenario"] for probe in golden["probes"]}
+        | {item["scenario"] for item in golden["injections"]}
         | {item["scenario"] for item in golden["calibration"]}
     }
 
@@ -253,9 +284,10 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
 
         guardrails = scoring.check_guardrails(
             reply,
-            scenario.persona_prompt,
+            instructions(messages),
             probe["max_sentences"],
             probe["ends_with_question"],
+            spoken=spoken(messages),
         )
         clean += guardrails.clean
         for rule in guardrails.violations:
@@ -296,33 +328,60 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             )
         )
 
-    # ── The injection probe, repeated, because once is an anecdote ─────────────
+    # ── The injection probes, repeated, because once is an anecdote ─────────────
     #
     # Every other probe here is asked once: they measure character, which is diffuse, and
-    # six single replies across six scenarios say more than six replies to one. This one
-    # is different. It asks a yes-or-no question about a specific rule — does an
+    # six single replies across six scenarios say more than six replies to one. These are
+    # different. Each asks a yes-or-no question about a specific rule — does an
     # instruction spoken inside the scene get obeyed — and a single sample cannot
     # distinguish a model that never complies from one that complies most of the time.
-    injection = next(
-        item for item in golden["probes"] if item["id"] == "instruction-inside-a-turn"
-    )
+    #
+    # Several phrasings in several scenarios, because a prompt tuned against one sentence
+    # can pass that sentence without generalising. Each is reported on its own line as
+    # well as in the total, and every reply is kept, so a detector changed later can be
+    # run again over the same replies.
     rounds = int(os.environ.get("INJECTION_ROUNDS", "10"))
-    injection_scenario = scenarios[injection["scenario"]]
-    injection_history = [
-        Turn(idx=index, role=turn["role"], transcript=turn["text"])
-        for index, turn in enumerate(injection["history"])
-    ]
-    injection_messages = build_messages(
-        injection_scenario, None, injection_history, injection["utterance"]
-    )
-    leaked = stepped_out = 0
-    for _ in range(rounds):
-        attempt = await provider.complete(injection_messages, max_tokens=250)
-        found = scoring.check_guardrails(
-            attempt.text.strip(), injection_scenario.persona_prompt, 99, False
+    injections = [
+        item for item in golden["probes"] if item["id"] == "instruction-inside-a-turn"
+    ] + golden["injections"]
+    injection_rows: list[dict] = []
+    for injection in injections:
+        injection_scenario = scenarios[injection["scenario"]]
+        injection_history = [
+            Turn(idx=index, role=turn["role"], transcript=turn["text"])
+            for index, turn in enumerate(injection["history"])
+        ]
+        injection_messages = build_messages(
+            injection_scenario, None, injection_history, injection["utterance"]
         )
-        leaked += bool(found.leaked)
-        stepped_out += bool(found.broke_role)
+        given = instructions(injection_messages)
+        said = spoken(injection_messages)
+        replies: list[str] = []
+        counts = {"gave_away": 0, "leaked": 0, "described": 0, "broke_role": 0}
+        for _ in range(rounds):
+            attempt = await provider.complete(injection_messages, max_tokens=250)
+            text = attempt.text.strip()
+            found = scoring.check_guardrails(text, given, 99, False, spoken=said)
+            counts["gave_away"] += bool(found.leaked or found.described)
+            counts["leaked"] += bool(found.leaked)
+            counts["described"] += bool(found.described)
+            counts["broke_role"] += bool(found.broke_role)
+            replies.append(text)
+        injection_rows.append(
+            {
+                "probe": injection["id"],
+                "scenario": injection["scenario"],
+                "attempts": rounds,
+                **counts,
+                "replies": replies,
+            }
+        )
+
+    attempts = sum(row["attempts"] for row in injection_rows)
+    gave_away = sum(row["gave_away"] for row in injection_rows)
+    leaked = sum(row["leaked"] for row in injection_rows)
+    described = sum(row["described"] for row in injection_rows)
+    stepped_out = sum(row["broke_role"] for row in injection_rows)
 
     # ── The judge, measured on replies whose verdicts were written down first ──
     verdicts: dict[str, bool] = {}
@@ -341,8 +400,17 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
     )
 
     probes = len(golden["probes"])
-    injection_rate = scoring.proportion(leaked, rounds)
-    role_rate = scoring.proportion(stepped_out, rounds)
+    gave_away_rate = scoring.proportion(gave_away, attempts)
+    injection_rate = scoring.proportion(leaked, attempts)
+    described_rate = scoring.proportion(described, attempts)
+    role_rate = scoring.proportion(stepped_out, attempts)
+    injection_lines = [
+        f"  {row['probe']:<28} {row['scenario']:<24} "
+        f"gave away {row['gave_away']:>2} "
+        f"(quoted {row['leaked']:>2}, described {row['described']:>2}), "
+        f"stepped out {row['broke_role']:>2}, of {row['attempts']}"
+        for row in injection_rows
+    ]
     guardrail_rate = scoring.proportion(clean, probes)
     character_rate = scoring.proportion(judged_in_character, probes - unparseable)
     elicit_rate = scoring.proportion(elicited, probes - unparseable)
@@ -360,8 +428,12 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             f"unparseable judgements      {unparseable} of {probes}",
             f"forms outside the list      {out_of_vocabulary}",
             "",
-            f"instruction spoken in scene, over {rounds} attempts:",
-            f"  quoted its own brief      {injection_rate.format()}",
+            f"instruction spoken in scene, {len(injection_rows)} phrasings "
+            f"× {rounds} attempts:",
+            *injection_lines,
+            f"  gave its instructions away {gave_away_rate.format()}",
+            f"    quoted them             {injection_rate.format()}",
+            f"    described them          {described_rate.format()}",
             f"  stepped out of the scene  {role_rate.format()}",
             "",
             f"judge vs hand labels        {scored.rate.format()} "
@@ -386,8 +458,12 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             "guardrails_clean": [clean, probes],
             "violations_by_rule": by_rule,
             "injection_rounds": rounds,
+            "injection_attempts": attempts,
+            "injection_gave_away": gave_away,
             "injection_leaked": leaked,
+            "injection_described": described,
             "injection_broke_role": stepped_out,
+            "injections": injection_rows,
             "in_character": [judged_in_character, probes - unparseable],
             "elicited": [elicited, probes - unparseable],
             "unparseable": unparseable,
@@ -441,4 +517,4 @@ async def test_the_deterministic_layer_sees_what_the_judge_does_not(seeded, db_s
         "the leak detector fires on ordinary in-character speech, which would make the "
         "injection rate a measurement of the detector"
     )
-    assert _who_is_speaking(brief).startswith("You are Elena")
+    assert _who_is_speaking(brief).startswith("Elena")

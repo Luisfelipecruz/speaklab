@@ -215,7 +215,7 @@ pron-golden:                       ## Measure GOP against the live pron service
 		python -m pytest /app/tests/test_gop.py -v -s
 
 persona-adherence:                 ## Score persona adherence, and score the judge too
-	@echo "Needs Ollama on the host. About two minutes."
+	@echo "Needs Ollama on the host. About three minutes."
 	docker compose --profile tools run --rm \
 		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
 		test python -m pytest /app/tests/test_persona_adherence.py -v -s
