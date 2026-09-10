@@ -51,8 +51,8 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
 | **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | The default stack's own images, measured: api 812 MB, asr 746 MB, tts 672 MB — plus the Node and Postgres images, and ~480 MB of Whisper weights on first start. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.78 GB image and 1.2 GB of weights |
-| **Memory** | Not measured yet. The requirement is under 8 GB for the default stack with models warm, excluding Ollama (PRD §9) |
+| **Disk** | Measured on a cold build, 2026-09-10: images of 820 MB (api), 750 MB (asr), 684 MB (tts), 1.66 GB (frontend) and 657 MB (`postgres:16`) — 4.6 GB — plus 464 MB of Whisper weights on first start. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.78 GB image and 1.2 GB of weights |
+| **Memory** | **1.94 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` — frontend 760 MiB, asr 677, tts 297, api 206, postgres 48. Ollama is not in that figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
 
@@ -71,6 +71,18 @@ On a first run the recogniser is still downloading Whisper's weights for a few m
 after `make setup` returns. Nothing waits for that — the API has no `depends_on` for the
 recogniser, so the rest of the stack is usable immediately and `make health` reports `asr`
 with `"model_loaded": false` until it is done.
+
+**How long that takes, measured once.** On 2026-09-10, from a copy of `main` in a
+directory of its own — empty volumes, and a build cache of its own that had to pull the
+Python and Node base images — `make setup` returned in **7 min 12 s** with every container
+healthy, the database migrated and seeded, and `llm: ok`. Nearly all of it was the four
+images downloading their dependencies in parallel; the API's `pip install` alone took
+346 s on that connection. Whisper was loaded 106 s later, **8 min 58 s** from the start,
+and the first spoken turn was heard word for word and answered, with audio, in 2.2 s.
+PRD §9 asks for a healthy stack within five minutes of a first run, model downloads
+included, and **this run missed it** — by the build, and on one connection. Not in those
+figures: `postgres:16`, which was already on the machine, and Ollama with its model, a
+prerequisite pulled once.
 
 The API signs sessions with a built-in development key until you set `JWT_SECRET`, and
 says so in its startup log every time. That is fine on a laptop and nowhere else.
@@ -180,13 +192,15 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 ## Measured
 
 Counted against the running system on 2026-09-05, not recalled — except the two test
-suites, recounted on 2026-09-10. Anything not listed here has not been measured yet and is
-not claimed.
+suites, the first run and memory, measured on 2026-09-10. Anything not listed here has not
+been measured yet and is not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
-| API test suite | **572** — 539 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
+| **First run, from nothing** | **7 min 12 s** for `make setup`, **8 min 58 s** until Whisper was loaded — against five minutes in PRD §9, **missed**, and the build is nearly all of it. One run, one connection; [Quick start](#quick-start) has what it did and did not include |
+| Memory, five containers, models loaded | **1.94 GiB**, excluding Ollama, against under 8 GB |
+| API test suite | **573** — 540 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
 | Frontend test suite | **206** across 31 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |

@@ -50,6 +50,14 @@ RESULTS = ROOT / ".eval"
 # mounted read-only so the system cannot rewrite it, and results are not fixtures.
 CONTAINER_RESULTS = "/app/.eval"
 
+# One summary line per failed, errored and skipped test. `-r` replaces pytest's default
+# (`fE`) rather than adding to it, so all three letters are needed.
+PYTEST_ARGS = ("-q", "-rfEs")
+
+# Captured output makes pytest assume 80 columns and trim each summary line, message
+# first; a long test id leaves no room for the reason. pytest reads the width from here.
+PYTEST_ENV = {"COLUMNS": "400"}
+
 # pytest's `-rs` summary line, which is where a skip reason is legible. Used only to
 # explain a skip in prose. Nothing about a verdict depends on this regular expression
 # matching, and if it stops matching the report says "skipped" without the detail.
@@ -132,14 +140,16 @@ def run_suite(suite: Suite, local: bool, verbose: bool) -> tuple[bool, str]:
     hearing about, and it was silently swallowed the first time this ran.
     """
     if local:
-        command = [sys.executable, "-m", "pytest", suite.path, "-q", "-rs"]
+        command = [sys.executable, "-m", "pytest", suite.path, *PYTEST_ARGS]
         cwd = ROOT / "api"
-        env = {**os.environ, "EVAL_OUT_DIR": str(RESULTS)}
+        env = {**os.environ, **PYTEST_ENV, "EVAL_OUT_DIR": str(RESULTS)}
     else:
         command = ["docker", "compose", "--profile", "tools", "run", "--rm"]
-        for key, value in {**suite.env, "EVAL_OUT_DIR": CONTAINER_RESULTS}.items():
+        container_env = {**suite.env, **PYTEST_ENV, "EVAL_OUT_DIR": CONTAINER_RESULTS}
+        for key, value in container_env.items():
             command += ["-e", f"{key}={value}"]
-        command += ["test", "python", "-m", "pytest", f"/app/{suite.path}", "-q", "-rs"]
+        command += ["test", "python", "-m", "pytest", f"/app/{suite.path}"]
+        command += PYTEST_ARGS
         cwd = ROOT
         env = dict(os.environ)
 
