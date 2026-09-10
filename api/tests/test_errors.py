@@ -75,21 +75,25 @@ async def test_the_worked_examples_are_not_drawn_from_the_golden_set():
     """An example taken from the set precision is measured against would be the model
     marking its own homework."""
     import json as _json
-    from pathlib import Path
 
     from services.errors import EXAMPLES
+    from tests.eval_out import harness_root
 
-    manifest = (
-        Path(__file__).resolve().parents[2]
-        / "eval"
-        / "golden"
-        / "errors"
-        / "manifest.json"
-    )
-    if not manifest.is_file():
+    # harness_root() finds eval/ in both the host and the container layout. Both sets are
+    # checked, because precision is measured against the local one too.
+    root = harness_root()
+    golden = root / "golden" / "errors" if root is not None else None
+    manifests = [
+        golden / name
+        for name in ("manifest.json", "manifest.local.json")
+        if golden is not None and (golden / name).is_file()
+    ]
+    if not manifests:
         pytest.skip("the golden set has not been built")
     transcripts = {
-        item["transcript"] for item in _json.loads(manifest.read_text())["items"]
+        item["transcript"]
+        for manifest in manifests
+        for item in _json.loads(manifest.read_text())["items"]
     }
     for utterance, _ in EXAMPLES:
         assert utterance not in transcripts

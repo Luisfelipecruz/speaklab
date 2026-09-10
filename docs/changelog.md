@@ -7,6 +7,82 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.13.2] — 2026-09-10 · the first cold run, and a report that names what failed
+
+Two things 0.13.1 could not do. It could not run `make setup` from nothing, because Docker
+was off; this does, and the answer is in the README. And the evaluation report it shipped
+beside said the `pron` suite "ran and failed" without saying which test, because the
+harness had asked pytest not to say.
+
+### Fixed
+
+- **The evaluation report names the test that failed.** `eval/run.py` ran every suite
+  with `-rs`, and `-r` replaces pytest's default summary rather than adding to it: skip
+  lines were kept and `FAILED` lines were dropped. The runner then fell back to the last
+  three lines of output, so the 2026-09-06 report quoted a skip reason and
+  `Container speaklab-postgres-1  Running` where the failing test should have been. It
+  now passes `-rfEs`.
+- **…and keeps the reason, not only the name.** Captured, pytest assumes an 80-column
+  terminal and trims each summary line, message first.
+  `FAILED tests/test_gop.py::test_a_passage_length_reading_is_inside_the_budget` is 78
+  columns by itself, so with the first fix in, the report named the test and still cut
+  "N ms exceeds the 10 000 ms budget". The runner now sets `COLUMNS` for the suites, in
+  the container as well.
+- **A check that `make test` never ran.** The test that the error detector's worked
+  examples are not drawn from the golden set found that set by walking up from its own
+  file, which in the test container ends at `/eval`; under `make test` it skipped every
+  time as "not built", and only CI and host runs made it. It now asks `harness_root()`,
+  like every other suite that reads `eval/`, and reads the local set as well as the
+  published one.
+- **`make down` stops everything, as it says.** It ran `docker compose down` with no
+  profile, which leaves `pron` and `ollama` out. A stopped `pron` container then kept a
+  reference to the network `down` had removed, and the next `make pron-up` failed with
+  `network … not found` — hit on this machine on 2026-09-10. It now names both profiles.
+
+### Measured
+
+- **S1, the first run from nothing: 7 min 12 s for `make setup`, 8 min 58 s until Whisper
+  was loaded.** A copy of `d4ffdd7` from `git archive`, in a directory of its own so its
+  compose project had empty volumes, built with a BuildKit builder of its own so there
+  was no layer cache and the Python and Node base images were pulled. Zero manual steps:
+  `.env` written, five containers healthy, four migrations, 8 scenarios and 12 passages
+  seeded, `llm: ok`. The build was 401 s of the 432, network-bound — the API's
+  `pip install` alone was 346 s. Then one conversation through the public API only:
+  register, open `apartment-viewing` (opening line with audio, 3 s), and one spoken turn,
+  synthesised by the stack's own voice, heard word for word and answered with audio in
+  2201 ms. **Against PRD §9's five minutes, missed.** `postgres:16` was already on the
+  machine and is not in the figure; neither is Ollama.
+- Images from that cold build: api 820 MB, asr 750 MB, tts 684 MB, frontend 1.66 GB — a
+  few MB above the images this machine builds from its own cache (812, 746, 672), because
+  only direct dependencies are pinned and a build with no cache resolves today's transitive
+  ones — numpy 2.5.3, for one.
+- **Memory, 1.94 GiB** for the five containers after that turn, with both speech models
+  loaded, sampled once — the first memory figure this project has. Ollama excluded.
+- **`make eval`, twice, with the fixed harness.** The first run took 11 min 07 s and
+  reported `pron` failed — naming, for the first time, the test:
+  `test_a_passage_length_reading_is_inside_the_budget`, the 10 s scoring budget. How far
+  over it went is not known, because that run still trimmed the reason (fixed above). The
+  same test then passed alone in 4369 ms, again in 3994 ms on a freshly restarted `pron`,
+  once through the harness, and in the second full run, which took 4 min 38 s and wrote
+  the `docs/evaluation.md` committed here. So it fails when the machine is slow, not
+  always: the first full run was 2.4× slower end to end. m8's "1.9 s of margin" was
+  measured at 8.1 s; today it measured 4.0–4.4 s alone.
+- Unchanged from 2026-09-06, re-measured: word error rate 1.72 %, the GOP perturbation
+  probe 9 of 10 with a mean drop of 8.138 nats, error-detection precision 0.500 over 6.
+  The corpus is 11 sessions and 428 words, as it was.
+- **The persona read its brief aloud in 10 of 10 and 9 of 10** attempts across the two
+  runs — 19 of 20 today, against 30 of 40 at m11. That is Q16's "before", and m14 opens
+  with it.
+- The report says revision `d4ffdd7`: it was generated from that commit with this
+  change applied in the working tree, and `revision()` reads `HEAD`.
+- API suite **573 — 540 pass, 33 skip** under `make test` (was 572: 539 and 33 on a host
+  run, and 539 and 34 in the container, the difference being the test fixed above).
+  The harness fix is tested through a real pytest subprocess, because the bug was in what
+  pytest was asked to print and a fake would have printed whatever it was told; with
+  `-rs` put back it fails, and with `COLUMNS` taken out it fails.
+
+---
+
 ## [0.13.1] — 2026-09-10 · a fresh clone that can hold a conversation
 
 Following the Quick start exactly, a new developer got a healthy stack that could not

@@ -1,13 +1,14 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.7 — **m0 passed; m1 through m12 are merged into `main`, CI green** (m12 as
-PR #14, `720b6f2`, 2026-09-06). **Two milestones were added on 2026-09-06 at the owner's
-request, and polish became m15:** m13 marks the analysis's corrections on the transcript
-where they happened, and is **CODE COMPLETE and uncommitted**; m14 is grammar practice,
-planned and not started. Three criteria — S4, S5, S7 — are blocked on speech only a person
-can produce, and no milestone changes that. The repository is `Luisfelipecruz/speaklab`;
-every git command is prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-06 (m13 built; m14 and m15 planned)
+**Status:** v1.8 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+PR #15, `537869e`, 2026-09-06), and **an off-milestone onboarding fix is merged as PR #16,
+`d4ffdd7`, version `0.13.1`** (2026-09-10): a fresh clone that followed the README could
+not hold a conversation, because nothing said to install Ollama and `/health` never probed
+the model. m14 is grammar practice, planned and not started; m15 is polish, not started.
+Three criteria — S4, S5, S7 — are blocked on speech only a person can produce, and no
+milestone changes that. The repository is `Luisfelipecruz/speaklab`; every git command is
+prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-09-10 (m13 merged; the onboarding fix; §11 rewritten for the next session)
 **Companion to:** `../PRD.md`
 
 ---
@@ -453,7 +454,7 @@ in m8; the throwaway code does not.
 
 ---
 
-### m1 — Scaffold, Compose, Postgres
+### m1 — Scaffold, Compose, Postgres · **MERGED (PR #1, 2026-08-30)**
 
 > **Built and verified on 2026-08-29.** Every number in *Done when* below was counted
 > against the running stack, not forecast. See `docs/changelog.md` 0.1.0.
@@ -511,7 +512,7 @@ are absent from the API image.
 
 ---
 
-### m2 — Data model and seeds
+### m2 — Data model and seeds · **MERGED (PR #2, 2026-08-30; on `main` via `f3ee277`)**
 
 > **Built and verified on 2026-08-30.** Every number in *Measured* below was counted
 > against the running stack. See `docs/changelog.md` 0.2.0 and `docs/data-model.md`.
@@ -571,7 +572,7 @@ operations · passages 73–79 words · the 39 ARPAbet symbols match the m0 phon
 
 ---
 
-### m3 — Auth and user session — **BUILT** (2026-08-30)
+### m3 — Auth and user session · **MERGED (PR #3, 2026-08-30; on `main` via `f3ee277`)**
 
 **Goal.** Register, log in, and scope every practice row to its owner.
 
@@ -645,7 +646,7 @@ change that never happened. Shared files touched: `config.py`, `main.py`,
 
 ---
 
-### m4 — ASR service and the audio pipeline · **BUILT (2026-08-30)**
+### m4 — ASR service and the audio pipeline · **MERGED (PR #4, 2026-08-30; on `main` via `f3ee277`)**
 
 **Goal.** Audio in, transcript with word timestamps and per-word logprobs out.
 
@@ -737,7 +738,7 @@ built. **Carried to m6 as Q8**, where a whole turn can be measured instead of on
 
 ---
 
-### m5 — TTS service · **BUILT (2026-08-30)**
+### m5 — TTS service · **MERGED (PR #5, 2026-08-30; on `main` via `f3ee277`)**
 
 **Goal.** Text in, natural speech out, fast enough to be inside a conversational turn.
 
@@ -803,7 +804,7 @@ the first page with audio on it, and m7 is also where the Jest/RTL harness lands
 
 ---
 
-### m6 — Scenario engine and the conversation loop · **BUILT (2026-08-30)**
+### m6 — Scenario engine and the conversation loop · **MERGED (PR #6, 2026-08-30)**
 
 **Goal.** A full spoken turn works end to end, API-side: audio in → transcript → persona
 reply → speech out, persisted.
@@ -912,7 +913,7 @@ awaited, visibly, because m9 is where this project's background-job machinery is
 
 ---
 
-### m7 — Conversation UI · **BUILT (2026-08-30)**
+### m7 — Conversation UI · **MERGED (PR #7, 2026-08-30)**
 
 **Goal.** A person who is not the author can hold a conversation without instructions.
 
@@ -1314,7 +1315,7 @@ corpus. The only machine that produces a corpus is a person practising, and the 
 currently asks them to navigate four sections by four text links squeezed beside a
 wordmark. Making practice easy is not cosmetic here — it is the input to the measurements.
 
-**Why this is a milestone at all, when §9 says m1–m12 are fixed.** It is not a new idea
+**Why this is a milestone at all, when §9 said m1–m11 were fixed.** It is not a new idea
 arriving late. m7 shipped `AppShell` as a header that exists, in its own words, "because a
 person who cannot get from a conversation back to the catalogue has to type a URL" — a
 stated minimum, not a design. The scope-creep rule is there to stop features being
@@ -1391,7 +1392,7 @@ page in the product has been dealt with.
 
 ---
 
-### m13 — Corrections in the transcript · **CODE COMPLETE** (2026-09-06) — uncommitted; `GIT-COMMANDS.md` §A.13
+### m13 — Corrections in the transcript · **MERGED** — PR #15, `537869e`, 2026-09-06
 
 **Goal.** A learner reading back a conversation sees each proposed correction on the words
 it is about, not only in a block at the end.
@@ -1454,9 +1455,9 @@ words and lists every correction under its turn, in both modes and at 375 px; li
 typecheck, tests and build green. **Seen** on 2026-09-06 with a synthesised learner turn
 posted through the real pipeline on a throwaway account: four corrections, two counted and
 two marked as possible mishearings, on the words they quoted, at 1440 and 375 px in both
-modes. The verification session was deleted afterwards so the corpus is unchanged. **The
-build is unverified this session** — the container had no outbound network for the font
-fetch, and nothing failed to compile.
+modes. The verification session was deleted afterwards so the corpus is unchanged. The
+build could not run in that session — the container had no outbound network for the font
+fetch — and **CI built it** on the PR and again on `main`.
 
 **Explicitly not here.** No API change. No per-form accuracy, no rule layer, no way to
 practise a correction — all m14. The report's own list is untouched.
@@ -1483,6 +1484,12 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
 
 **What is missing, in the order it has to be built.**
 
+0. **The persona reading its brief aloud (Q16)** — placed here by the owner on 2026-09-10.
+   Measured before and after with `make persona-adherence`, and the before is re-measured
+   on the day rather than quoted from m11. If the fix is anything more than a prompt
+   change — a check on the reply before it is spoken, say — the report has to show the
+   model's rate and the product's rate separately, because a guard that hides the model's
+   behaviour must not read as the model having improved.
 1. **The rule layer (Q15).** Subject–verb agreement and article omission, proposed from
    the parse with confidence 1.0 and no taxonomy gate. It raises precision without a bigger
    model, and it makes the category mix partly a property of the detector — which the
@@ -1501,8 +1508,11 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    would be a different product.
 5. **Seeds that elicit the other categories.** Every scenario's target grammar is tense,
    modal or conditional; nothing is written to elicit articles, prepositions or false
-   friends. Two or three scenarios that do, and `cefr_band` set on every scenario and
-   passage, because the band filter currently filters on nothing.
+   friends. Two or three scenarios that do, each with a `cefr_band` like every existing
+   seed. *(Corrected 2026-09-10: this item used to add "`cefr_band` on every scenario and
+   passage, because the band filter filters on nothing". That was never true — the column
+   is NOT NULL from `0001`, and all 8 scenarios and 12 passages carry one: A2 ×4, B1 ×9,
+   B2 ×6, C1 ×1.)*
 
 **Decisions to make, not made.** Whether the drill lives on the session page or the
 grammar section; whether a rule-layer row is drawn differently from a model's row on the
@@ -1514,30 +1524,48 @@ transcripts; the section's empty state for an account with no corrections.
 
 **Done when.** `make error-precision` reports the rule layer's precision separately and
 above the model's; a learner with corrections can open the grammar section, see their own
-sentences, and complete one spoken drill that is scored; every seed carries a band.
+sentences, and complete one spoken drill that is scored; the new seeds exist and elicit
+what they declare.
 
 **Branch** `feature/m14-grammar` · **PR** `feat: add a rule layer, per-form accuracy and grammar practice`
 
 ---
 
-### m15 — Polish, documentation, demo *(was m13 until 2026-09-06)*
+### m15 — Polish, documentation, demo · **NOT STARTED** *(was m13 until 2026-09-06)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
 **Why here.** Last. Documentation written before the system is finished documents an
 intention.
 
+**Already delivered, ahead of the milestone (PR #16, `0.13.1`).** The part of S1 that was
+broken rather than unpolished: Ollama is a stated prerequisite, `make setup` is the first
+run in one command, `make llm-check` and the `llm` row on `/health` and `/status` say when
+the model is missing and name the pull command, `.env` reaches the API, and the README has
+a prerequisites table and a troubleshooting table. **What that PR did not do is run
+`make setup` cold** — Docker was off — so S1 itself is still unverified.
+
 **Deliverables.**
 ```
-README.md                              (rewritten against measured reality)
+README.md                              (rewritten against measured reality; the first screen
+                                        a picture, three lines, and the Quick start)
 docs/{architecture.md,data-model.md,evaluation.md}   (finalised)
 docs/changelog.md
-demo/{record.cjs,speaklab-walkthrough.mp4,cover.png}
+demo/{record.cjs,to-mp4.sh,package.json}   the recorder exists, untracked and never run;
+                                        its package.json names a VIDEO-PLAN.md that is not in
+                                        this repository. The .mp4 and the poster go to the
+                                        post and the README, not into git (out/ is ignored)
+eval/golden/pron/RECORD.md             the recording protocol, moved out of gitignored spike/
+                                        so a clone can record S4's pairs — read it for
+                                        anything personal before it is tracked
 frontend/src/app/**                    empty states, loading skeletons, error boundaries
 api/main.py                            OpenAPI descriptions and examples
 api/routers/progress.py                GET /progress/export — FR-25, the one requirement with nothing behind it
 Makefile                               (all targets documented)
 ```
+
+**Done by hand on GitHub, not by a commit.** A custom social-preview image — a link to the
+repository on LinkedIn renders GitHub's generic card without one — and repository topics.
 
 **Decisions.**
 - Every number in the README is counted from the live system at write time — operation count from `app.openapi()`, test count from pytest, WER and GOP separation from `make eval`.
@@ -1545,8 +1573,9 @@ Makefile                               (all targets documented)
 - A recorded walkthrough, because a reviewer will not install Ollama to evaluate a portfolio project.
 - Empty states matter disproportionately: a new user's progress page has no data, and "not enough data yet — practise 5 more times" is the correct design, not a blank chart.
 
-**Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1),
-every S-criterion is verified and recorded, and the walkthrough is recorded.
+**Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1) —
+`make setup` from nothing, timed, on a machine or a compose project that has never had
+this stack — every S-criterion is verified and recorded, and the walkthrough is recorded.
 
 **Branch** `feature/m15-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
@@ -1621,32 +1650,45 @@ Evenings-and-weekends pace, one developer.
 
 ## 11. First three actions
 
-**Superseded — m0 through m11 are merged, and m12 is built and uncommitted.** Kept for the
-record; the live version is below.
+**Superseded — m0 through m13 are merged.** Kept for the record; the live version is below.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #13.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #16.
 
-### The next three actions
+### The next actions
 
-**m12 is merged as `720b6f2` (PR #14). m13 is built and uncommitted in a clean working
-tree on `main`; the branch is cut by `GIT-COMMANDS.md` §A.13.**
+**`main` is `d4ffdd7` (PR #16): m13, and the onboarding fix on top of it.** The working
+tree holds two things that are not on `main` and are not ready to be: `docs/evaluation.md`,
+regenerated on 2026-09-06, and the untracked `demo/`.
 
-1. **Commit m13 and open its PR** — §A.13, then §B.11. Two commits on
-   `feature/m13-corrections`: the plan and PRD changes first, so the branch starts with the
-   milestone written down, then the code. Frontend only — no API change (25 of 30), no
-   migration, no dependency. Lint, typecheck and **202 tests across 30 suites** are green
-   in Docker; the build is **unverified this session**, because the `run` container had no
-   outbound network for the font fetch (trap 70) — nothing failed to compile.
-2. **The person-only list, before anything else is built.** Five minutes of recording
-   (`spike/RECORD.md` — S4 and Q2); conversations on three separate days (S5 and S7); the
-   record button in Chrome and Safari; `make tts-sample` (Q10). None of m13, m14 or m15
-   moves a criterion. This does.
-3. **Then m14, and read `docs/decisions/0006` §6 first.** The rule layer comes before the
-   page and the drill, because a drill built on a detector that is right half the time
-   teaches the wrong thing half the time. Q15 is the design question and it is already
-   half-answered.
+1. **Verify S1: run `make setup` cold.** It is the one thing PR #16 could not do. Use a
+   copy of `HEAD` from `git archive`, in a directory not named `speaklab` so its compose
+   project gets volumes of its own, and stop the real stack first — `make down`, never
+   `-v` — because the host ports are fixed. Time it from nothing to `make llm-check`
+   printing ok. The PRD asks for the full stack healthy within five minutes on a first run,
+   model downloads included; whatever the run measures goes in the README.
+2. **Make the harness name a failure, then regenerate the report.** `eval/run.py` runs
+   pytest with `-q -rs`, which reports skips and drops the `FAILED` lines, so the
+   `docs/evaluation.md` in the tree says `pron` "ran and failed" and cannot say which test.
+   Pass `-rfEs`, then `make pron-up` and `make pron-golden` to name it — the latency test
+   had 1.9 s of margin at m8 and is the likely one, not yet shown — then `make eval`.
+   Replace the report in the tree rather than commit it as it stands. A small fix PR.
+3. **Decided 2026-09-10: m14 next, and the LinkedIn post after m15.** This plan puts m14
+   before m15 on purpose — a walkthrough of a product about to gain a section is a
+   recording made twice — and the owner kept that order rather than pulling m15's
+   showcase slice forward. Read `docs/decisions/0006` §6 and §10 before starting: the rule
+   layer comes before the page and the drill, because a drill built on a detector that is
+   right half the time teaches the wrong thing half the time.
+4. **Decided 2026-09-10: Q16 goes at the front of m14.** Asked in the scene to ignore its
+   instructions, the persona quoted its brief in 30 of 40 attempts across m11's four runs,
+   and in 10 of 10 on 2026-09-06. It breaks the exercise rather than disclosing anything —
+   every brief ships in the seeds — and the instrument that measures a fix exists,
+   `make persona-adherence`. It is m14's item 0, because m14 is also about what the model
+   is asked to do, and it lands before any walkthrough of a persona is recorded.
+
+The person-only list below is unchanged, and it is still the only thing that moves S4, S5
+and S7.
 
 **One thing PR #13's merge taught, and it is not about any milestone.** A commit made
 straight onto `main` is not finished until `git push` has run. `4508bf4` was not pushed, so
@@ -1667,9 +1709,9 @@ stands between this project and three of its own success criteria:
   eval` reports **S4 as never run**, and no GOP threshold can be calibrated, so
   `PRON_GOP_THRESHOLDS` stays empty.
 - **More recorded conversation, on more than one day.** It is the only thing that can
-  settle S5 *or* S7. Seven user turns in two sessions on a single calendar day is the whole
-  corpus; the progress page cannot draw a trend through one point however well it is
-  written, and the error measurement re-runs against whatever is there: `make analyze`,
+  settle S5 *or* S7. Eleven analysed turns and 428 words, on two calendar days, is the
+  whole corpus (the census of 2026-09-06); the progress page cannot draw a trend through
+  one or two points however well it is written, and the error measurement re-runs against whatever is there: `make analyze`,
   then `python3 eval/golden/errors/build.py`, then `make error-precision`, then
   `make rollup`, then `make eval`.
 - **A product decision on read-aloud with audio retention off.** Today the endpoint

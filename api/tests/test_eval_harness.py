@@ -311,6 +311,44 @@ def test_a_suite_that_produced_figures_and_then_failed_says_so():
     assert "1.72 %" in document, "a failure elsewhere must not suppress real figures"
 
 
+def test_a_suite_that_fails_is_reported_by_the_name_of_the_test_that_failed(
+    tmp_path, monkeypatch, capsys
+):
+    """Through a real pytest, because what is under test is what pytest prints.
+
+    The report must name the failing test and keep its reason, and must not mistake a
+    skip for the failure. A fake subprocess would print whatever this test told it to.
+    """
+    run = load_harness("run")
+    # `--local` runs pytest from `<root>/api`, which is the host's layout; in the test
+    # container the harness's root is /app and there is no /app/api.
+    (tmp_path / "api").mkdir()
+    monkeypatch.setattr(run, "ROOT", tmp_path)
+    monkeypatch.setattr(run, "RESULTS", tmp_path / "results")
+    suite_file = tmp_path / "test_suite.py"
+    # A long name, so that at 80 columns the summary line has no room left for the reason.
+    suite_file.write_text(
+        "import pytest\n\n"
+        "def test_the_one_that_fails_with_a_name_as_long_as_the_latency_test_that_hid():\n"
+        "    assert 1 == 2\n\n"
+        "def test_the_one_that_passes():\n"
+        "    pass\n\n"
+        "@pytest.mark.skip(reason='no recordings yet')\n"
+        "def test_the_one_that_skips():\n"
+        "    pass\n"
+    )
+    suite = run.Suite("fixture", str(suite_file), "Fixture", {}, "make nothing")
+
+    failed, reason = run.run_suite(suite, local=True, verbose=False)
+    capsys.readouterr()
+
+    assert failed
+    assert "test_the_one_that_fails" in reason
+    assert "assert 1 == 2" in reason, "the failure's reason was trimmed away"
+    assert "test_the_one_that_passes" not in reason
+    assert "no recordings yet" not in reason, "a skip is not why a suite failed"
+
+
 def test_the_injection_rate_is_rendered_with_its_denominator():
     """A leak rate without the attempts behind it is the figure this project keeps not
     publishing."""
