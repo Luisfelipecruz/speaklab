@@ -1,6 +1,7 @@
 # 0015 — Accuracy per form
 
-Status: accepted · 2026-09-11
+Status: accepted · 2026-09-11 · **the percentage in §7 superseded by
+[0016](0016-the-grammar-page.md)**: no screen shows one; the counts stay
 
 Decision 0007 said there was no accuracy figure per grammatical form, and why: errors are
 filed under a taxonomy category, forms are counted by a parser, and nothing in the schema
@@ -195,7 +196,9 @@ repertoire now carries a line beside its count:
 - **right 3 of 5** — below the floor, a count and nothing else;
 - **right 9 of 13 · 69 %** — from ten times said or needed in the period
   (`PROGRESS_MIN_FORM_CONTEXTS`), where the 95 % interval around 0.8 is 0.49 to 0.94,
-  about as wide as a figure worth reading gets;
+  about as wide as a figure worth reading gets. *Withdrawn by 0016 §3: the floor is on the
+  sample, and the corrections under the count are the larger error; the page now shows
+  the count alone;*
 - **needed 2, never said** — a form the learner did not use and should have. It is listed
   even with a use count of zero, because avoidance is what the breadth panel exists to
   show.
@@ -205,8 +208,8 @@ accuracy: no one verb phrase is in them. The caveat is rendered on the panel whe
 carries accuracy, because it is read away from the error-rate chart that carries the other.
 
 The session report's JSON carries the same figures (`form_accuracy`) and each correction's
-two forms. The session page shows neither yet; that is the grammar section's (m14 item 3),
-and a session's worth of turns is below the floor for every form anyway.
+two forms. The session page shows neither; the grammar page (0016) shows the forms over
+the window, with the corrections behind each count.
 
 **Seen end to end** on a throwaway account, with two TTS-synthesised turns through the real
 pipeline, heard verbatim. The first had three corrections — `I visit` → `I visited` from
@@ -219,11 +222,11 @@ eleven learner turns, as before.
 
 ## 8. What is not settled
 
-- **Whether a percentage belongs on the page at all while detection precision is 0.500.**
-  The floor is about sample size; nothing gates on the detector's quality. The caveat is the
-  answer for now, and the grammar section is where it gets decided properly.
+- ~~**Whether a percentage belongs on the page at all while detection precision is
+  0.500.**~~ Decided in 0016 §3: not on any page, until precision is measured at the bar.
 - **`will` as the head of its phrase**, and every other gap §5 names, in the counter and the
   join alike.
 - **A correction that rewrites two verb phrases** counts one.
-- **The recommender does not read accuracy per form yet.** Item 3 picks the scenario that
-  elicits the weakest form, and will need a floor of its own.
+- **The progress page's recommender does not read accuracy per form.** The grammar page
+  names the weakest form, with a floor of its own (0016 §4); the ranking on the progress
+  page is unchanged.

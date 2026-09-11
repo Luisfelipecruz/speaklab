@@ -95,7 +95,9 @@ class FormAccuracy(BaseModel):
     """How one verb form was used in a period: said, said wrongly, needed and not said.
 
     `accuracy` is right over used plus missed, and it is withheld below the sample floor —
-    the counts are the measurement there, and a percentage of three would overstate it.
+    the counts are the measurement there, and a percentage of three would overstate it. No
+    page renders it even above the floor: the corrections under the count are the larger
+    error, and a floor on the sample does nothing about them.
     """
 
     used: int = 0
@@ -124,8 +126,8 @@ class Repertoire(BaseModel):
     distinct_forms: int = 0
     previous_distinct_forms: int | None = None
     accuracy: dict[str, FormAccuracy] = Field(default_factory=dict)
-    # Times a form was said or needed before its accuracy is given as a proportion. Sent
-    # with an empty panel too, because the page explains the floor before anything is in it.
+    # Times a form was said or needed before its accuracy is given as a proportion, so a
+    # client can tell a withheld proportion from a missing one. Sent with an empty panel too.
     accuracy_floor: int = PROGRESS_MIN_FORM_CONTEXTS
     # What the accuracy is counted from, and how far to trust it. Set whenever there is
     # accuracy to qualify, because this panel is read away from the error-rate chart.

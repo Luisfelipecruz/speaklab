@@ -16,8 +16,10 @@ page to write and the least defensible one on it.
 
 **Accuracy per form is a count first and a proportion second.** Each correction is joined
 to the verb form it changes (`services/forms.py`), so a form has a number of times it was
-right, wrong and needed. The counts are shown as soon as they exist; the proportion only
+right, wrong and needed. The counts are sent as soon as they exist; the proportion only
 once a form has been said or needed often enough in the period for one to mean anything.
+The page renders the counts alone: the floor is on the sample, and the corrections under
+the count are the larger error.
 """
 
 from __future__ import annotations

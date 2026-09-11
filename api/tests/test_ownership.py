@@ -147,6 +147,8 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         ("GET", "/progress"),
         ("GET", "/progress/recommendations"),
         ("POST", "/progress/refresh"),
+        # The grammar page, scoped the same way.
+        ("GET", "/grammar"),
     }
 
 

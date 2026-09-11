@@ -721,9 +721,9 @@ export interface Repertoire {
   forms: Record<string, number>;
   distinct_forms: number;
   previous_distinct_forms: number | null;
-  /** Per verb form, in the same period as `forms`. */
+  /** Per verb form, in the same period as `forms`. The page shows the counts only. */
   accuracy: Record<string, FormAccuracy>;
-  /** Times a form was said or needed before `accuracy` is given as a proportion. */
+  /** Times a form was said or needed before the API gives `accuracy` as a proportion. */
   accuracy_floor: number;
   /** What the accuracy is counted from and how far to trust it. Set when there is any. */
   caveat: string | null;
@@ -768,6 +768,91 @@ export interface Recommendations {
   items: Recommendation[];
   confidence: "none" | "low" | "moderate" | "good";
   detail: string | null;
+}
+
+// ── The grammar page ────────────────────────────────────────────────────────
+
+/** One correction, in the sentence it was made in. */
+export interface CorrectionExample {
+  id: number;
+  session_id: number;
+  turn_id: number;
+  said_at: string;
+  scenario_title: string | null;
+  /**
+   * The sentence around the correction, from the transcript. `quote` is the transcript's
+   * own words under it; null when they could not be placed, and then the sentence is
+   * empty and the correction is shown on its own.
+   */
+  before: string;
+  quote: string | null;
+  after: string;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  subcategory: string | null;
+  detector: "llm" | "rule";
+  counted: boolean;
+  asr_suspect: boolean;
+  form: string | null;
+  corrected_form: string | null;
+}
+
+export interface CategoryCorrections {
+  category: string;
+  label: string;
+  description: string;
+  counted: number;
+  /** Shown and not counted: a possible mishearing, or hedged by the model. */
+  not_counted: number;
+  per_100_words: number | null;
+  by_detector: Record<string, number>;
+  /** The newest few; `counted + not_counted` covers them all. */
+  examples: CorrectionExample[];
+}
+
+export interface FormCorrection {
+  id: number;
+  session_id: number;
+  original: string;
+  correction: string;
+  form: string | null;
+  corrected_form: string | null;
+}
+
+/** One verb form: said, said wrongly, needed where another was said. No proportion. */
+export interface FormPractice {
+  form: string;
+  label: string;
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  corrections: FormCorrection[];
+}
+
+export interface WeakestForm {
+  form: string;
+  label: string;
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  reason: string;
+  scenario_slug: string | null;
+  scenario_title: string | null;
+}
+
+export interface GrammarPage {
+  since: string;
+  until: string;
+  totals: { sessions: number; turns: number; words: number; corrections: number; counted: number };
+  categories: CategoryCorrections[];
+  forms: FormPractice[];
+  weakest: WeakestForm | null;
+  /** Why no form is named, when none is, and how near the nearest one is. */
+  weakest_gate: Gate;
+  caveat: string | null;
 }
 
 export function getProgress(

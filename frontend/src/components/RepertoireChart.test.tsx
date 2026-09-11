@@ -71,7 +71,9 @@ test("an account with nothing counted is told what would fill it in", () => {
   expect(screen.getByText(/a conversation of any length fills this in/i)).toBeInTheDocument();
 });
 
-test("a verb form's accuracy is a count below the floor and a percentage above it", () => {
+test("a verb form's accuracy is a count, and never a percentage", () => {
+  // The API sends a proportion above its floor. A floor on the sample does nothing about
+  // the corrections underneath, which are the larger error, so the page does not show it.
   render(
     <RepertoireChart
       repertoire={makeRepertoire({
@@ -85,10 +87,10 @@ test("a verb form's accuracy is a count below the floor and a percentage above i
   );
 
   expect(screen.getByTestId("form-accuracy-present_simple")).toHaveTextContent(
-    "right 9 of 13 · 69 %",
+    /^right 9 of 13$/,
   );
-  expect(screen.getByTestId("form-accuracy-past_simple")).toHaveTextContent("right 1 of 2");
-  expect(screen.getByTestId("form-accuracy-past_simple")).not.toHaveTextContent("%");
+  expect(screen.getByTestId("form-accuracy-past_simple")).toHaveTextContent(/^right 1 of 2$/);
+  expect(screen.queryByText(/%/)).not.toBeInTheDocument();
 });
 
 test("a form that was needed and never said is listed, because avoiding it is the finding", () => {

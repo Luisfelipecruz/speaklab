@@ -15,12 +15,14 @@
  * **Each verb form carries how often it was right**, counted over the times it was used and
  * the times it was needed and something else was said. The second half is why a form the
  * learner never said can still be listed: "needed 3, never said" is the avoidance this
- * panel exists to show. The count is always given; the percentage only from the floor the
- * API sends, because two of three is a count and 67 % would claim more than it knows. The
- * corrections behind it are the language model's for every tense, so the API's caveat is
- * rendered here too: this panel is read away from the error-rate chart that carries one.
+ * panel exists to show. It is a count and never a percentage, although the API sends one
+ * above its floor: the floor is about the size of the sample, and the corrections behind
+ * the count — the language model's, for every tense — are the larger error. The API's
+ * caveat is rendered here too, because this panel is read away from the error-rate chart
+ * that carries one.
  */
 
+import Link from "next/link";
 import { Info, TriangleAlert } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,15 +37,12 @@ function readable(form: string): string {
   return form.replace(/_/g, " ");
 }
 
-/** "right 9 of 13 · 69 %", or "needed 2, never said". */
+/** "right 9 of 13", or "needed 2, never said". */
 function accuracyText(tally: FormAccuracy): string {
   if (tally.used === 0) {
     return `needed ${tally.missed}, never said`;
   }
-  const counted = `right ${tally.right} of ${tally.used + tally.missed}`;
-  return tally.accuracy === null
-    ? counted
-    : `${counted} · ${Math.round(tally.accuracy * 100)} %`;
+  return `right ${tally.right} of ${tally.used + tally.missed}`;
 }
 
 function times(count: number): string {
@@ -78,8 +77,11 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
           Counted from a parse of what you said, not judged. Breadth is here because a
           narrower range of forms lowers an error rate without anybody getting better.
           Beside each tense and modal: how often it was right, out of the times you used it
-          and the times it was needed and you said something else. The percentage appears
-          once a form has come up {repertoire.accuracy_floor} times.
+          and the times it was needed and you said something else. The{" "}
+          <Link href="/grammar" className="underline underline-offset-4">
+            grammar page
+          </Link>{" "}
+          has the corrections behind each count.
         </CardDescription>
       </CardHeader>
 

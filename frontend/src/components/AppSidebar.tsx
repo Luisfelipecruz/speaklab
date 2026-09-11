@@ -4,7 +4,7 @@
  * The navigation rail: where you are, where else you can go, and what is waiting there.
  *
  * **A rail rather than a row of links, because of the second column of information.** The
- * four sections are peers a person moves between mid-task, and a horizontal bar has room
+ * sections are peers a person moves between mid-task, and a horizontal bar has room
  * for their names and nothing else. A vertical one has room for the fact that decides
  * whether the section is worth opening — how many conversations are stored, how many
  * readings have been scored, whether the figures on the progress page are behind the
@@ -29,6 +29,7 @@ import {
   HomeIcon,
   MessagesSquareIcon,
   MicIcon,
+  SpellCheckIcon,
   TrendingUpIcon,
 } from "lucide-react";
 
@@ -101,6 +102,12 @@ const SECTIONS: readonly Section[] = [
     icon: HistoryIcon,
     hint: "Every conversation you have practised",
     badge: (facts) => (facts.sessions > 0 ? String(facts.sessions) : null),
+  },
+  {
+    href: "/grammar",
+    label: "Grammar",
+    icon: SpellCheckIcon,
+    hint: "Your corrections, in your own sentences",
   },
   {
     href: "/progress",
