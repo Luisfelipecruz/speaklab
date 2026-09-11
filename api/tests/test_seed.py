@@ -42,15 +42,15 @@ async def empty_session():
     await engine.dispose()
 
 
-async def test_the_first_run_loads_eight_scenarios_and_twelve_passages(empty_session):
+async def test_the_first_run_loads_eleven_scenarios_and_twelve_passages(empty_session):
     report = await seed(empty_session)
     await empty_session.commit()
 
     scenarios, passages = report.tables
-    assert (scenarios.inserted, scenarios.updated) == (8, 0)
+    assert (scenarios.inserted, scenarios.updated) == (11, 0)
     assert (passages.inserted, passages.updated) == (12, 0)
 
-    assert await empty_session.scalar(select(func.count()).select_from(Scenario)) == 8
+    assert await empty_session.scalar(select(func.count()).select_from(Scenario)) == 11
     assert await empty_session.scalar(select(func.count()).select_from(Passage)) == 12
 
 
@@ -61,7 +61,7 @@ async def test_the_second_run_inserts_nothing(seeded):
 
     assert report.inserted == 0
     assert report.updated == 0
-    assert [t.unchanged for t in report.tables] == [8, 12]
+    assert [t.unchanged for t in report.tables] == [11, 12]
 
 
 async def test_an_edited_seed_updates_in_place_and_says_so(seeded):
@@ -106,7 +106,7 @@ def test_the_seed_files_validate_against_the_models_that_serve_them():
     """`_load` raises SystemExit with the record index and slug on a bad file. Running
     it here means a malformed seed is caught by the suite, not by the person who next
     runs `make seed`."""
-    assert len(_load("scenarios.json", ScenarioSeed)) == 8
+    assert len(_load("scenarios.json", ScenarioSeed)) == 11
     assert len(_load("passages.json", PassageSeed)) == 12
 
 
@@ -164,3 +164,41 @@ def test_a_phoneme_focus_that_is_not_arpabet_is_rejected(tmp_path, monkeypatch):
         _load("passages.json", PassageSeed)
 
     assert "not ARPAbet" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "declared,message",
+    [
+        (["ARTICLES"], "not error categories: ['ARTICLES']"),
+        (["false_friend"], "not error categories: ['false_friend']"),
+        (["ARTICLE", "ARTICLE"], "declared twice"),
+        ([], "at least 1 item"),
+    ],
+)
+def test_a_kind_of_mistake_outside_the_taxonomy_is_rejected(
+    tmp_path, monkeypatch, declared, message
+):
+    """A scenario declares the kinds of mistake it draws out in the detector's own
+    category names, or the corrections it produces could never be matched to them."""
+    bad = [
+        {
+            "slug": "undeclared",
+            "title": "t",
+            "description": "d",
+            "category": "c",
+            "cefr_band": "B1",
+            "persona_prompt": "p",
+            "goal": "g",
+            "target_grammar": ["past_simple"],
+            "target_functions": ["f"],
+            "target_errors": declared,
+            "rubric": {"criteria": [{"name": "n", "descriptor": "d"}], "min_turns": 1},
+        }
+    ]
+    (tmp_path / "scenarios.json").write_text(json.dumps(bad))
+    monkeypatch.setattr("scripts.seed.SEEDS_DIR", tmp_path)
+
+    with pytest.raises(SystemExit) as excinfo:
+        _load("scenarios.json", ScenarioSeed)
+
+    assert message in str(excinfo.value)

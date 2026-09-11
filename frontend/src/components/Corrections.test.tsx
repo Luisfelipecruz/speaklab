@@ -54,6 +54,25 @@ test("a doubtful correction is drawn differently and its row says why", () => {
   expect(rows[1]).toHaveTextContent("may be a mishearing");
 });
 
+test("a rule's correction is marked like a model's and its row names the source", () => {
+  const items = [{ ...ITEMS[0], detector: "rule" as const }, { ...ITEMS[1], detector: "llm" as const }];
+  const marked = markTranscript(TRANSCRIPT, items);
+  const { container } = render(
+    <>
+      <MarkedText marked={marked} />
+      <CorrectionList corrections={marked.corrections} />
+    </>,
+  );
+
+  const [ruled] = Array.from(container.querySelectorAll("mark"));
+  expect(ruled.className).toContain("decoration-chart-2");
+  const rows = within(screen.getByRole("list", { name: "Proposed corrections" })).getAllByRole(
+    "listitem",
+  );
+  expect(rows[0]).toHaveTextContent("grammar rule");
+  expect(rows[1]).not.toHaveTextContent("grammar rule");
+});
+
 test("a correction whose words could not be placed is listed and says it is unmarked", () => {
   const marked = markTranscript(TRANSCRIPT, [{ ...ITEMS[0], span_start: null, span_end: null }]);
   const { container } = render(

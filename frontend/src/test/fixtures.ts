@@ -9,6 +9,12 @@
 
 import type {
   AttemptDetail,
+  CategoryCorrections,
+  CorrectionExample,
+  Drill,
+  DrillResult,
+  FormPractice,
+  GrammarPage,
   MetricFamily,
   PassageDetail,
   PhonemeScore,
@@ -82,6 +88,7 @@ export function makeScenario(overrides: Partial<ScenarioSummary> = {}): Scenario
     cefr_band: "B2",
     target_grammar: ["present_perfect", "past_simple", "conditionals"],
     target_functions: ["describing_experience"],
+    target_errors: ["VERB_TENSE"],
     ...overrides,
   };
 }
@@ -277,6 +284,9 @@ export function makeRepertoire(overrides: Partial<Repertoire> = {}): Repertoire 
     forms: { present_simple: 9, past_simple: 4, going_to_future: 1 },
     distinct_forms: 3,
     previous_distinct_forms: 3,
+    accuracy: {},
+    accuracy_floor: 10,
+    caveat: null,
     warning: null,
     ...overrides,
   };
@@ -349,6 +359,155 @@ export function makeRecommendations(
     confidence: "low",
     detail:
       "Based on 272 words and 2 scored readings. That is enough to notice a pattern and not enough to be sure of one — practise a few more times and these will change.",
+    ...overrides,
+  };
+}
+
+// ── Grammar ─────────────────────────────────────────────────────────────────
+
+export function makeCorrectionExample(
+  overrides: Partial<CorrectionExample> = {},
+): CorrectionExample {
+  return {
+    id: 41,
+    session_id: 12,
+    turn_id: 6,
+    said_at: "2026-08-30T10:04:00Z",
+    scenario_title: "Daily standup",
+    before: "Yesterday ",
+    quote: "I complete the user story",
+    after: " and we request a review.",
+    original: "I complete the user story",
+    correction: "I completed the user story",
+    explanation: "Yesterday needs the past simple.",
+    subcategory: "missing_past_marker",
+    detector: "llm",
+    counted: true,
+    asr_suspect: false,
+    form: "present_simple",
+    corrected_form: "past_simple",
+    ...overrides,
+  };
+}
+
+export function makeCategory(overrides: Partial<CategoryCorrections> = {}): CategoryCorrections {
+  return {
+    category: "VERB_TENSE",
+    label: "verb tense",
+    description: "the form of a verb is wrong: went/gone, is working/works",
+    counted: 1,
+    not_counted: 0,
+    per_100_words: 0.37,
+    by_detector: { llm: 1 },
+    examples: [makeCorrectionExample()],
+    scenario_slug: "apartment-viewing",
+    scenario_title: "Apartment viewing",
+    ...overrides,
+  };
+}
+
+export function makeFormPractice(overrides: Partial<FormPractice> = {}): FormPractice {
+  return {
+    form: "present_simple",
+    label: "present simple",
+    used: 12,
+    right: 11,
+    wrong: 1,
+    missed: 0,
+    corrections: [
+      {
+        id: 41,
+        session_id: 12,
+        original: "I complete the user story",
+        correction: "I completed the user story",
+        form: "present_simple",
+        corrected_form: "past_simple",
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeGrammarPage(overrides: Partial<GrammarPage> = {}): GrammarPage {
+  return {
+    since: "2026-08-12",
+    until: "2026-09-11",
+    totals: { sessions: 2, turns: 7, words: 272, corrections: 1, counted: 1 },
+    categories: [makeCategory()],
+    forms: [
+      makeFormPractice(),
+      makeFormPractice({
+        form: "past_simple",
+        label: "past simple",
+        used: 0,
+        right: 0,
+        wrong: 0,
+        missed: 1,
+      }),
+    ],
+    weakest: null,
+    weakest_gate: {
+      shown: false,
+      reason:
+        "The form with the most corrections so far is the present simple: 1 correction, from the 12 times it was said or needed. A form is named here once it has come up 10 times and been corrected 5 times.",
+      have: 1,
+      need: 5,
+    },
+    caveat: "Every correction here was proposed by grammar rules or by a language model.",
+    ...overrides,
+  };
+}
+
+export function makeDrill(overrides: Partial<Drill> = {}): Drill {
+  return {
+    id: 41,
+    session_id: 12,
+    turn_id: 6,
+    said_at: "2026-08-30T10:04:00Z",
+    scenario_title: "Daily standup",
+    corrections: [
+      {
+        id: 41,
+        category: "VERB_TENSE",
+        label: "verb tense",
+        subcategory: "missing_past_marker",
+        original: "I complete",
+        correction: "I completed",
+        explanation: "Yesterday needs the past simple.",
+        detector: "llm",
+        counted: true,
+        asr_suspect: false,
+      },
+    ],
+    pieces: [
+      { said: "Yesterday ", say: "Yesterday ", correction_id: null },
+      { said: "I complete", say: "I completed", correction_id: 41 },
+      { said: " the user story.", say: " the user story.", correction_id: null },
+    ],
+    unavailable: null,
+    cut_before: false,
+    cut_after: false,
+    next_id: 44,
+    caveat: "The recogniser was trained on fluent English, and it can hear the correct form.",
+    ...overrides,
+  };
+}
+
+export function makeDrillResult(overrides: Partial<DrillResult> = {}): DrillResult {
+  return {
+    heard: "Yesterday I completed the user story.",
+    words: ["yesterday", "i", "completed", "the", "user", "story"].map((word) => ({
+      expected: word,
+      heard: word,
+    })),
+    verdicts: [
+      { id: 41, verdict: "corrected", expected: "i completed", heard: "i completed", unsure: false },
+    ],
+    expected_words: 6,
+    matched: 6,
+    substituted: 0,
+    missed: 0,
+    added: 0,
     ...overrides,
   };
 }

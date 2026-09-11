@@ -39,6 +39,7 @@ def snapshot(
     words: int = 200,
     errors_per_100: float | None = 4.0,
     forms: dict | None = None,
+    by_form: dict | None = None,
     speech_rate: float = 120.0,
     attempts: int = 0,
     phones: dict | None = None,
@@ -65,6 +66,7 @@ def snapshot(
             "by_category": {"VERB_TENSE": 3, "ARTICLE": 1},
             "by_category_per_100_words": {"VERB_TENSE": 1.5, "ARTICLE": 0.5},
             "excluded": {"asr_suspect": 1, "low_confidence": 0},
+            "by_form": by_form or {},
         },
         complexity={
             "distinct_forms": len(forms),
@@ -241,13 +243,14 @@ async def test_two_points_are_not_enough_to_claim_a_direction(
 async def test_the_accuracy_family_carries_the_measured_quality_of_its_labels(
     practised, client
 ):
-    """The rate is a count of rows and is exact. The categories under it came from a model
-    that filed roughly half of them correctly, and that belongs on the screen rather than
-    only in a decision document."""
+    """The rate is a count of rows and is exact. The rows under it come from two detectors
+    of different quality, and which is which belongs on the screen rather than only in a
+    decision document."""
     body = (await client.get("/progress")).json()
     accuracy = next(entry for entry in body["families"] if entry["name"] == "accuracy")
 
     assert accuracy["caveat"] and "0.50" in accuracy["caveat"]
+    assert "grammar rules" in accuracy["caveat"]
     for family in body["families"]:
         if family["name"] != "accuracy":
             assert family["caveat"] is None
@@ -393,6 +396,109 @@ async def test_reaching_further_while_making_fewer_mistakes_is_not_warned_about(
     assert repertoire["distinct_forms"] == 4
     assert repertoire["previous_distinct_forms"] == 2
     assert repertoire["warning"] is None
+
+
+def tallied(used: int, right: int, missed: int = 0) -> dict:
+    return {
+        "used": used,
+        "right": right,
+        "wrong": used - right,
+        "missed": missed,
+        "accuracy": round(right / (used + missed), 4),
+    }
+
+
+async def test_accuracy_per_form_is_shown_as_a_proportion_above_the_floor(
+    client, account, db_session
+):
+    """Twelve present simples, nine right, one needed and missed: a proportion is worth
+    giving. Two past simples, one right: the counts are, the proportion is not."""
+    db_session.add(
+        snapshot(
+            account["id"],
+            week(0),
+            forms={"present_simple": 12, "past_simple": 2},
+            by_form={
+                "present_simple": tallied(12, 9, missed=1),
+                "past_simple": tallied(2, 1),
+            },
+        )
+    )
+    await db_session.commit()
+
+    repertoire = (await client.get("/progress")).json()["repertoire"]
+
+    assert repertoire["accuracy_floor"] == 10
+    assert repertoire["accuracy"]["present_simple"] == {
+        "used": 12,
+        "right": 9,
+        "wrong": 3,
+        "missed": 1,
+        "accuracy": 0.6923,
+    }
+    assert repertoire["accuracy"]["past_simple"] == {
+        "used": 2,
+        "right": 1,
+        "wrong": 1,
+        "missed": 0,
+        "accuracy": None,
+    }
+
+
+async def test_accuracy_per_form_carries_its_caveat_and_nothing_else_does(
+    client, account, db_session
+):
+    """The corrections are the model's, and a wrong one counts against a form the learner
+    used correctly. The panel is read away from the error-rate chart, so it says so."""
+    db_session.add(
+        snapshot(
+            account["id"],
+            week(1),
+            by_form={"present_simple": tallied(4, 3)},
+        )
+    )
+    db_session.add(snapshot(account["id"], week(0)))
+    await db_session.commit()
+
+    repertoire = (await client.get("/progress")).json()["repertoire"]
+    assert repertoire["accuracy"] == {}
+    assert repertoire["caveat"] is None
+
+    latest = await db_session.scalar(
+        select(ProgressSnapshot).where(
+            ProgressSnapshot.user_id == account["id"],
+            ProgressSnapshot.period_start == week(0),
+        )
+    )
+    latest.accuracy = dict(latest.accuracy, by_form={"past_simple": tallied(2, 1)})
+    await db_session.commit()
+
+    repertoire = (await client.get("/progress")).json()["repertoire"]
+    assert "0.50 precision" in repertoire["caveat"]
+    assert "a form you used correctly" in repertoire["caveat"]
+    assert "a missed one counts as right" in repertoire["caveat"]
+
+
+async def test_an_empty_repertoire_still_says_what_the_floor_is(client, account):
+    """The panel explains the floor before anything is in it."""
+    repertoire = (await client.get("/progress")).json()["repertoire"]
+    assert repertoire["accuracy"] == {}
+    assert repertoire["accuracy_floor"] == 10
+
+
+async def test_a_snapshot_from_before_the_join_has_no_accuracy_per_form(
+    client, account, db_session
+):
+    """A period rolled up before corrections were joined to forms carries none, and the
+    page says nothing rather than a hundred per cent."""
+    row = snapshot(account["id"], week(0))
+    row.accuracy = {
+        key: value for key, value in row.accuracy.items() if key != "by_form"
+    }
+    db_session.add(row)
+    await db_session.commit()
+
+    assert (await client.get("/progress")).json()["repertoire"]["accuracy"] == {}
 
 
 # ── Freshness ───────────────────────────────────────────────────────────────

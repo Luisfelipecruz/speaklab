@@ -18,7 +18,7 @@ layer proposed it.
 
 | Table | Holds |
 |---|---|
-| `scenarios` | Persona, goal, target grammar and functions, band, rubric |
+| `scenarios` | Persona, goal, target grammar, functions and kinds of mistake, band, rubric |
 | `passages` | Reference text, band, phoneme focus, word count |
 
 Both are keyed by `slug`, which is the seed key, the URL segment, and what a session's
@@ -79,8 +79,26 @@ using the present simple; measuring errors alone rewards avoidance. Counting whi
 were *used* is what makes a narrowing repertoire visible as the regression it is.
 
 `language_errors.detector` (`'llm'` or `'rule'`) is the one place an LLM's output is
-recorded, and it is labelled as such. That is what lets m11 report LLM precision against
-the rule layer instead of asserting it.
+recorded, and it is labelled as such. That is what lets the error-precision suite report
+the model's precision and the rule layer's separately instead of asserting either. A model
+proposal a rule had already made is not stored twice: it goes onto `turns.analysis_rejects`
+with the reason `superseded_by_rule`, and is not counted as a refusal.
+
+`language_errors.form` and `corrected_form` (revision `0005`) join a correction to the
+grammar the parser counts: the verb form the corrected words were said in, and the one
+the correction puts there, both in `grammar_usage`'s vocabulary. They are what accuracy
+per form is computed from — right is a form's `grammar_usage` count less the corrections
+said in it, over that count plus the corrections that needed it. Either can be NULL, and
+NULL is a finding: `She going` said no finite form, and a preposition error is not a
+correction of a verb. They are derived from the transcript and the correction, so `make
+reparse` recomputes them — and `grammar_usage` — without asking the model anything again.
+
+`scenarios.target_errors` (revision `0006`) is the second thing a scenario declares: the
+error categories it is built to draw out, in `language_errors.category`'s vocabulary.
+`target_grammar` is in the parser's vocabulary, which has no word for an article, a
+preposition or a false friend — those exist only as the categories corrections are filed
+under. It is how a learner corrected on prepositions is pointed at a scenario written to
+draw them out. The seed loader rejects a name the taxonomy does not have.
 
 `progress_snapshots` is the only table nothing writes per turn: one row per user per
 period, at day and week granularity, rewritten from the rows underneath whenever they
@@ -135,15 +153,15 @@ than an `ALTER TYPE` that cannot run inside a transaction.
 
 ## 3. Why JSONB, five times
 
-`scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.rubric`,
-`passages.phoneme_focus`, `turns.words`, `sessions.report`, and the five families on
-`progress_snapshots`.
+`scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.target_errors`,
+`scenarios.rubric`, `passages.phoneme_focus`, `turns.words`, `sessions.report`, and the
+five families on `progress_snapshots`.
 
 Two different reasons, worth keeping apart:
 
-- **Lists that are filtered by containment** — `target_grammar`, `phoneme_focus`. The
-  query is `@>`, one indexable predicate, and GIN indexes it when the seed set outgrows a
-  sequential scan over a dozen rows.
+- **Lists that are filtered by containment** — `target_grammar`, `target_errors`,
+  `phoneme_focus`. The query is `@>`, one indexable predicate, and GIN indexes it when the
+  seed set outgrows a sequential scan over a dozen rows.
 - **Documents read whole for one screen** — `rubric`, `words`, `report`, and the progress
   families. Nothing queries inside them across rows. The set of fluency measures is still
   moving, and a schema migration per metric added is a tax on exactly the experimentation

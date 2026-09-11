@@ -57,7 +57,7 @@ from db_models import (
     ProgressSnapshot,
     Turn,
 )
-from services.analysis import is_counted, weighted_fluency
+from services.analysis import form_accuracy, is_counted, weighted_fluency
 
 log = logging.getLogger("speaklab.rollup")
 
@@ -354,7 +354,7 @@ def _fluency_of(turns: list[TurnRow]) -> dict:
 
 
 def _accuracy_of(turns: list[TurnRow], words: int) -> dict:
-    """Errors per hundred words, and the same by category.
+    """Errors per hundred words, the same by category, and accuracy per verb form.
 
     Only the rows that may reach a rate. An error sitting on words the recogniser was
     unsure of, or one the labelling model hedged on, is shown to the learner in the
@@ -363,6 +363,10 @@ def _accuracy_of(turns: list[TurnRow], words: int) -> dict:
     """
     rows = [error for turn in turns for error in turn.errors]
     counted = [row for row in rows if is_counted(row)]
+    used: dict[str, int] = {}
+    for turn in turns:
+        for feature, count in turn.features.items():
+            used[feature] = used.get(feature, 0) + count
 
     by_category: dict[str, int] = {}
     for row in counted:
@@ -381,6 +385,9 @@ def _accuracy_of(turns: list[TurnRow], words: int) -> dict:
             if words
             else {}
         ),
+        # Per verb form: used, right, wrong, missed, and right over used plus missed. The
+        # same function the session report uses, over the same rows.
+        "by_form": form_accuracy(used, rows),
         "excluded": {
             "asr_suspect": sum(1 for row in rows if row.asr_suspect),
             "low_confidence": sum(

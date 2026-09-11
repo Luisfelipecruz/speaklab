@@ -6,6 +6,8 @@ are that running it twice does not double anything, and that a failure leaves a 
 later pass can pick up.
 """
 
+import asyncio
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -18,10 +20,13 @@ from db_models import (
     Turn,
     User,
 )
+from services import analysis
 from services.analysis import (
+    Analyser,
     analyse_turn,
     ensure_session_analysed,
     pending_turn_ids,
+    reparse_turn,
     summarise,
 )
 from services.security import hash_password
@@ -224,6 +229,140 @@ async def test_a_failed_turn_is_picked_up_again(turn, factory, db_session):
         assert turn.id in await pending_turn_ids(db)
 
 
+async def test_a_rule_row_is_stored_as_the_rules(turn, factory, db_session):
+    """The one column that says which layer proposed a row."""
+    async with factory() as db:
+        row = await db.get(Turn, turn.id)
+        row.transcript = "my sister work in a bank near the station"
+        row.words = timings(row.transcript)
+        await db.commit()
+
+    await analyse_turn(turn.id, factory, BrokenProvider())
+
+    found = await rows_for(db_session, LanguageError, turn.id)
+    assert [(f.detector, f.category, f.confidence) for f in found] == [
+        ("rule", "SUBJECT_VERB_AGREEMENT", 1.0)
+    ]
+
+
+async def test_the_summary_says_which_detector_found_what(turn, factory, db_session):
+    """A layer that covers two categories finds those two more reliably than the model
+    finds the rest, so the split by category is read differently once it is there — and
+    the report has to say how the rows divide."""
+    async with factory() as db:
+        row = await db.get(Turn, turn.id)
+        row.transcript = "I go to the office every day and my sister work in a bank"
+        row.words = timings(row.transcript)
+        await db.commit()
+
+    duplicate = dict(
+        AN_ERROR,
+        category="SUBJECT_VERB_AGREEMENT",
+        subcategory="third_person_s",
+        original="my sister work",
+        correction="my sister works",
+    )
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR, duplicate)]))
+    summary = await summarise(db_session, turn.session_id, None)
+
+    errors = summary["errors"]
+    assert errors["by_detector"] == {"llm": 1, "rule": 1}
+    assert sorted(item["detector"] for item in errors["items"]) == ["llm", "rule"]
+    assert errors["superseded"] == 1
+    assert errors["rejected"] == 0
+    assert errors["rejection_rate"] == 0.0
+
+
+async def test_a_correction_is_stored_with_the_forms_it_was_made_in(
+    turn, factory, db_session
+):
+    """`I go` corrected to `I went`: said in the present simple, needing the past."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+
+    (found,) = await rows_for(db_session, LanguageError, turn.id)
+    assert (found.form, found.corrected_form) == ("present_simple", "past_simple")
+
+
+async def test_the_summary_gives_accuracy_per_form(turn, factory, db_session):
+    """Two present simples, one of them corrected to a past: the present simple is right
+    once in two, and the past simple was needed once and never said."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+    summary = await summarise(db_session, turn.session_id, None)
+
+    assert summary["form_accuracy"] == {
+        "present_simple": {
+            "used": 2,
+            "right": 1,
+            "wrong": 1,
+            "missed": 0,
+            "accuracy": 0.5,
+        },
+        "past_simple": {
+            "used": 0,
+            "right": 0,
+            "wrong": 0,
+            "missed": 1,
+            "accuracy": 0.0,
+        },
+    }
+    (item,) = summary["errors"]["items"]
+    assert (item["form"], item["corrected_form"]) == ("present_simple", "past_simple")
+
+
+async def test_a_failed_join_still_stores_the_correction(
+    turn, factory, db_session, monkeypatch
+):
+    """The correction is real without its forms. It is stored unlinked, and says why."""
+    from services import analysis
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("the join exploded")
+
+    monkeypatch.setattr(analysis.forms, "link", boom)
+    outcome = await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+
+    assert outcome.status == "analyzed"
+    (found,) = await rows_for(db_session, LanguageError, turn.id)
+    assert (found.form, found.corrected_form) == (None, None)
+    await db_session.refresh(turn)
+    assert "the form join failed" in turn.analysis_error
+
+
+async def test_reparse_recounts_and_relinks_without_the_model(
+    turn, factory, db_session
+):
+    """For a change to the parser or the join: the stored transcript and correction are
+    all it needs, and the correction itself is not touched."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+    async with factory() as db:
+        (row,) = await rows_for(db, LanguageError, turn.id)
+        row.form = row.corrected_form = None
+        usage = await db.scalar(
+            select(GrammarUsage).where(
+                GrammarUsage.turn_id == turn.id,
+                GrammarUsage.feature == "present_simple",
+            )
+        )
+        usage.count = 9
+        analysed_at = (await db.get(Turn, turn.id)).analyzed_at
+        await db.commit()
+
+    done = await reparse_turn(turn.id, factory)
+
+    assert done.forms_before["present_simple"] == 9
+    assert done.forms_after["present_simple"] == 2
+    assert (done.corrections, done.linked) == (1, 1)
+    async with factory() as db:
+        (row,) = await rows_for(db, LanguageError, turn.id)
+        assert (row.form, row.corrected_form) == ("present_simple", "past_simple")
+        assert row.correction == AN_ERROR["correction"]
+        assert (await db.get(Turn, turn.id)).analyzed_at > analysed_at
+
+
+async def test_reparse_leaves_a_turn_that_was_never_analysed(turn, factory):
+    assert await reparse_turn(turn.id, factory) is None
+
+
 async def test_rejections_are_stored_on_the_turn(turn, factory, db_session):
     """The rate is the measurement that says whether the labelling model is strong
     enough, and it is not recoverable later from the proposals that passed."""
@@ -255,6 +394,110 @@ async def test_a_zero_budget_leaves_the_turn_for_later(turn, factory, db_session
         turn.session_id, factory, StubProvider([reply()]), budget_s=0
     )
     assert (analysed, outstanding) == (0, 1)
+
+
+class GatedProvider(StubProvider):
+    """A labelling model that answers only when the test says so."""
+
+    def __init__(self, replies) -> None:
+        super().__init__(replies)
+        self.asked = asyncio.Event()
+        self.answer = asyncio.Event()
+
+    async def complete(self, messages, max_tokens=None, temperature=None):
+        self.asked.set()
+        await self.answer.wait()
+        return await super().complete(messages, max_tokens, temperature)
+
+
+async def test_ending_waits_for_a_turn_already_being_analysed(
+    turn, factory, db_session
+):
+    """The live job claims a turn the moment the reply goes back, so ending straight
+    after speaking finds the last turn mid-analysis. Skipping it wrote the report
+    without it."""
+    live = GatedProvider([reply(AN_ERROR)])
+    Analyser(factory, live).launch(turn.id)
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    ending = asyncio.create_task(
+        ensure_session_analysed(
+            turn.session_id, factory, StubProvider([reply()]), budget_s=30
+        )
+    )
+    await asyncio.sleep(0.2)
+    assert not ending.done()
+
+    live.answer.set()
+    assert await asyncio.wait_for(ending, 30) == (1, 0)
+    summary = await summarise(db_session, turn.session_id, None)
+    assert summary["complete"] is True
+    assert summary["errors"]["total"] == 1
+
+
+async def test_at_the_deadline_the_live_job_is_left_to_finish(
+    turn, factory, db_session
+):
+    """It is doing the work. Cancelling it would throw away a turn nearly analysed; left
+    running, it writes what an incomplete report is later finished from."""
+    live = GatedProvider([reply(AN_ERROR)])
+    Analyser(factory, live).launch(turn.id)
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    assert await ensure_session_analysed(
+        turn.session_id, factory, StubProvider([reply()]), budget_s=0.2
+    ) == (0, 1)
+
+    job = analysis._jobs[turn.id]
+    live.answer.set()
+    outcome = await asyncio.wait_for(job, 30)
+    assert outcome.status == "analyzed"
+    assert turn.id not in analysis._jobs
+
+
+async def test_a_turn_claimed_by_another_process_is_waited_for(
+    turn, factory, db_session
+):
+    """A backfill run from the command line holds its claim in another process, where
+    there is no job to await. Its turn is looked at again until it is done."""
+    async with factory() as db:
+        (await db.get(Turn, turn.id)).analysis_status = "analyzing"
+        await db.commit()
+
+    async def finish_elsewhere():
+        await asyncio.sleep(0.3)
+        async with factory() as db:
+            (await db.get(Turn, turn.id)).analysis_status = "analyzed"
+            await db.commit()
+
+    elsewhere = asyncio.create_task(finish_elsewhere())
+    provider = StubProvider([reply()])
+    assert await ensure_session_analysed(
+        turn.session_id, factory, provider, budget_s=30
+    ) == (1, 0)
+    await elsewhere
+    assert provider.calls == []
+
+
+async def test_a_cancelled_job_puts_its_turn_back_in_the_queue(
+    turn, factory, db_session
+):
+    """A server that stops mid-analysis cancels the job. A turn left in `analyzing` has
+    nothing coming to finish it and nothing that will take it again."""
+    live = GatedProvider([reply(AN_ERROR)])
+    job = asyncio.create_task(analyse_turn(turn.id, factory, live))
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    job.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await job
+
+    async with factory() as db:
+        released = await db.get(Turn, turn.id)
+        assert released.analysis_status == "pending"
+        assert "interrupted" in released.analysis_error
+        assert turn.id in await pending_turn_ids(db)
+    assert await rows_for(db_session, LanguageError, turn.id) == []
 
 
 async def test_the_session_summary_reports_what_was_not_elicited(
@@ -306,6 +549,8 @@ async def test_a_suspect_error_is_shown_but_not_counted(turn, factory, db_sessio
     assert summary["errors"]["counted"] == 0
     assert summary["errors"]["asr_suspect"] == 1
     assert summary["errors"]["items"][0]["counted"] is False
+    assert summary["form_accuracy"]["present_simple"]["wrong"] == 0
+    assert "past_simple" not in summary["form_accuracy"]
 
 
 async def test_a_session_with_no_user_turns_is_complete_rather_than_empty(

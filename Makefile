@@ -7,8 +7,8 @@
 .PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
-        persona-adherence corpus analyze analyze-dry error-precision rollup rollup-dry \
-        rollup-force
+        persona-adherence corpus analyze analyze-dry reparse error-precision rollup \
+        rollup-dry rollup-force
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -142,10 +142,10 @@ migrate-status:                    ## Which revision the database is on, and wha
 seed:                              ## Load the scenarios and passages. Idempotent.
 	docker compose exec api python -m scripts.seed
 
-asr-wer:                           ## Measure WER on the golden set against the live asr
+asr-wer:                           ## Measure WER, and mistakes said aloud, against the live asr
 	@echo "Needs \`make up\`."
 	docker compose --profile tools run --rm \
-		-e ASR_URL=http://asr:8101 test \
+		-e ASR_URL=http://asr:8101 -e TTS_URL=http://tts:8102 test \
 		python -m pytest /app/tests/test_asr_golden.py -v -s
 
 tts-latency:                       ## Measure synthesis latency against the live tts
@@ -186,6 +186,10 @@ analyze:                           ## Analyse the user turns nothing has analyse
 
 analyze-dry:                       ## List what analysis is outstanding, and stop
 	docker compose exec api python -m scripts.analyze_backfill --dry-run
+
+reparse:                           ## Recount forms and relink corrections, no model call
+	@echo "After a change to the parser or the form join. Run \`make rollup\` after it."
+	docker compose exec api python -m scripts.reparse
 
 error-precision:                   ## Score error detection against the hand-labelled set
 	@echo "Needs Ollama on the host. Prints precision and recall; asserts only that the"

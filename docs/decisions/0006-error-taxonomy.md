@@ -281,6 +281,12 @@ against a measured median of **4.9 s per turn** — and a report written short s
 turns it is missing. Opening the session again finishes them and rebuilds the counts,
 keeping the stored prose.
 
+> **Corrected later.** As built here, ending skipped a turn the live job had already
+> claimed — the usual state of the last one — and opening a session only read it back, so
+> neither sentence above was true. Both are now: ending waits for a claimed turn, and the
+> session page finishes a short report when it is opened. `0014` §7 records how it was
+> found, and the changelog how it was measured.
+
 ---
 
 ## 8. What ships, and what does not

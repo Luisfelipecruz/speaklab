@@ -39,6 +39,7 @@ def features(text: str) -> dict[str, int]:
         ("I have worked here since 2019.", "present_perfect"),
         ("She has been working here for two years.", "present_perfect_continuous"),
         ("I had finished the report before he called.", "past_perfect"),
+        ("I had been waiting for an hour when she arrived.", "past_perfect_continuous"),
         ("I will send it tomorrow.", "future_will"),
         ("I am going to send it tomorrow.", "going_to_future"),
     ],
@@ -73,6 +74,99 @@ def test_a_modal_phrase_is_the_modal_and_not_also_a_tense():
     found = features("If I had known I would have told you.")
     assert found.get("modal_would")
     assert not found.get("present_perfect")
+
+
+@pytest.mark.parametrize(
+    "sentence,feature",
+    [
+        ("I don't have any blockers.", "present_simple"),
+        ("Do you have more details about the price?", "present_simple"),
+        ("She doesn't work on Fridays.", "present_simple"),
+        ("I didn't finish the ticket.", "past_simple"),
+        ("Did she leave, or did she stay?", "past_simple"),
+    ],
+)
+def test_a_negative_or_a_question_is_counted_in_its_tense(sentence, feature):
+    """The head is a bare infinitive and the tense is on `do`. Read from the head, every
+    negative and every question in the simple tenses is a form nobody produced."""
+    assert features(sentence).get(feature), f"{feature} not found in {sentence!r}"
+
+
+def test_both_questions_joined_by_or_are_counted():
+    assert features("Did she leave, or did she stay?")["past_simple"] == 2
+
+
+def test_an_imperative_with_do_is_not_a_present_simple():
+    """`Don't worry` has a finite `do` and no subject: it tells, it does not describe."""
+    assert not features("Don't worry about the deposit.").get("present_simple")
+
+
+@pytest.mark.parametrize(
+    "sentence,feature,not_feature",
+    [
+        ("Is parking included in the price?", "present_simple", "past_simple"),
+        ("The flat is located near the station.", "present_simple", "past_simple"),
+        ("The flight has been cancelled.", "present_perfect", "past_perfect"),
+        (
+            "The kitchen is being painted this week.",
+            "present_continuous",
+            "past_simple",
+        ),
+        ("The house was built in 1990.", "past_simple", "present_simple"),
+    ],
+)
+def test_a_passive_takes_its_tense_from_the_auxiliary(sentence, feature, not_feature):
+    """The participle is past in form whatever the tense. Read from the head, every present
+    passive is a past simple."""
+    found = features(sentence)
+    assert found.get(feature), f"{feature} not found in {sentence!r}"
+    assert not found.get(not_feature), f"{not_feature} found in {sentence!r}"
+
+
+def test_a_perfect_without_a_tense_is_not_a_perfect():
+    """`Having finished` carries an aspect and no tense."""
+    found = features("Having finished the report, I went home.")
+    assert not found.get("present_perfect")
+    assert found["past_simple"] == 1
+
+
+def test_been_without_its_auxiliary_is_not_a_present_simple():
+    """The tagger calls `been` a present-tense verb in `I been to Paris`."""
+    assert not features("I been to Paris twice.").get("present_simple")
+
+
+def test_a_verb_the_tagger_calls_an_auxiliary_still_heads_its_phrase():
+    """`enjoy` in `I enjoy swimming` is tagged as the auxiliary of `swimming`."""
+    found = features("I enjoy swimming in the sea.")
+    assert found["present_simple"] == 1
+    assert found["main_clause"] == 1
+
+
+def test_the_phrases_are_the_forms_the_counts_count():
+    """A correction is linked to a phrase; the phrase has to be one the repertoire counted."""
+    text = (
+        "Yesterday I finished the migration and I am going to deploy it tomorrow. "
+        "I don't have any blockers, but the certificate has been uploaded and we "
+        "could test it if you want. Did you see the dashboard?"
+    )
+    doc = grammar.parse(text)
+    counted = {
+        form: count
+        for form, count in grammar.count(doc).items()
+        if form in grammar.VERB_FORMS
+    }
+    phrased: dict[str, int] = {}
+    for phrase in grammar.verb_phrases(doc):
+        phrased[phrase.form] = phrased.get(phrase.form, 0) + 1
+    assert phrased == counted
+
+
+def test_a_going_to_phrase_holds_its_complement():
+    """`going to deploy` is one future, and a correction to `deploy` is a correction to it."""
+    doc = grammar.parse("I am going to deploy it tomorrow.")
+    (phrase,) = grammar.verb_phrases(doc)
+    assert phrase.form == "going_to_future"
+    assert phrase.words == ("am", "going", "to", "deploy")
 
 
 # ── Modality ────────────────────────────────────────────────────────────────

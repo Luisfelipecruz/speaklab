@@ -13,6 +13,11 @@
  * so — it is shown because a transcript with a hole in it is worse than one with a
  * doubtful correction on it, and it is kept out of every rate for the same reason the
  * report keeps it out. The badge is the whole difference and the learner can see it.
+ *
+ * **A rule's correction is marked like a model's, and its row says where it came from.**
+ * The mark answers "where"; a second colour of solid underline would read as a second
+ * severity, which it is not. The row answers "what and why", so that is where the
+ * source goes.
  */
 
 import { SpellCheck } from "lucide-react";
@@ -32,6 +37,15 @@ function Number_({ n, counted }: { n: number; counted: boolean }) {
     >
       {n}
     </span>
+  );
+}
+
+/** Says a correction was found by a grammar rule rather than proposed by the model. */
+export function RuleBadge() {
+  return (
+    <Badge variant="outline" className="text-xs">
+      grammar rule
+    </Badge>
   );
 }
 
@@ -79,6 +93,7 @@ function Row({ correction }: { correction: NumberedCorrection }) {
             {humanise(item.category.toLowerCase())}
             {item.subcategory ? ` · ${humanise(item.subcategory)}` : ""}
           </Badge>
+          {item.detector === "rule" && <RuleBadge />}
           {!item.counted && (
             <Badge variant="secondary" className="text-xs">
               {item.asr_suspect ? "may be a mishearing" : "low confidence"}

@@ -9,7 +9,7 @@
 
 import { render, screen } from "@testing-library/react";
 
-import { ScenarioCard, humanise } from "@/components/ScenarioCard";
+import { ScenarioCard, humanise, mistakeLabel } from "@/components/ScenarioCard";
 import { makeScenario } from "@/test/fixtures";
 
 test("the whole card leads to the scenario", () => {
@@ -37,6 +37,21 @@ test("the forms a scenario is built to draw out are shown", () => {
   expect(screen.getByText("past simple")).toBeInTheDocument();
 });
 
+test("the kinds of mistake it is built to draw out are shown, as the grammar page names them", () => {
+  render(
+    <ScenarioCard
+      scenario={makeScenario({ target_errors: ["PREPOSITION", "LEXICAL_CHOICE"] })}
+    />,
+  );
+
+  expect(screen.getByText("preposition")).toHaveAttribute(
+    "title",
+    "A kind of mistake this scenario is built to draw out",
+  );
+  expect(screen.getByText("lexical choice")).toBeInTheDocument();
+  expect(screen.queryByText("PREPOSITION")).not.toBeInTheDocument();
+});
+
 test("a long list of forms is trimmed rather than allowed to wrap the card", () => {
   render(
     <ScenarioCard
@@ -62,4 +77,9 @@ test("humanise leaves an already-readable label alone", () => {
   expect(humanise("workplace")).toBe("workplace");
   expect(humanise("present_perfect")).toBe("present perfect");
   expect(humanise("small-talk")).toBe("small talk");
+});
+
+test("an error category reads as the grammar page reads it", () => {
+  expect(mistakeLabel("ARTICLE")).toBe("article");
+  expect(mistakeLabel("SUBJECT_VERB_AGREEMENT")).toBe("subject verb agreement");
 });

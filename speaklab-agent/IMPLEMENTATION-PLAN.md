@@ -1,17 +1,29 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.10 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
-PR #15, `537869e`, 2026-09-06), and **two off-milestone fixes are merged**: PR #16
-(`0.13.1`), a fresh clone that can hold a conversation, and PR #17 (`0.13.2`), the first
-cold run of `make setup` — **7 min 12 s, against five minutes, missed** — and an
-evaluation report that names what failed. **m14, grammar practice, is in progress: item 0,
-Q16, goes up as a PR of its own (`0.13.3`)** — the persona gives its instructions away in
-16 of 200 attempts, from 59 of 200 (`docs/decisions/0013`); **item 1, the rule layer, is
-next**, on a fresh branch once that PR is merged. m15 is polish, not started.
-Three criteria — S4, S5, S7 — are blocked on speech only a person can produce, and no
-milestone changes that. The repository is `Luisfelipecruz/speaklab`; every git command is
-prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-10 (PRs #16 and #17; the owner's decisions on m14 and Q16; Q16 done and shipped on its own; §11 rewritten for the next session)
+**Status:** v1.15 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
+a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
+setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
+item 0 — the persona gives its instructions away in 16 of 200 attempts, from 59 of 200
+(`docs/decisions/0013`). **m14, grammar practice, is code complete on
+`feature/m14-grammar`, every item committed on the branch** — the rule layer (`886b37a`,
+`docs/decisions/0014`), 130 of 172 planted agreement errors and 2 of 129 missing articles
+with no wrong fix; accuracy per form (`b3a8fe5`, `docs/decisions/0015`), 32 of 34
+held-out corrections joined with no wrong form; the end-of-session defect (`b1a35c7`),
+ending straight after speaking now waits for the last turn; the grammar page (`fad37c7`,
+`docs/decisions/0016`), the learner's corrections in their own sentences and the verb
+forms as counts, **no percentage on any screen**; the spoken drill (`d74ae6b`,
+`docs/decisions/0017`) — say one of your corrected sentences again and see, word by word
+and per correction, what the recogniser heard; and the seeds (`ab719d5`,
+`docs/decisions/0018`) — three scenarios for articles, prepositions and false friends, of
+which the detector files 12 of 20 prepositions under their kind but 6 of 20 articles and 6
+of 20 false friends. **Its PR, `0.14.0`, is prepared**: the version, `docs/evaluation.md`
+regenerated with all four suites, and `GIT-COMMANDS.md` §A.20 and §B.13, for the owner to
+run. m15 is polish, not started. Three criteria — S4, S5, S7 — are blocked on speech only
+a person can produce, and no milestone changes that. The repository is
+`Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
+to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-09-12 (m14's PR prepared: `0.14.0`, the report regenerated; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
@@ -410,6 +422,12 @@ GET    /progress/pronunciation        z-scored, sample-gated                  FR
 GET    /progress/phonemes/{phone}     one phone's full history
 GET    /progress/recommendations      one scenario + one passage, with reasons FR-24
 GET    /progress/export               full JSON export                        FR-25
+
+GET    /grammar                       corrections grouped, verb forms, the form
+                                      to practise — not in the forecast; m14
+GET    /corrections/{id}/drill        one correction's sentence, to say again — m14
+POST   /corrections/{id}/drill        audio in -> what was heard, per correction;
+                                      nothing stored — not in the forecast; m14
 ```
 
 Model-service internal APIs, never exposed to the browser:
@@ -1470,7 +1488,7 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **IN PROGRESS** — item 0 done, in a PR of its own (`0.13.3`)
+### m14 — Grammar practice · **CODE COMPLETE** — item 0 merged (PR #18, `0.13.3`); items 1–5 committed on the branch; the PR, `0.14.0`, prepared
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
@@ -1510,17 +1528,113 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    model, and it makes the category mix partly a property of the detector — which the
    report must say. Measured by `make error-precision`, per detector, before anything is
    built on it.
+   **DONE 2026-09-11, committed on the branch as `886b37a`** — `docs/decisions/0014`. `api/services/rules.py`: agreement
+   (`third_person_s`, `there_is_are`) and a missing article after `be` or a role after `as`
+   (`missing_indefinite`, `missing_definite`), narrow on purpose — silent on collectives,
+   partitives, units, coordinations, the subjunctive, uncountables, and a bare verb in a
+   past context. A model proposal making a rule's correction is **superseded**: kept on
+   `turns.analysis_rejects` as `superseded_by_rule`, not stored twice, not a refusal.
+   **Measured:** on the golden set the rules propose **nothing** — it holds no agreement
+   error and one article error in a shape they leave alone — so the product's figure is the
+   model's, 0.500 over six, and S5 is undecidable as before. On **planted errors** in the
+   repository's native English (2 454 words, no model, runs in CI): agreement **100 of 126**,
+   articles **2 of 93**, **no wrong fix and no stray proposal**; no proposal on any
+   unplanted native text, asserted. Found and fixed against 5 647 words of package prose:
+   five false-positive shapes; that prose is now a development set. The session report and
+   the transcript say which detector found each row ("grammar rule" badge); the progress
+   caveat says the split by category is partly a property of the detector. **The
+   done-when's "above the model's" cannot be decided on this corpus.** API 748 (715 pass,
+   33 skip), frontend 210 / 31 suites, build green; no migration, no new operation, no new
+   dependency.
 2. **Per-form accuracy.** Nothing links an error to the form it happened in, so "your
    present perfect is 54 % right" cannot be computed. The join is a design decision: the
    parser's verb-phrase spans against the error's span, and only for `VERB_TENSE`.
+   **DONE 2026-09-11, committed on the branch as `b3a8fe5`** — `docs/decisions/0015`. **The join is a comparison,
+   not an overlap:** the correction is applied, the corrected text parsed, and the verb
+   phrases under it compared before and after; what the correction changed is the form
+   said and the form needed, **both kept** (`language_errors.form`, `corrected_form`,
+   migration `0005`), because counting only what was said never shows a learner the
+   present perfect they avoid. **Not only `VERB_TENSE`:** agreement and a missing
+   auxiliary or copula join too — `she work` is a present simple built wrongly.
+   **Accuracy is target-like use**, right over used plus needed-and-not-said, in the
+   session report, every snapshot, and on the progress page beside each tense and modal —
+   the count always, the percentage from ten (`PROGRESS_MIN_FORM_CONTEXTS`), *needed 2,
+   never said* for an avoided form, and a caveat. **The counter was fixed first**: every
+   present passive was a past simple, no do-supported negative or question was counted,
+   and `had been V-ing` was a present perfect continuous (`past_perfect_continuous` is new
+   in the vocabulary); old counter against new over 5 673 words of three corpora, **55
+   phrases changed, every one a correction**. **Measured, no model:** 55 of 55 on the
+   development set, **32 of 34 held out** (0.941 [0.809, 0.984]), 2 of 4 on the golden
+   set's real turns — the parse of unpunctuated speech loses the verb — and **no wrong
+   form on any set**, asserted. **What it cannot be is more right than the corrections:**
+   on the live corpus the only two corrections that joined a form are the model's false
+   positives. `make reparse` recounts and relinks stored turns with no model call. API
+   876 (843 pass, 33 skip), frontend 216 / 31 suites, build green. *(Its percentage beside
+   a verb form was withdrawn by item 3: the pages show the count.)*
+2b. **The last turn in the report** — placed here by the owner on 2026-09-11, found while
+   verifying item 1 (0014 §7). Ending a session skipped a turn the live analysis job had
+   claimed, which is the usual state of the last one, so the report and the transcript's
+   marks left out the last thing said; and the report's "open this session again to finish
+   them" did nothing, because opening is a `GET`.
+   **DONE 2026-09-11, committed on the branch as `b1a35c7`.** Ending waits for a claimed turn within the same 60 s —
+   a job in the API's process is awaited, a claim held by a backfill in another process is
+   polled — and a job cut off at the deadline is left running. The session page finishes a
+   report written short when it is opened, once, then offers *Finish the report*. A job
+   cancelled by the server stopping puts its turn back in the queue (it stayed `analyzing`
+   for ever). End is disabled while a turn is being sent. **Measured on the stack**, one
+   synthesised turn and End at once, the committed code against the fix: **0 of 3** reports
+   held the turn before, **3 of 3** after, the end taking 4.15–4.80 s; a report left short by
+   the old code was opened in a browser and finished with one request. The new tests fail
+   with the fix removed. No migration, no new operation.
 3. **A grammar section.** The learner's categories with their own sentences — original,
    correction, explanation — the forms they use and how correctly, and the scenario that
    elicits the weakest one. Whether it is a family under `/progress` or a rail entry of its
    own is decided when it is built.
+   **DONE 2026-09-11, committed on the branch as `fad37c7`** — `docs/decisions/0016`. **A rail entry of its own,
+   `/grammar`**, read from the corrections rather than the snapshots, because a snapshot
+   holds no sentences; one new operation, `GET /grammar` (26 of 30). Every correction in
+   the sentence it was said in, marked on the transcript's words, with the proposal, the
+   detector and a link to the conversation; each verb form as *right 9 of 13* with the
+   corrections behind it. **No percentage on any screen** — the progress page loses its
+   *· 69 %* too — because the floor of ten is on the sample and the corrections under the
+   count are the larger error; it comes back when detection precision is measured at the
+   bar over twenty proposals. **The form to practise** is the one right least often among
+   those with **10 contexts and 5 corrections** (`GRAMMAR_MIN_FORM_CORRECTIONS`: if half the
+   corrections were wrong, five all wrong is one time in thirty), with a scenario at the
+   learner's band; below it the page says how near the nearest form is. **On the live
+   corpus no form is named** — the nearest, the future *will*, rests on the two false
+   positives of 0015 §6. **Seen end to end** with three synthesised turns on a throwaway
+   account, 1440 and 375 px, light and dark; it found three things that are not the page's:
+   the model rewrote three correct past simples as past perfects, the agreement rule
+   proposed `she says` where a past set one sentence earlier needed `she said`, and the
+   recogniser heard `I fix` as `I fixed`. API 898 (865 pass, 33 skip), frontend 244 / 36
+   suites, build green.
 4. **One drill, and it is spoken.** Say it again: given one of the learner's own corrected
    sentences, record it, transcribe it, score it against the correction with the word
    error rate code that exists. Deterministic, no model call, measurable. A typed gap-fill
    would be a different product.
+   **DONE 2026-09-11, committed on the branch as `d74ae6b`** — `docs/decisions/0017`. **From the grammar page, on a
+   page of its own**: *Say it again* on every correction placed in its sentence opens
+   `/grammar/drill/{id}`; two operations, `GET` and `POST /corrections/{id}/drill` (28 of
+   30). The sentence is the one said, cut as the grammar page cuts it, **with every
+   correction in it applied** — saying it with one fixed would practise the others — and
+   the correction is shown first, with *Skip to the next* before the button. **Scored per
+   correction, not per sentence**: a 13-word sentence said with its one mistake intact is a
+   word error rate of 1 in 13, which reads as nearly right; so the alignment behind the
+   word error rate is exposed (`wer.align`, the rate unchanged) and each correction gets what
+   was heard where it belongs — the correction, the words as first said, something else, or
+   nothing — with the sentence as counts. **No pass mark, no percentage, nothing stored.**
+   **Measured, no model:** 89 hand-labelled learner sentences spoken by the `tts` voice as
+   said and as corrected, heard by `small.en`, compared by the drill, in the speech
+   recognition suite (`make asr-wer`): a mistake heard as its correction **2, 3, 2 and 1
+   of 89** in four runs, the last the report's, a correct sentence heard as the mistake
+   **0 of 89** in each; four more mistakes in each of runs 2 and 3 came back grammatical another way (`She don't` →
+   `you don't`). One clear
+   synthetic voice, so not a learner's rate. **Seen end to end** in Chromium with a
+   synthesised WAV as the microphone — the first automated check to drive the browser's
+   recorder; until now only a person holding the button had — at 1440 and 375, light and
+   dark. API 927 (893 pass, 34 skip),
+   frontend 267 / 41 suites, build green; no migration, no new dependency.
 5. **Seeds that elicit the other categories.** Every scenario's target grammar is tense,
    modal or conditional; nothing is written to elicit articles, prepositions or false
    friends. Two or three scenarios that do, each with a `cefr_band` like every existing
@@ -1528,10 +1642,36 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    passage, because the band filter filters on nothing". That was never true — the column
    is NOT NULL from `0001`, and all 8 scenarios and 12 passages carry one: A2 ×4, B1 ×9,
    B2 ×6, C1 ×1.)*
+   **DONE 2026-09-12, committed on the branch as `ab719d5`** — `docs/decisions/0018`. **A second declaration,
+   `scenarios.target_errors`** (migration `0006`), in the taxonomy's category names,
+   required like `target_grammar` and checked by the seed loader, because the parser's
+   vocabulary has no word for an article or a false friend; the eight scenarios there were
+   declare `VERB_TENSE`. **Three scenarios**: *Lost property office* (A2, articles — the
+   first A2 scenario), *A courier who cannot find your door* (B1, prepositions), *Applying
+   for a training programme* (B2, false friends, filed as `LEXICAL_CHOICE`). **Read** by
+   the grammar page (*Practise these in …* under each declared kind, at the learner's
+   band) and the error-category recommendation, and shown on the catalogue. **Measured,
+   because "elicits what it declares" can only be seen through corrections**: sixty
+   hand-labelled sentences, twenty per kind — said aloud by `tts`, **17–19 of 20** of each
+   kind heard as said over four runs, prepositions repaired 6 times in 80, articles once,
+   false friends never; handed to the detectors, filed under their kind **6, 12 and 6 of
+   20** in all four (labelled correction 4, 9, 2), and 22 of 60 corrected sentences drew a
+   proposal. Three persona probes; the suite asks nine, 6 of 9 clean in the run that added
+   them and 8 of 9 in the report's. **Found and fixed on the way:** the agreement rule's first wrong
+   fix on planted text, in the courier's own brief (`say your shift end` → `says`) — a
+   lexical verb with its subject after it is left alone; old corpus unchanged at 100/126,
+   2/93. **Seen end to end**: the personas recast the speaker's mistakes, and of ten
+   mistakes spoken, one was filed under its scenario's kind, with a wrong correction.
+   **Whether the scenarios draw these mistakes out of a learner is not measured** — it
+   needs a person. API 940 (904 pass, 36 skip), frontend 270 / 41 suites, build green.
 
-**Decisions to make, not made.** Whether the drill lives on the session page or the
-grammar section; whether a rule-layer row is drawn differently from a model's row on the
-transcript; what the drill's pass mark is, and whether one exists.
+**Decisions to make, not made.** None left *(made at item 5: a scenario declares kinds of
+mistake in the taxonomy's category names, and the declaration is checked by measuring
+the path to a correction, not by the session report — 0018. Made at item 4: the drill lives on
+a page of its own reached from the grammar page, and has no pass mark — 0017)*. *(Made at item 1:
+a rule-layer row is marked on the transcript exactly as a model's is, and its row carries a
+"grammar rule" badge — 0014 §6. Made at item 3: the grammar page is a rail entry of its
+own, shows no percentage, and names a form at 10 contexts and 5 corrections — 0016.)*
 
 **Tests.** Rule proposals against a fixture of known sentences and against the golden set;
 the per-form join against hand-labelled turns; the drill's scoring against known
@@ -1674,13 +1814,64 @@ Evenings-and-weekends pace, one developer.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #17.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #18.
 
 ### The next actions
 
-**`main` is PR #17 (`0.13.2`)**: m13, the onboarding fix, and the first cold run. **Q16 is
-in its own PR on `feature/m14-grammar`** (`0.13.3`). Only `demo/` is outside both,
-untracked on purpose — it is m15's.
+**`main` is PR #18 (`0.13.3`, `49bdeea`)**: m13, the onboarding fix, the first cold run,
+and Q16. **`feature/m14-grammar` carries all of m14** — `886b37a`, `b3a8fe5`, `b1a35c7`,
+`fad37c7`, `d74ae6b` and `ab719d5`, committed locally by the owner, nothing pushed — and
+**the PR's last commit is in the working tree**: `0.14.0`, `docs/evaluation.md`
+regenerated, and the figures the report moved. `GIT-COMMANDS.md` §A.20 commits it and
+§B.13 pushes, opens and merges. Only `demo/` is outside, untracked on purpose — it is
+m15's.
+
+**Prepared on `feature/m14-grammar`, 2026-09-12, uncommitted:**
+- ~~m14's PR.~~ `make eval` with all four suites, 11 min 17 s. The criteria are unchanged —
+  S4 not run, S5 0.500 over six, S6 1.72 %, S7 not met — and the planted errors, the form
+  join and the three kinds' detection are identical to the milestone's runs. **Three
+  figures moved, and the docs follow the report:** an article mistake was heard as its
+  correction for the first time (1 of 80 over four runs; prepositions 6 of 80), the drill's
+  blind spot was 1 of 89, and the persona suite was 8 of 9 clean. Version `0.14.0`; the PR
+  body is `.pr-bodies/m14-grammar.md`.
+
+**Done on `feature/m14-grammar`, 2026-09-12, committed as `ab719d5`:**
+- ~~m14 item 5, the seeds.~~ Three scenarios — articles (A2), prepositions (B1), false
+  friends (B2) — and `scenarios.target_errors` (migration `0006`) for every scenario to
+  declare the kinds of mistake it draws out; the grammar page and the recommendation link a
+  kind to a scenario that declares it. **Measured on sixty labelled sentences:** heard as
+  said 17–19 of 20 per kind; filed under their kind by the detector **6, 12 and 6 of 20**.
+  The agreement rule's wrong fix in the courier's brief found and guarded.
+  `docs/decisions/0018`.
+
+**Done on `feature/m14-grammar`, 2026-09-11, committed as `d74ae6b`:**
+- ~~m14 item 4, the spoken drill.~~ *Say it again* on each correction of the grammar page:
+  the sentence as said with every correction in it applied, the correction shown first
+  with a way to skip it, and what the recogniser heard where each correction belongs. No
+  pass mark, no percentage, nothing stored. `GET`/`POST /corrections/{id}/drill`, 28 of
+  30. **Measured:** a mistake said by a clear synthetic voice was heard as its correction
+  2, 3, 2 and 1 times in 89 over four runs, a correct sentence as the mistake never.
+  `docs/decisions/0017`.
+
+**Done on `feature/m14-grammar`, 2026-09-11, committed as `b1a35c7` and `fad37c7`:**
+- ~~m14 item 3, the grammar page.~~ `/grammar`, a rail entry of its own: the learner's
+  corrections in their own sentences, grouped by kind; each verb form as a count with the
+  corrections behind it; **no percentage on any screen**, the progress page included; a
+  form named for practice only at 10 contexts and 5 corrections, with a scenario at the
+  learner's band — none qualifies on the live corpus. `GET /grammar`.
+  `docs/decisions/0016`.
+- ~~m14 item 2b, the last turn in the report.~~ Ending waits for a turn the live job has
+  claimed; the session page finishes a report written short; a cancelled job releases its
+  turn; End is disabled mid-send. **0 of 3 → 3 of 3** reports holding the last turn.
+
+**Done on `feature/m14-grammar`, 2026-09-11, committed as `b3a8fe5` and `886b37a`:**
+- ~~m14 item 2, accuracy per form.~~ Each correction to a verb's form carries the form it
+  was said in and the form it needs; the counter of forms fixed first. Join: **32 of 34
+  held out**, no wrong form. Migration `0005`; `make reparse` applied. `docs/decisions/0015`.
+- ~~m14 item 1, the rule layer (Q15).~~ Agreement and a missing article, proposed from the
+  parse. On planted errors: agreement **100 of 126**, articles **2 of 93**, no wrong fix.
+  The golden set holds nothing they cover, so S5 is unchanged at 0.500 over six.
+  `docs/decisions/0014`.
 
 **Done in PR #17, 2026-09-10:**
 - ~~Verify S1 cold.~~ `make setup` 7 min 12 s, Whisper loaded at 8 min 58 s — **missed
@@ -1700,19 +1891,41 @@ untracked on purpose — it is m15's.
 **Decided by the owner, 2026-09-10:** m14 next and the LinkedIn post after m15 — this plan
 puts m14 first on purpose, because a walkthrough of a product about to gain a section is
 a recording made twice — Q16 as m14's item 0, and **Q16 merged on its own** rather than
-waiting for the rest of the milestone.
+waiting for the rest of the milestone. **2026-09-11:** the end-of-session defect as an m14
+item (2b) rather than a PR of its own.
 
-1. **Merge the Q16 PR** — the owner, with `GIT-COMMANDS.md` §B.12 — and bring `main` current.
-2. **Cut a fresh `feature/m14-grammar` from the new `main`.** The first one is deleted by
-   the squash-merge; the name is m14's and carries on.
-3. **m14 item 1, the rule layer (Q15)** — subject–verb agreement and article omission,
-   proposed from the parse with confidence 1.0 and no taxonomy gate, stored with
-   `detector='rule'`. **Measured per detector with `make error-precision` before anything is
-   built on it**, and the report says the category mix is now partly a property of the
-   detector. Read `docs/decisions/0006` §6 and §10 first: a drill built on a detector that
-   is right half the time teaches the wrong thing half the time.
-4. Then items 2–5 in order — per-form accuracy, the grammar section, the spoken drill, the
-   seeds — and m14's own PR, `0.14.0`, with this plan's edits in it. No plan-only PR.
+1. ~~Merge the Q16 PR and cut a fresh `feature/m14-grammar`.~~ Done by the owner: `49bdeea`.
+2. ~~Commit items 1 to 4 on the branch.~~ Done by the owner: `886b37a`, `b3a8fe5`,
+   `b1a35c7`, `fad37c7`, `d74ae6b`.
+3. ~~m14 item 5, the seeds.~~ Built and measured; `docs/decisions/0018`.
+4. ~~Commit item 5 on the branch.~~ Done by the owner: `ab719d5`.
+5. **m14's PR, `0.14.0`** — the owner, with `GIT-COMMANDS.md` §A.20 (one commit: the
+   version, the report, the figures it moved, and this plan) and §B.13 (push, open, wait
+   for CI, squash-merge). **CI has never run on any of m14's six commits**, so its run on
+   the PR is the first check of them off this machine. After the merge, on any checkout:
+   `make migrate`, then `make seed`; on a database with stored turns, `make reparse` then
+   `make rollup`.
+6. Then m15, polish — when the owner asks for it, not before.
+
+**A finding from item 5, not yet a task.** The detector files most article and false-friend
+mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under
+their own — and proposes on a third of correct sentences (22 of 60). A scenario can only
+show the kind it declares through corrections of that kind, so for those two scenarios the
+detector, not the scenario, is the limit (0018 §4). And the personas recast the speaker's
+mistakes — *so you attended a conference* — which no guardrail counts (0018 §6).
+
+**A finding from item 4, not yet a task.** Some mistakes never reach the detector: in the
+two measuring runs read one by one, 7 and 6 of 89 mistakes said by a clear synthetic voice
+came back from the recogniser as grammatical English — as the correction, or another way
+(`my manager say` → `My managers say`). That is one reason detection recall is low, measured for the first
+time — on the clearest voice there is — and it is the recogniser's, not the detector's
+(0017 §6).
+
+**A finding from item 3, not yet a task.** The agreement rule proposed `she says` for
+`she say` in a narrative whose past was set a sentence earlier; `she said` was needed. The
+rule's past-context silence reads one sentence. It was synthesised speech of a sentence
+written for the check, not a learner's, and fixing it needs a new held-out set written
+first (0016 §7).
 
 **One open finding, not yet a task.** The 10 s scoring-budget test for a passage-length
 reading failed in one full `make eval` on 2026-09-10 that ran 2.4× slower end to end than

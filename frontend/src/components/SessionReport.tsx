@@ -3,10 +3,10 @@
  *
  * **The split by provenance is the design.** The report arrives from the API already
  * separated by where each number came from — `measured` and the fluency and form counts
- * inside `analysis` computed from stored rows, the corrections proposed by a language
- * model and then checked, `narrative` written by one outright, `pending` naming what
- * still has no analyser — and this component's one job is to keep that separation on the
- * screen instead of flattening it into a tidy summary.
+ * inside `analysis` computed from stored rows, the corrections found by grammar rules or
+ * proposed by a language model and then checked, `narrative` written by a model outright,
+ * `pending` naming what still has no analyser — and this component's one job is to keep
+ * that separation on the screen instead of flattening it into a tidy summary.
  *
  * A flat report is one refactor away from a chart with a model's opinion on it. So the
  * generated prose is under a heading that says a model wrote it and names it; the counted
@@ -25,9 +25,19 @@
  * unavailable" is a fact worth showing, not a section to hide.
  */
 
-import { AlertTriangle, BarChart3, Bot, Gauge, Hourglass, SpellCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  Bot,
+  Gauge,
+  Hourglass,
+  Loader2,
+  SpellCheck,
+} from "lucide-react";
 
+import { RuleBadge } from "@/components/Corrections";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { LanguageErrorItem, SessionAnalysis, SessionReportShape } from "@/lib/api";
@@ -52,7 +62,17 @@ function Figure({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function SessionReport({ report }: { report: SessionReportShape }) {
+export function SessionReport({
+  report,
+  finishing = false,
+  onFinish,
+}: {
+  report: SessionReportShape;
+  /** The report is being rebuilt with the turns it was written without. */
+  finishing?: boolean;
+  /** Offered when the report is unfinished; absent where finishing is not possible. */
+  onFinish?: () => void;
+}) {
   const { measured, narrative, pending } = report;
   const analysis = report.analysis ?? null;
 
@@ -64,6 +84,12 @@ export function SessionReport({ report }: { report: SessionReportShape }) {
           <CardDescription>
             The goal was: <span className="text-foreground">{report.goal}</span>
           </CardDescription>
+        )}
+        {finishing && (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Finishing this report with the turns that were still being analysed…
+          </p>
         )}
       </CardHeader>
 
@@ -149,7 +175,10 @@ export function SessionReport({ report }: { report: SessionReportShape }) {
         {analysis && (
           <>
             <Separator />
-            <AnalysisSections analysis={analysis} />
+            <AnalysisSections
+              analysis={analysis}
+              onFinish={finishing ? undefined : onFinish}
+            />
           </>
         )}
 
@@ -187,7 +216,13 @@ export function SessionReport({ report }: { report: SessionReportShape }) {
  * dependency parse, and the corrections are a model's proposals that survived a closed
  * vocabulary and a check against the transcript.
  */
-function AnalysisSections({ analysis }: { analysis: SessionAnalysis }) {
+function AnalysisSections({
+  analysis,
+  onFinish,
+}: {
+  analysis: SessionAnalysis;
+  onFinish?: () => void;
+}) {
   const { fluency, target_forms: targets, errors } = analysis;
 
   return (
@@ -280,9 +315,10 @@ function AnalysisSections({ analysis }: { analysis: SessionAnalysis }) {
           Corrections
         </h3>
         <p className="text-xs text-muted-foreground">
-          Proposed by a language model, then checked: the category comes from a fixed list
-          and the words come from your transcript, so a correction cannot point at
-          something you did not say.
+          Agreement and missing articles are found by grammar rules that read the structure
+          of your sentence. Everything else is proposed by a language model, then checked:
+          the category comes from a fixed list and the words come from your transcript, so a
+          correction cannot point at something you did not say.
         </p>
 
         {errors.items.length === 0 ? (
@@ -312,11 +348,26 @@ function AnalysisSections({ analysis }: { analysis: SessionAnalysis }) {
           )}
         </div>
 
-        {!analysis.complete && (
+        {errors.by_detector && errors.items.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {analysis.turns_outstanding} of your turns have not been analysed yet. Open
-            this session again to finish them.
+            The rules cover only agreement and missing articles, so those two are found
+            more reliably than the other kinds of mistake. Compare the categories with that
+            in mind.
           </p>
+        )}
+
+        {!analysis.complete && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              {analysis.turns_outstanding} of your turns had not been analysed when this
+              report was written, so it leaves them out.
+            </span>
+            {onFinish && (
+              <Button size="sm" variant="outline" onClick={onFinish}>
+                Finish the report
+              </Button>
+            )}
+          </div>
         )}
       </section>
     </>
@@ -336,6 +387,7 @@ function ErrorRow({ item }: { item: LanguageErrorItem }) {
           {readable(item.category.toLowerCase())}
           {item.subcategory ? ` · ${readable(item.subcategory)}` : ""}
         </Badge>
+        {item.detector === "rule" && <RuleBadge />}
         {!item.counted && (
           <Badge variant="secondary" className="text-xs">
             {item.asr_suspect ? "may be a mishearing" : "low confidence"}

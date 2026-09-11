@@ -20,6 +20,7 @@ is in, and it is computed from the same sample counts the charts are gated on.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -174,7 +175,8 @@ def _confidence(words: int, attempts: int, periods: int) -> dict:
 async def _from_errors(
     db: AsyncSession, snapshots: list[ProgressSnapshot], until: date, window: int
 ) -> list[Recommendation]:
-    """The categories this speaker is corrected on most, per hundred words."""
+    """The categories this speaker is corrected on most, per hundred words, each with a
+    scenario written to draw that kind of mistake out where one declares it."""
     totals: dict[str, int] = {}
     latest: dict[str, date] = {}
     words = 0
@@ -198,6 +200,7 @@ async def _from_errors(
     # numbers — and on a corpus this size ties are the normal case, not the edge one.
     top = max(totals.values())
     alone = sum(1 for count in totals.values() if count == top) == 1
+    offered = await _offered(db, lambda scenario: scenario.target_errors)
 
     return [
         Recommendation(
@@ -215,6 +218,7 @@ async def _from_errors(
             ),
             measured=round(rate, 2),
             samples=totals[category],
+            scenario_slug=offered.get(category),
             score=round(
                 WEIGHTS["error_category"]
                 * scaled[category]
@@ -324,20 +328,7 @@ async def _from_forms(
         for form, count in ((row.complexity or {}).get("by_form") or {}).items():
             used[form] = used.get(form, 0) + int(count)
 
-    scenarios = list(
-        (
-            await db.scalars(
-                select(Scenario)
-                .where(Scenario.is_active.is_(True))
-                .order_by(Scenario.slug)
-            )
-        ).all()
-    )
-
-    offered: dict[str, str] = {}
-    for scenario in scenarios:
-        for form in scenario.target_grammar or []:
-            offered.setdefault(form, scenario.slug)
+    offered = await _offered(db, lambda scenario: scenario.target_grammar)
 
     severity = {
         form: 1.0 - min(1.0, used.get(form, 0) / FORM_FAMILIARITY)
@@ -370,6 +361,21 @@ async def _from_forms(
         )
         for form in wanted
     ]
+
+
+async def _offered(
+    db: AsyncSession, declared: Callable[[Scenario], list[str] | None]
+) -> dict[str, str]:
+    """Each name the active scenarios declare, and the first of them by slug to declare it."""
+    offered: dict[str, str] = {}
+    for scenario in (
+        await db.scalars(
+            select(Scenario).where(Scenario.is_active.is_(True)).order_by(Scenario.slug)
+        )
+    ).all():
+        for name in declared(scenario) or []:
+            offered.setdefault(name, scenario.slug)
+    return offered
 
 
 async def _passages_for(db: AsyncSession, phones: list[str]) -> dict[str, str]:

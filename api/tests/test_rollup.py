@@ -211,6 +211,62 @@ def test_the_two_exclusions_are_reported_separately():
     }
 
 
+def test_accuracy_per_form_is_computed_from_the_forms_and_their_corrections():
+    """Two turns: five present simples and two pasts said, one present simple corrected
+    to a past. Right over said plus needed, per form, across the period."""
+    corpus = Corpus(
+        turns=[
+            turn(
+                features={"present_simple": 3, "past_simple": 2, "main_clause": 4},
+                errors=(error(form="present_simple", corrected_form="past_simple"),),
+            ),
+            turn(turn_id=2, features={"present_simple": 2}),
+        ]
+    )
+    assert snapshot_values(corpus, WEEK)["accuracy"]["by_form"] == {
+        "present_simple": {
+            "used": 5,
+            "right": 4,
+            "wrong": 1,
+            "missed": 0,
+            "accuracy": 0.8,
+        },
+        "past_simple": {
+            "used": 2,
+            "right": 2,
+            "wrong": 0,
+            "missed": 1,
+            "accuracy": 0.6667,
+        },
+    }
+
+
+def test_a_doubted_correction_never_reaches_accuracy_per_form():
+    corpus = Corpus(
+        turns=[
+            turn(
+                features={"present_simple": 2},
+                errors=(
+                    error(
+                        form="present_simple",
+                        corrected_form="past_simple",
+                        asr_suspect=True,
+                    ),
+                ),
+            )
+        ]
+    )
+    assert snapshot_values(corpus, WEEK)["accuracy"]["by_form"] == {
+        "present_simple": {
+            "used": 2,
+            "right": 2,
+            "wrong": 0,
+            "missed": 0,
+            "accuracy": 1.0,
+        }
+    }
+
+
 def test_a_period_with_no_words_has_no_rate():
     corpus = Corpus(turns=[turn(words=0, errors=(error(),))])
     assert snapshot_values(corpus, WEEK)["accuracy"]["errors_per_100_words"] is None

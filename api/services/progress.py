@@ -14,10 +14,12 @@ more nervous, and one who paused less may have stopped thinking — so they are 
 not judged. Saying "improving" about a speech rate would be the easiest sentence on this
 page to write and the least defensible one on it.
 
-**One thing this page cannot do, stated where somebody would look for it.** There is no
-accuracy figure per grammatical form. Errors are filed under a taxonomy category and forms
-are counted by a parser, and nothing in the schema links an error to the form it occurred
-in. A per-form accuracy chart would be an invented join dressed as a measurement.
+**Accuracy per form is a count first and a proportion second.** Each correction is joined
+to the verb form it changes (`services/forms.py`), so a form has a number of times it was
+right, wrong and needed. The counts are sent as soon as they exist; the proportion only
+once a form has been said or needed often enough in the period for one to mean anything.
+The page renders the counts alone: the floor is on the sample, and the corrections under
+the count are the larger error.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import (
     PROGRESS_MIN_ATTEMPTS,
+    PROGRESS_MIN_FORM_CONTEXTS,
     PROGRESS_MIN_PHONE_SAMPLES,
     PROGRESS_MIN_POINTS,
     PROGRESS_MIN_WORDS,
@@ -38,6 +41,7 @@ from config import (
 from db_models import ProgressSnapshot
 from models.progress import (
     Family,
+    FormAccuracy,
     Gate,
     PhoneTrend,
     Point,
@@ -116,16 +120,31 @@ FAMILY_LABELS: dict[str, tuple[str, str]] = {
     ),
 }
 
-# The one family whose numbers rest on a language model's labelling, and the measured
-# quality of that labelling. Carried onto the screen rather than left in a decision
-# document: the rate is a count of rows and is exact, but the categories those rows are
-# grouped by came from a model that filed roughly half of them correctly.
+# The one family whose numbers rest on a detector's judgement, and the measured quality of
+# that judgement. Carried onto the screen rather than left in a decision document: the rate
+# is a count of rows and is exact, but the rows come from two detectors that are not
+# equally good. Grammar rules find agreement and missing articles; a language model
+# proposes the rest, and on the hand-checked set half of its proposals landed on a real
+# mistake and none of those was filed under the right category.
 ACCURACY_CAVEAT = (
-    "The rate is counted from stored corrections and is exact. The categories those "
-    "corrections are filed under were proposed by a language model whose labelling "
-    "measured 0.50 precision on this project's hand-checked set — so read the total as a "
-    "measurement and the split by category as an indication. Corrections sitting on "
-    "words the recogniser was unsure of are excluded from every figure here."
+    "The rate is counted from stored corrections and is exact. Agreement and missing "
+    "articles are found by grammar rules; every other correction is proposed by a "
+    "language model, and on this project's hand-checked set half of its proposals "
+    "(0.50 precision) pointed at a real mistake, usually filed under the wrong category. "
+    "So read the total as a measurement and the split by category as an indication — "
+    "one in which the two kinds the rules cover are found more reliably than the rest. "
+    "Corrections sitting on words the recogniser was unsure of are excluded from every "
+    "figure here."
+)
+
+
+FORM_ACCURACY_CAVEAT = (
+    "How often a form was right is counted from the same corrections as the error rate: "
+    "grammar rules for agreement, and a language model for the tenses. On this project's "
+    "hand-checked set the model pointed at a real mistake half the time (0.50 precision) "
+    "and found a third of the mistakes a person marked. A wrong correction counts against "
+    "a form you used correctly and a missed one counts as right, so read these as an "
+    "indication rather than a score."
 )
 
 
@@ -308,7 +327,7 @@ def _phone_trends(
 def _repertoire(
     snapshots: dict[date, ProgressSnapshot], starts: list[date]
 ) -> Repertoire:
-    """The forms used most recently, and a warning when the range of them narrowed.
+    """The forms used most recently, how correctly, and a warning when the range narrowed.
 
     The warning fires on one specific combination — fewer forms *and* fewer errors —
     because that is the one a chart would otherwise render as unambiguous progress.
@@ -329,7 +348,10 @@ def _repertoire(
         latest_period=start,
         forms=dict(complexity.get("by_form") or {}),
         distinct_forms=int(complexity.get("distinct_forms") or 0),
+        accuracy=_form_accuracy((latest.accuracy or {}).get("by_form") or {}),
     )
+    if repertoire.accuracy:
+        repertoire.caveat = FORM_ACCURACY_CAVEAT
 
     if len(measured) < 2:
         return repertoire
@@ -354,6 +376,25 @@ def _repertoire(
             "— it is what sticking to what you already know looks like on a chart."
         )
     return repertoire
+
+
+def _form_accuracy(by_form: dict) -> dict[str, FormAccuracy]:
+    """A period's accuracy per verb form, with the proportion withheld below the floor."""
+    shown = {}
+    for form, counts in by_form.items():
+        used, missed = int(counts.get("used") or 0), int(counts.get("missed") or 0)
+        shown[form] = FormAccuracy(
+            used=used,
+            right=int(counts.get("right") or 0),
+            wrong=int(counts.get("wrong") or 0),
+            missed=missed,
+            accuracy=(
+                counts.get("accuracy")
+                if used + missed >= PROGRESS_MIN_FORM_CONTEXTS
+                else None
+            ),
+        )
+    return shown
 
 
 async def build(

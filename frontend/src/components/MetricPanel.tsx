@@ -3,11 +3,11 @@
  * how you sound — with everything needed to read it honestly attached to it.
  *
  * **The caveat is part of the family, not a footnote.** Only one of the four carries one:
- * the error rate is an exact count of stored rows, but the categories those rows are filed
- * under came from a language model whose labelling measured 0.50 precision on this
- * project's own hand-checked set. That belongs next to the chart it qualifies, where
- * somebody deciding what to practise will actually read it — not in a document they will
- * not open.
+ * the error rate is an exact count of stored rows, but the rows come from grammar rules for
+ * two categories and from a language model for the rest, and the model's proposals measured
+ * 0.50 precision on this project's own hand-checked set. That belongs next to the chart it
+ * qualifies, where somebody deciding what to practise will actually read it — not in a
+ * document they will not open.
  *
  * A family whose every series is suppressed is still rendered, with its heading and its
  * reasons. Hiding it would leave the page looking like a product with three metric

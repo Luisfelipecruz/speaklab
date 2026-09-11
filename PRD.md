@@ -149,6 +149,7 @@ A scenario is a first-class, seeded record, not a prompt string:
 | `goal` | The condition that marks the scenario complete |
 | `target_grammar` | Forms the scenario is *designed to elicit* — e.g. `["present_perfect", "past_simple", "conditional_2"]` |
 | `target_functions` | Communicative acts — e.g. `["describe_experience", "handle_objection"]` |
+| `target_errors` | Kinds of mistake the scenario is *designed to draw out*, in the error taxonomy's category names — e.g. `["PREPOSITION"]`. Added in m14: `target_grammar` is in the parser's vocabulary, which has no word for an article or a false friend |
 | `cefr_band` | Difficulty band used for filtering and recommendation |
 | `rubric` | What a good performance looks like, used in the end-of-session report |
 
@@ -159,7 +160,10 @@ the eval harness in m11 says so.
 
 Seed set at launch (8 scenarios): job interview, daily standup, sprint retrospective,
 doctor's appointment, restaurant complaint, airport rebooking after a cancellation,
-apartment viewing, explaining a technical incident to a non-technical stakeholder.
+apartment viewing, explaining a technical incident to a non-technical stakeholder. Three
+more were added in m14 for the mistakes those do not draw out: a lost property office
+(articles), a courier who cannot find the door (prepositions) and an intake call for a
+training programme (false friends).
 
 **On ending a session** the user gets a report: what they did well, the errors grouped by
 category with corrections, the forms they used, and the forms the scenario expected but
@@ -561,7 +565,7 @@ milestone in the plan names it — recording is not scheduling.
 |---|---|---|
 | 2026-09-06 | **Corrections marked on the transcript.** The offsets every error carries were stored so the interface could underline the words, and no screen read them | Not a new idea; delivered as plan m13 |
 | 2026-09-06 | **Grammar practice.** A rule-based detector for the categories a parse can decide, accuracy per grammatical form, a section that shows the learner's own corrected sentences, and one spoken drill — say the corrected sentence, scored by transcription | Scheduled as plan m14, after m13 and before polish |
-| 2026-09-06 | **Seeds that elicit articles, prepositions and false friends**, and a CEFR band on every scenario and passage — the band filter currently filters on nothing | Folded into m14 |
+| 2026-09-06 | **Seeds that elicit articles, prepositions and false friends**, and a CEFR band on every scenario and passage — the band filter currently filters on nothing | Delivered as plan m14 item 5: three scenarios, and `target_errors` to declare what they draw out. The band half was never true — every scenario and passage had one |
 
 ---
 

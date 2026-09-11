@@ -12,9 +12,10 @@
  */
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { SessionReport } from "@/components/SessionReport";
-import { makeReport } from "@/test/fixtures";
+import { makeAnalysis, makeReport } from "@/test/fixtures";
 
 test("the counted figures are presented as counted", () => {
   render(<SessionReport report={makeReport()} />);
@@ -109,6 +110,59 @@ test("an error on words the recogniser was unsure of is shown and marked", () =>
   expect(screen.getByText(/1 not counted — the recogniser was unsure/)).toBeInTheDocument();
 });
 
+test("a correction found by a grammar rule says so, and one from the model does not", () => {
+  const report = makeReport();
+  const [first, second] = report.analysis!.errors.items;
+  render(
+    <SessionReport
+      report={{
+        ...report,
+        analysis: {
+          ...report.analysis!,
+          errors: {
+            ...report.analysis!.errors,
+            items: [
+              { ...first, detector: "rule" },
+              { ...second, detector: "llm" },
+            ],
+            by_detector: { llm: 1, rule: 1 },
+          },
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getAllByText("grammar rule")).toHaveLength(1);
+});
+
+test("once the rules exist, the report says they make the category split uneven", () => {
+  // A layer that covers two categories finds those two more reliably than the model finds
+  // the rest, so the split by category is partly a property of the detector.
+  const report = makeReport();
+  render(
+    <SessionReport
+      report={{
+        ...report,
+        analysis: {
+          ...report.analysis!,
+          errors: { ...report.analysis!.errors, by_detector: { llm: 2 } },
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText(/rules cover only agreement and missing articles/)).toBeInTheDocument();
+});
+
+test("a report written before the rules existed does not mention them", () => {
+  // Reports are stored once. Saying the rules were applied to a session they never saw
+  // would be a claim about it that is not true.
+  render(<SessionReport report={makeReport()} />);
+
+  expect(screen.queryByText(/rules cover only/)).not.toBeInTheDocument();
+  expect(screen.queryByText("grammar rule")).not.toBeInTheDocument();
+});
+
 test("a report written before its turns were analysed says how many are missing", () => {
   const report = makeReport();
   render(
@@ -125,7 +179,37 @@ test("a report written before its turns were analysed says how many are missing"
     />,
   );
 
-  expect(screen.getByText(/2 of your turns have not been analysed yet/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/2 of your turns had not been analysed when this report was written/),
+  ).toBeInTheDocument();
+  // Nothing on this screen can finish it, so nothing offers to.
+  expect(screen.queryByRole("button", { name: "Finish the report" })).not.toBeInTheDocument();
+});
+
+test("an unfinished report offers to finish itself", async () => {
+  const onFinish = jest.fn();
+  render(
+    <SessionReport
+      report={makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) })}
+      onFinish={onFinish}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Finish the report" }));
+  expect(onFinish).toHaveBeenCalledTimes(1);
+});
+
+test("while the report is being finished it says so and offers nothing twice", () => {
+  render(
+    <SessionReport
+      report={makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) })}
+      finishing
+      onFinish={jest.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("status")).toHaveTextContent(/Finishing this report/);
+  expect(screen.queryByRole("button", { name: "Finish the report" })).not.toBeInTheDocument();
 });
 
 test("a report from before the analysers existed still renders", () => {

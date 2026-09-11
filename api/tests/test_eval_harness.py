@@ -290,6 +290,146 @@ def test_a_suite_that_did_not_run_gets_no_figure_and_no_stale_number():
     assert "none is carried forward" in document
 
 
+def test_each_detector_is_reported_on_its_own():
+    """A rule layer that raised the product's precision while the model's own figure
+    went unreported would read as the model getting better. Both rows, always."""
+    result = errors_result(2, 1, 1)
+    result["superseded"] = 1
+    result["by_detector"] = {
+        "llm": {
+            "scored": 4,
+            "excluded": 0,
+            "true_positives": 1,
+            "mislabelled": 2,
+            "false_positives": 1,
+        },
+        "rule": {
+            "scored": 1,
+            "excluded": 0,
+            "true_positives": 1,
+            "mislabelled": 0,
+            "false_positives": 0,
+        },
+    }
+    document = report.render(
+        {"errors": result}, report.adjudicate({"errors": result}, readme="")
+    )
+
+    assert "gemma3:4b and the rule layer" in document
+    assert "| `gemma3:4b` alone | 4 |" in document
+    assert "| Rules alone | 1 |" in document
+    assert "superseded by a rule making the same correction: 1" in document
+
+
+def test_the_planted_errors_are_reported_when_no_model_ran():
+    """The planted measurement needs no model, so CI produces it on every run while the
+    golden-set half is not run. One must not wait for the other."""
+    rules_result = {
+        "measured_at": "2026-09-11T18:00:00+00:00",
+        "status": "measured",
+        "texts": 56,
+        "words": 2454,
+        "planted": {
+            "agreement": {"planted": 126, "caught": 100, "missed": 26},
+            "article": {"planted": 93, "caught": 2, "missed": 91},
+        },
+    }
+    skips = {"errors": "gemma3:4b is not pulled"}
+    document = report.render(
+        {"rules": rules_result},
+        report.adjudicate({"rules": rules_result}, skips=skips, readme=""),
+        skips=skips,
+    )
+
+    errors_part = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "Not run." in errors_part
+    assert "| Subject–verb agreement | 126 |" in errors_part
+    assert "| Missing article | 93 |" in errors_part
+
+
+def test_the_form_join_is_reported_set_by_set():
+    """Development, held out and golden are different kinds of evidence, and a single
+    pooled rate would let the set the join was built on speak for the others."""
+    forms_result = {
+        "measured_at": "2026-09-11T20:00:00+00:00",
+        "status": "measured",
+        "golden_set": "manifest.local.json",
+        "sets": {
+            "labelled": {"cases": 55, "exact": 55, "partial": 0, "wrong": 0},
+            "held_out": {"cases": 34, "exact": 32, "partial": 2, "wrong": 0},
+            "golden": {"cases": 4, "exact": 2, "partial": 2, "wrong": 0},
+        },
+    }
+    skips = {"errors": "gemma3:4b is not pulled"}
+    document = report.render(
+        {"forms": forms_result},
+        report.adjudicate({"forms": forms_result}, skips=skips, readme=""),
+        skips=skips,
+    )
+
+    errors_part = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "#### Which verb form a correction was made in" in errors_part
+    assert "| Held out — never changed the join | 34 |" in errors_part
+    assert "`manifest.local.json`" in errors_part
+
+
+def test_a_mistake_said_aloud_is_reported_both_ways_round_with_what_was_repaired():
+    """The drill's blind spot is a rate over the sentences spoken with the mistake, and it
+    means nothing without the same sentences spoken corrected beside it."""
+    asr = {
+        "measured_at": "2026-09-11T23:00:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "wer": 0.0172,
+        "errors": 4,
+        "reference_words": 232,
+        "utterances": 10,
+        "substitutions": 3,
+        "deletions": 1,
+        "insertions": 0,
+        "ceiling": 0.05,
+    }
+    drill = {
+        "measured_at": "2026-09-11T23:05:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "voice": "en_US-lessac-medium",
+        "sentences": 89,
+        "spoken_as_said": {"corrected": 3, "original": 78, "other": 8, "unheard": 0},
+        "spoken_as_corrected": {
+            "corrected": 87,
+            "original": 0,
+            "other": 2,
+            "unheard": 0,
+        },
+        "unexpected": [
+            {
+                "spoken_as": "said",
+                "verdict": "corrected",
+                "spoken": "He can speaks three languages.",
+                "heard": "He can speak three languages.",
+            },
+            {
+                "spoken_as": "corrected",
+                "verdict": "other",
+                "spoken": "We arrived in Madrid at night.",
+                "heard": "We arrive in Madrid at night.",
+            },
+        ],
+    }
+    results = {"asr": asr, "drill": drill}
+    document = report.render(results, report.adjudicate(results, skips={}, readme=""))
+
+    part = document.split("\n### Speech recognition")[1].split("\n### ")[0]
+    assert "#### A mistake said aloud: heard, or repaired" in part
+    assert "| With the mistake | 0.034 [" in part and "over 89 | 0.876 [" in part
+    assert "| Corrected | 0.978 [" in part
+    assert (
+        "- `He can speaks three languages.` → `He can speak three languages.`" in part
+    )
+    assert "We arrived in Madrid" not in part
+
+
 def test_a_suite_that_produced_figures_and_then_failed_says_so():
     """The bug this test exists for was in the runner, and it hid a real finding.
 
@@ -557,3 +697,76 @@ def test_a_recorded_result_carries_the_date_it_was_measured(monkeypatch, tmp_pat
     assert written["suite"] == "asr"
     assert written["wer"] == 0.0172
     assert written["measured_at"].startswith("20")
+
+
+def test_the_three_kinds_of_mistake_are_reported_heard_and_found():
+    """Each kind on its own row, in the reader's words, in the section of the suite that
+    measured it: said aloud under speech recognition, found under error detection."""
+    aloud = {
+        "measured_at": "2026-09-12T10:00:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "voice": "en_US-lessac-medium",
+        "by_category": {
+            "ARTICLE": {
+                "sentences": 20,
+                "spoken_as_said": {
+                    "corrected": 4,
+                    "original": 14,
+                    "other": 2,
+                    "unheard": 0,
+                },
+                "spoken_as_corrected": {
+                    "corrected": 19,
+                    "original": 0,
+                    "other": 1,
+                    "unheard": 0,
+                },
+            },
+        },
+        "unexpected": [
+            {
+                "category": "ARTICLE",
+                "spoken_as": "said",
+                "verdict": "corrected",
+                "spoken": "It is a orange bag.",
+                "heard": "It is an orange bag.",
+            }
+        ],
+    }
+    found = {
+        "measured_at": "2026-09-12T10:10:00+00:00",
+        "status": "measured",
+        "model": "gemma3:4b",
+        "by_category": {
+            "LEXICAL_CHOICE": {
+                "sentences": 20,
+                "found": 6,
+                "fixed": 4,
+                "other_kind": 3,
+                "missed": 10,
+                "elsewhere": 2,
+                "corrected_flagged": 1,
+                "failed": 1,
+                "found_by_rule": 0,
+                "found_by_llm": 6,
+            },
+        },
+    }
+    results = {
+        "asr": asr_result(),
+        "categories_aloud": aloud,
+        "categories_detected": found,
+    }
+    document = report.render(results, report.adjudicate(results, skips={}, readme=""))
+
+    speech = document.split("\n### Speech recognition")[1].split("\n### ")[0]
+    assert "#### Articles, prepositions and false friends said aloud" in speech
+    assert "| Articles | 20 | 0.700 [" in speech
+    assert "| 2 | 19 |" in speech
+    assert "- Articles: `It is a orange bag.` → `It is an orange bag.`" in speech
+
+    errors = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "#### Articles, prepositions and false friends, found" in errors
+    assert "| False friends | 19 | 0.316 [" in errors
+    assert "— rules 0, model 6 | 4 | 3 | 10 | 2 | 1 |" in errors

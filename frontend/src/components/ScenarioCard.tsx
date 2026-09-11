@@ -9,6 +9,8 @@
  * detail dump: a scenario declares the grammar it is designed to elicit, and the eval
  * harness later checks whether it actually elicited it. Showing the learner what a
  * scenario is *for* is the difference between choosing one and picking one at random.
+ * The kinds of mistake it is built to draw out come first, with a dashed border, because
+ * they are what a learner corrected on articles or prepositions is looking for.
  * `persona_prompt` is the opposite case and never leaves the server.
  */
 
@@ -21,6 +23,11 @@ import type { ScenarioSummary } from "@/lib/api";
 /** `present_perfect` reads badly on a card; `present perfect` does not. */
 export function humanise(token: string): string {
   return token.replace(/[_-]+/g, " ");
+}
+
+/** An error category as the grammar page names it: `LEXICAL_CHOICE` is `lexical choice`. */
+export function mistakeLabel(category: string): string {
+  return humanise(category.toLowerCase());
 }
 
 export function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
@@ -45,6 +52,16 @@ export function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
 
       <CardContent className="flex flex-wrap gap-1.5">
         <Badge variant="outline">{humanise(scenario.category)}</Badge>
+        {scenario.target_errors.map((category) => (
+          <Badge
+            key={category}
+            variant="outline"
+            className="border-dashed font-normal"
+            title="A kind of mistake this scenario is built to draw out"
+          >
+            {mistakeLabel(category)}
+          </Badge>
+        ))}
         {scenario.target_grammar.slice(0, 3).map((form) => (
           <Badge key={form} variant="outline" className="font-normal text-muted-foreground">
             {humanise(form)}

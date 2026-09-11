@@ -115,6 +115,14 @@ class LanguageError(Base):
     correction: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str | None] = mapped_column(Text)
 
+    # The verb form the corrected words were said in, and the one the correction needs,
+    # in the parser's vocabulary. This is what joins an error to a form: accuracy per form
+    # is computed from these two and the forms counted in `grammar_usage`. NULL on a side
+    # when there was no finite form there — `She going` said none — and on both when the
+    # correction is not of a verb's form.
+    form: Mapped[str | None] = mapped_column(Text)
+    corrected_form: Mapped[str | None] = mapped_column(Text)
+
     # Which layer produced this row. It is what lets LLM precision be reported against
     # the rule layer instead of asserted, and what lets a bad prompt be found by
     # querying rather than by reading transcripts.

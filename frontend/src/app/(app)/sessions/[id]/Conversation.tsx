@@ -18,10 +18,15 @@
  * honest thing visible: on a busy machine these figures nearly triple, and a user who can
  * see 6 s of "heard / thought / spoke" knows the machine is loaded rather than assuming
  * the app is broken.
+ *
+ * **A report written before its last turns were analysed is finished when the page is
+ * opened**, once, and not again after an end that came back unfinished: that end has
+ * just waited as long as the server allows, and the report says what is missing and
+ * offers to try again.
  */
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Page, PageHeader } from "@/components/PageHeader";
 import { RecordButton, type RecordPhase } from "@/components/RecordButton";
@@ -32,7 +37,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
-import { useSession } from "@/hooks/useSession";
+import { reportIsIncomplete, useSession } from "@/hooks/useSession";
 import type { SessionDetail, TurnTiming } from "@/lib/api";
 import { correctionsByTurn } from "@/lib/corrections";
 
@@ -58,6 +63,15 @@ export function Conversation({
   const active = session.session?.status === "active";
   const report = session.session?.report ?? null;
   const corrections = useMemo(() => correctionsByTurn(report), [report]);
+  const finishing = session.phase === "finishing";
+
+  const opened = useRef(false);
+  const { session: loaded, finish } = session;
+  useEffect(() => {
+    if (opened.current || !loaded) return;
+    opened.current = true;
+    if (loaded.status !== "active" && reportIsIncomplete(loaded.report)) void finish();
+  }, [loaded, finish]);
 
   const phase: RecordPhase =
     recorder.state === "unsupported" || !active
@@ -118,7 +132,9 @@ export function Conversation({
             <Button
               variant="outline"
               onClick={() => void session.end()}
-              disabled={session.phase === "ending"}
+              // Not while a turn is being sent: the session would end before the turn
+              // is stored, and the turn would be refused.
+              disabled={session.phase === "ending" || session.phase === "sending"}
             >
               {session.phase === "ending" ? "Writing the report…" : "End and get a report"}
             </Button>
@@ -142,7 +158,13 @@ export function Conversation({
         corrections={corrections}
       />
 
-      {report && <SessionReport report={report} />}
+      {report && (
+        <SessionReport
+          report={report}
+          finishing={finishing}
+          onFinish={active ? undefined : () => void session.finish()}
+        />
+      )}
 
       {session.error && (
         <Alert variant="destructive">

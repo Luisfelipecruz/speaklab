@@ -282,3 +282,123 @@ async def test_words_that_do_not_line_up_with_the_transcript_are_skipped():
     transcript = "a completely different sentence"
     heard = words(("nothing", 0.2), ("matches", 0.2))
     assert low_confidence_spans(transcript, heard) == []
+
+
+# ── The rule layer beside the model ─────────────────────────────────────────
+
+AGREEING = "my sister work in a bank near the station"
+
+
+def ruled(text: str):
+    from services import grammar, rules
+
+    return rules.propose(grammar.parse(text))
+
+
+def agreement_error(**overrides) -> dict:
+    return an_error(
+        **{
+            "category": "SUBJECT_VERB_AGREEMENT",
+            "subcategory": "third_person_s",
+            "original": "my sister work",
+            "correction": "my sister works",
+            **overrides,
+        }
+    )
+
+
+async def test_a_rule_proposal_is_stored_as_the_rules():
+    detection = await detect(StubProvider([reply()]), AGREEING, None, ruled(AGREEING))
+    assert [(e.detector, e.accepted.correction) for e in detection.errors] == [
+        ("rule", "my sister works")
+    ]
+
+
+async def test_a_rule_proposal_does_not_wait_for_the_model():
+    """The rule layer needs no model, so a model that is down costs the model's half of
+    the labelling and nothing else."""
+    detection = await detect(BrokenProvider(), AGREEING, None, ruled(AGREEING))
+    assert detection.status == "unavailable"
+    assert [e.detector for e in detection.errors] == ["rule"]
+
+
+async def test_the_models_copy_of_a_rule_correction_is_superseded_not_stored():
+    """One mistake, proposed by both detectors, is one row. The model's copy is kept apart
+    rather than dropped, because it is still something the model proposed."""
+    detection = await detect(
+        StubProvider([reply(agreement_error())]), AGREEING, None, ruled(AGREEING)
+    )
+    assert [e.detector for e in detection.errors] == ["rule"]
+    assert [e.accepted.original for e in detection.superseded] == ["my sister work"]
+
+
+async def test_a_mislabelled_copy_is_superseded_too():
+    """The model's commonest failure: the right words, the right correction, the wrong
+    category. The rule's category is decidable, so the rule's row is the one kept."""
+    mislabelled = agreement_error(
+        category="VERB_TENSE",
+        subcategory="wrong_progressive_aspect",
+        original="sister work in a bank",
+        correction="sister works in a bank",
+    )
+    detection = await detect(
+        StubProvider([reply(mislabelled)]), AGREEING, None, ruled(AGREEING)
+    )
+    assert [e.detector for e in detection.errors] == ["rule"]
+    assert len(detection.superseded) == 1
+
+
+async def test_a_different_mistake_in_the_same_words_is_kept():
+    """Overlapping a rule's span is not the same claim. "in a bank" corrected to "at a
+    bank" is about a preposition, and the rule said nothing about it."""
+    preposition = an_error(
+        category="PREPOSITION",
+        subcategory="wrong",
+        original="work in a bank",
+        correction="work at a bank",
+    )
+    detection = await detect(
+        StubProvider([reply(preposition)]), AGREEING, None, ruled(AGREEING)
+    )
+    assert sorted(e.detector for e in detection.errors) == ["llm", "rule"]
+    assert detection.superseded == []
+
+
+async def test_a_superseded_proposal_is_not_a_refusal():
+    """The rejection rate says whether the model can do the labelling. A proposal that
+    passed the gate and lost to a rule making the same correction is not a failure of
+    the model, and must not move that rate."""
+    from services.errors import SUPERSEDED
+
+    detection = await detect(
+        StubProvider([reply(agreement_error())]), AGREEING, None, ruled(AGREEING)
+    )
+    assert detection.rejected == []
+    assert detection.proposed == 1
+    assert detection.rejection_rate == 0.0
+    assert [record["reason"] for record in detection.not_stored()] == [SUPERSEDED]
+
+
+async def test_the_rules_are_not_counted_as_proposals_by_the_model():
+    detection = await detect(StubProvider([reply()]), AGREEING, None, ruled(AGREEING))
+    assert detection.proposed == 0
+    assert detection.rejection_rate is None
+
+
+async def test_a_rule_proposal_on_a_doubtful_word_is_marked():
+    """The per-word gate is not the model's: a recogniser that dropped an -s produces
+    exactly the text an agreement error does, so a rule row on a doubtful word is kept
+    out of the rates like any other."""
+    heard = words(
+        ("my", 0.99),
+        ("sister", 0.98),
+        ("work", 0.3),
+        ("in", 0.99),
+        ("a", 0.99),
+        ("bank", 0.99),
+        ("near", 0.99),
+        ("the", 0.99),
+        ("station", 0.99),
+    )
+    detection = await detect(StubProvider([reply()]), AGREEING, heard, ruled(AGREEING))
+    assert detection.errors[0].asr_suspect

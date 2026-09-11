@@ -7,6 +7,163 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.14.0] — 2026-09-12 · grammar practice
+
+A learner can now see the grammar they get wrong in their own sentences, and say one of
+them again. Underneath: a rule layer for the two errors a parse can decide, each
+correction to a verb joined to the form it was said in and the form it needs, and three
+scenarios for the mistakes the others did not draw out. The persona fix that opened this
+milestone shipped first, as `0.13.3`.
+
+### Added
+
+- **A rule layer for the two errors a parse can decide.** Subject–verb agreement — `she
+  work`, `the people is`, `there are a problem` — and a missing article after `be` or a
+  role after `as` — `I am engineer`, `it is very good apartment`, `work as teacher` — are
+  now proposed from the dependency parse, with a confidence of 1.0 and no model, and
+  stored with `detector='rule'`. Narrow on purpose: silent on collectives, partitives,
+  quantities, coordinations, the subjunctive, uncountable nouns, and on a bare verb in a
+  past context, where it would be a tense error rather than an agreement one.
+  `docs/decisions/0014`.
+- **Planted errors, measured with no model.** `make error-precision` — and CI — plants one
+  error at a time in the repository's native English, 2 454 words: the rules catch **100 of
+  126** agreement errors and **2 of 93** missing articles, with **no wrong fix and no stray
+  proposal**. No proposal on any unplanted native text, asserted.
+- **Accuracy per verb form.** Each correction to a verb's form — its tense, its agreement,
+  a missing auxiliary or copula — now carries the form its words were said in and the form
+  the correction needs (`language_errors.form`, `corrected_form`, migration `0005`). The
+  correction is applied, the corrected text parsed, and the verb phrases compared before
+  and after. Per form: used, wrong, needed-and-not-said, and right over used plus needed.
+  In the session report (`form_accuracy`), in every snapshot (`accuracy.by_form`), and on
+  the progress page beside each tense and modal — *right 9 of 13*, and *needed 2, never
+  said* for a form the learner avoided — with a caveat about the corrections underneath.
+  A count and never a percentage on screen: the API sends the proportion from ten contexts
+  (`PROGRESS_MIN_FORM_CONTEXTS`), and the page leaves it out, because that floor is on the
+  sample and the corrections under the count are the larger error.
+  `docs/decisions/0015`, `0016`.
+- **The join, measured with no model.** Against hand-labelled corrections: **32 of 34**
+  held out, 55 of 55 in the set it was built against, 2 of 4 on the golden set's real
+  turns; **no correction on any set joined to a wrong form**, asserted.
+- **`make reparse`** — recounts the forms of every analysed turn and relinks its
+  corrections from the stored transcript, with no model call. For after a change to the
+  parser or the join; run `make rollup` after it.
+- **`past_perfect_continuous`**, a new name in the closed vocabulary of forms.
+- **The grammar page, `/grammar`**, a section of its own in the rail. Every correction of
+  the last 30 days, grouped by kind, in the sentence it was said in and marked on the
+  transcript's own words, with what was proposed instead, which detector proposed it, and
+  a link to the conversation; every tense and modal with its counts and the corrections
+  behind them; and one verb form named for practice — the one right least often, with a
+  scenario at the learner's level that asks for it — only once it has come up ten times
+  and been corrected five (`GRAMMAR_MIN_FORM_CORRECTIONS`). Below that it says how near
+  the nearest form is. One new operation, `GET /grammar`: 26 of the 30 forecast.
+  `docs/decisions/0016`.
+- **Say it again: a spoken drill on any correction.** *Say it again* beside each correction
+  on the grammar page opens `/grammar/drill/{id}`: the sentence as it was said, with the
+  correction in it — and every other correction the sentence held — shown first, with a
+  way to skip to the next of the same kind. Hold the button and say it; the page shows what
+  the recogniser heard where each correction belongs — the correction, the words as first
+  said, something else, or nothing — and the sentence word by word, with the words the
+  recogniser was unsure of marked. No pass mark, no percentage, no model call, and nothing
+  stored — not the recording and not the result. Two new operations, `GET` and
+  `POST /corrections/{id}/drill`: 28 of the 30 forecast. `docs/decisions/0017`.
+- **A mistake said aloud, measured.** The speech recognition suite (`make asr-wer`, and
+  `make eval`) now speaks 89 hand-labelled learner sentences with the `tts` voice, with
+  their mistake and corrected, and compares what `small.en` heard as the drill does: a
+  mistake heard as its correction **2, 3, 2 and 1 of 89** in four runs, the last the one
+  in `docs/evaluation.md`, and a correct sentence heard as the mistake **0 of 89** in each.
+- **Three scenarios for the mistakes the others do not draw out.** *Lost property office*
+  (A2) for articles, *A courier who cannot find your door* (B1) for prepositions, and
+  *Applying for a training programme* (B2) for false friends. Eleven scenarios, and the
+  catalogue's first at A2. `docs/decisions/0018`.
+- **Every scenario declares the kinds of mistake it is built to draw out**,
+  `scenarios.target_errors` (migration `0006`), in the error taxonomy's category names;
+  the seed loader rejects any other. The eight there were declare `VERB_TENSE`. Shown on
+  the catalogue and the scenario page beside the forms. Run `make seed` after `make
+  migrate` to fill it.
+- **A kind of correction points at a scenario that draws it out.** On the grammar page,
+  *Practise these in …* under each kind a scenario declares, at the learner's band where
+  one does; and an error-category recommendation now links to one, as forms and sounds
+  already did.
+- **Articles, prepositions and false friends, measured on the way to a correction.** Sixty
+  hand-labelled sentences written for the three scenarios, twenty per kind. Said aloud in
+  the speech recognition suite: **17–19 of 20** of each kind came back as said, in four
+  runs, the last the one in `docs/evaluation.md`; prepositions were repaired **6 times in
+  80** tries, articles once, false friends never. Found in the error detection suite and
+  filed under their kind, the same in all four runs: articles **6 of 20**, prepositions
+  **12 of 20**, false friends **6 of 20**, with the labelled correction 4, 9 and 2; **22 of
+  the 60 corrected sentences** drew a proposal. `docs/evaluation.md` carries both tables.
+- **Three persona probes**, one for each new persona, each handing it a mistake of its kind
+  inside an answer too vague to accept. The persona suite asks nine: **6 of 9** replies
+  clean of the deterministic rules in the run that added them, **8 of 9** in the one in
+  `docs/evaluation.md`.
+
+### Changed
+
+- **The model's copy of a rule's correction is superseded, not stored twice**, and kept on
+  the turn with its reason. It does not count against the model's rejection rate.
+- **Error detection is scored three ways**: the product, the model alone, the rules alone.
+  On the golden set the rules propose nothing — it holds no agreement error and one article
+  error in a shape they leave alone — so the product's figure is the model's: **0.500**
+  over six, undecidable, as before. `docs/evaluation.md` carries the per-detector table and
+  the planted figures.
+- **The session report says which detector found each correction**, with a "grammar
+  rule" badge on rule rows there and on the transcript, and says the two covered
+  categories are found more reliably than the rest. Reports written before today are
+  unchanged.
+- **The analysis job parses each turn once** and gives the parse to both the form counter
+  and the rules.
+- **The word error rate's alignment is its own function**, `wer.align`, and the rate is
+  counted from it — the figures are unchanged, and the drill reads which heard word stood
+  for which.
+
+### Fixed
+
+- **Ending a session straight after speaking wrote the report without the last turn.** The
+  job analysing each turn claims it the moment the reply goes back, and ending skipped a
+  claimed turn instead of waiting for it — so the last thing said, and its corrections,
+  were missing from the report and from the transcript's marks. Ending now waits for it,
+  within the same 60 s. Ended straight after a synthesised turn, three times each on the
+  same stack: before, **3 of 3** reports left the turn out and carried no corrections;
+  after, **3 of 3** were complete, with both corrections, in 4.15–4.80 s.
+- **The report's "open this session again to finish them" did nothing.** Opening a session
+  only read it back. The session page now finishes a report written short when it is
+  opened — once, then offers *Finish the report* — and the report says what it leaves out
+  rather than promising. A report written before the analysers existed is finished the
+  same way.
+- **An analysis interrupted by the server stopping stayed claimed for ever**, so nothing
+  analysed that turn again. A cancelled job now puts its turn back in the queue.
+- **End could be pressed while a turn was still being sent**, which ended the session
+  before the turn was stored and refused the turn. The button is disabled until the turn
+  is back.
+- **The agreement rule corrected an imperative to agree with a noun after it.** In *say your
+  shift end soon* the parser made *your shift end* the subject of *say*, and the rule
+  proposed *says* — found by the planted-error suite in the courier scenario's own brief.
+  Only an auxiliary or *be* comes before its subject, so a lexical verb with its subject
+  after it is now left alone. Planted errors on the text there was before: **100 of 126**
+  and **2 of 93**, unchanged; with the new scenarios, **130 of 172** and **2 of 129**, and
+  the one wrong fix is now a miss.
+- **Every present passive was counted as a past simple.** The tense was read from the
+  head, which in a passive is a past participle: `Is parking included?` was a past simple
+  and `has been cancelled` a past perfect. The tense is now read from the first finite
+  auxiliary.
+- **No negative or question in the simple tenses was counted.** `I didn't go` and `Do you
+  have…?` have their tense on `do` and a bare verb for a head, so neither produced a form.
+  They are now past and present simple; an imperative — `Don't worry`, no subject — is
+  still not.
+- **`had been waiting` was counted as a present perfect continuous.** Now
+  `past_perfect_continuous`. And a perfect or continuous with no tense (`having
+  finished`), `been` with its auxiliary missing, and a lexical verb the tagger labels an
+  auxiliary (`enjoy` in `I enjoy swimming`) are no longer miscounted.
+  Old counter against new over every stored learner turn, the repository's native English
+  and 2 791 words of package descriptions: **55 phrases changed, every one a correction.**
+  On the stored corpus, 3 turns gained 4 present simples; `make reparse` applies it.
+- **The accuracy caveat said the model's labelling measured 0.50 precision.** 0.50 was its
+  detection precision — half its proposals landed on a real mistake; its labelling
+  precision, the right category, measured 0.00. The caveat now says so, and says which
+  categories the rules find.
+
+---
+
 ## [0.13.3] — 2026-09-10 · the persona stays in the scene
 
 The first item of grammar practice, shipped on its own: the persona read its own

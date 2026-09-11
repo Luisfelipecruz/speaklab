@@ -169,6 +169,8 @@ export interface ScenarioSummary {
   cefr_band: CefrBand;
   target_grammar: string[];
   target_functions: string[];
+  /** Error categories, in the taxonomy's names, that the scenario is built to draw out. */
+  target_errors: string[];
 }
 
 /**
@@ -301,6 +303,28 @@ export interface LanguageErrorItem {
   confidence: number;
   asr_suspect: boolean;
   counted: boolean;
+  /**
+   * Which detector proposed it: grammar rules read from the parse, or the language model.
+   * Absent on a report written before the rules existed, when every row was the model's.
+   */
+  detector?: "llm" | "rule";
+  /**
+   * The verb form the corrected words were said in, and the one the correction needs.
+   * Null on a side with no finite form, and on both for a correction that is not of a
+   * verb's form. Absent on a report written before corrections were joined to forms.
+   */
+  form?: string | null;
+  corrected_form?: string | null;
+}
+
+/** How one verb form was used: said, said wrongly, and needed where it was not said. */
+export interface FormAccuracy {
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  /** Right over used plus missed. Null where too few to give as a proportion. */
+  accuracy: number | null;
 }
 
 export interface SessionAnalysis {
@@ -320,6 +344,8 @@ export interface SessionAnalysis {
   } | null;
   grammar_usage: Record<string, number>;
   target_forms: { declared: string[]; elicited: string[]; not_elicited: string[] };
+  /** Per verb form. Absent on a report written before corrections were joined to forms. */
+  form_accuracy?: Record<string, FormAccuracy>;
   errors: {
     total: number;
     counted: number;
@@ -328,7 +354,11 @@ export interface SessionAnalysis {
     per_100_words: number | null;
     by_category: Record<string, number>;
     items: LanguageErrorItem[];
+    /** Rows per detector. Absent on a report written before the rules existed. */
+    by_detector?: Record<string, number>;
     rejected: number;
+    /** The model's proposals a rule had already made, which are not stored twice. */
+    superseded?: number;
     rejection_rate: number | null;
     rejected_reasons: Record<string, number>;
   };
@@ -693,6 +723,12 @@ export interface Repertoire {
   forms: Record<string, number>;
   distinct_forms: number;
   previous_distinct_forms: number | null;
+  /** Per verb form, in the same period as `forms`. The page shows the counts only. */
+  accuracy: Record<string, FormAccuracy>;
+  /** Times a form was said or needed before the API gives `accuracy` as a proportion. */
+  accuracy_floor: number;
+  /** What the accuracy is counted from and how far to trust it. Set when there is any. */
+  caveat: string | null;
   /** Set when the range of forms narrowed while the error rate also fell. */
   warning: string | null;
 }
@@ -734,6 +770,163 @@ export interface Recommendations {
   items: Recommendation[];
   confidence: "none" | "low" | "moderate" | "good";
   detail: string | null;
+}
+
+// ── The grammar page ────────────────────────────────────────────────────────
+
+/** One correction, in the sentence it was made in. */
+export interface CorrectionExample {
+  id: number;
+  session_id: number;
+  turn_id: number;
+  said_at: string;
+  scenario_title: string | null;
+  /**
+   * The sentence around the correction, from the transcript. `quote` is the transcript's
+   * own words under it; null when they could not be placed, and then the sentence is
+   * empty and the correction is shown on its own.
+   */
+  before: string;
+  quote: string | null;
+  after: string;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  subcategory: string | null;
+  detector: "llm" | "rule";
+  counted: boolean;
+  asr_suspect: boolean;
+  form: string | null;
+  corrected_form: string | null;
+}
+
+export interface CategoryCorrections {
+  category: string;
+  label: string;
+  description: string;
+  counted: number;
+  /** Shown and not counted: a possible mishearing, or hedged by the model. */
+  not_counted: number;
+  per_100_words: number | null;
+  by_detector: Record<string, number>;
+  /** The newest few; `counted + not_counted` covers them all. */
+  examples: CorrectionExample[];
+  /** A scenario written to draw this kind of mistake out, when one declares it. */
+  scenario_slug: string | null;
+  scenario_title: string | null;
+}
+
+export interface FormCorrection {
+  id: number;
+  session_id: number;
+  original: string;
+  correction: string;
+  form: string | null;
+  corrected_form: string | null;
+}
+
+/** One verb form: said, said wrongly, needed where another was said. No proportion. */
+export interface FormPractice {
+  form: string;
+  label: string;
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  corrections: FormCorrection[];
+}
+
+export interface WeakestForm {
+  form: string;
+  label: string;
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  reason: string;
+  scenario_slug: string | null;
+  scenario_title: string | null;
+}
+
+export interface GrammarPage {
+  since: string;
+  until: string;
+  totals: { sessions: number; turns: number; words: number; corrections: number; counted: number };
+  categories: CategoryCorrections[];
+  forms: FormPractice[];
+  weakest: WeakestForm | null;
+  /** Why no form is named, when none is, and how near the nearest one is. */
+  weakest_gate: Gate;
+  caveat: string | null;
+}
+
+// ── Saying a correction again ───────────────────────────────────────────────
+
+/** A stretch of the sentence, as it was said and as it is to be said. */
+export interface DrillPiece {
+  said: string;
+  say: string;
+  /** Set on the words a correction put in. */
+  correction_id: number | null;
+}
+
+export interface DrillCorrection {
+  id: number;
+  category: string;
+  label: string;
+  subcategory: string | null;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  detector: "llm" | "rule";
+  counted: boolean;
+  asr_suspect: boolean;
+}
+
+/** One correction to practise, in the sentence it was made in. */
+export interface Drill {
+  id: number;
+  session_id: number;
+  turn_id: number;
+  said_at: string;
+  scenario_title: string | null;
+  /** Every correction applied to the sentence, in text order; the one practised among them. */
+  corrections: DrillCorrection[];
+  /** Empty when the correction cannot be practised aloud; `unavailable` says why. */
+  pieces: DrillPiece[];
+  unavailable: string | null;
+  cut_before: boolean;
+  cut_after: boolean;
+  next_id: number | null;
+  caveat: string;
+}
+
+export type DrillVerdictKind = "corrected" | "original" | "other" | "unheard";
+
+export interface DrillVerdict {
+  id: number;
+  verdict: DrillVerdictKind;
+  expected: string;
+  heard: string;
+  unsure: boolean;
+}
+
+/** What the recogniser heard, compared with the sentence. Nothing is stored. */
+export interface DrillResult {
+  heard: string;
+  words: { expected: string | null; heard: string | null }[];
+  verdicts: DrillVerdict[];
+  expected_words: number;
+  matched: number;
+  substituted: number;
+  missed: number;
+  added: number;
+}
+
+export function postDrill(id: number, audio: Blob, filename = "drill.webm"): Promise<DrillResult> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  return request<DrillResult>(`/corrections/${id}/drill`, { method: "POST", body: form });
 }
 
 export function getProgress(

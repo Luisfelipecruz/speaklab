@@ -330,6 +330,108 @@ def _asr_section(results: dict, skips: dict) -> list[str]:
         "rank two configurations a few errors apart.",
         "",
     ]
+    return (
+        lines
+        + _drill(results.get("drill"))
+        + _kinds_aloud(results.get("categories_aloud"))
+    )
+
+
+def _drill(drill: dict | None) -> list[str]:
+    """Whether a mistake said aloud reaches the transcript, as the spoken drill reads it."""
+    if drill is None:
+        return []
+    sentences = drill["sentences"]
+    said, corrected = drill["spoken_as_said"], drill["spoken_as_corrected"]
+    lines = [
+        "#### A mistake said aloud: heard, or repaired",
+        "",
+        f"Measured {drill['measured_at']}, `{drill['model']}` hearing the voice "
+        f"`{drill['voice']}`: {sentences} hand-labelled learner sentences, each spoken as "
+        "the learner said it and as corrected, and compared the way the spoken drill "
+        "compares a learner saying it again — what was heard where the correction belongs.",
+        "",
+        "| Spoken | Heard as the correction | Heard as said | Something else | Nothing |",
+        "|---|---|---|---:|---:|",
+    ]
+    for name, counts in (("With the mistake", said), ("Corrected", corrected)):
+        lines.append(
+            f"| {name} | {scoring.proportion(counts['corrected'], sentences).format()} | "
+            f"{scoring.proportion(counts['original'], sentences).format()} | "
+            f"{counts['other']} | {counts['unheard']} |"
+        )
+    repaired = [
+        item
+        for item in drill.get("unexpected", [])
+        if item["spoken_as"] == "said" and item["verdict"] == "corrected"
+    ]
+    lines += [
+        "",
+        "A mistake heard as the correction is the drill's blind spot: the learner said it "
+        "wrong and the drill would show it right. One clear synthetic voice gives the "
+        "recogniser the most to go on, so this is the rate for the clearest speech there "
+        "is, not for a learner's.",
+        "",
+    ]
+    if repaired:
+        lines += ["Heard as the correction:", ""]
+        lines += [f"- `{item['spoken']}` → `{item['heard']}`" for item in repaired]
+        lines.append("")
+    return lines
+
+
+# The three kinds of mistake a scenario was written to draw out, as a reader names them.
+KINDS = {
+    "ARTICLE": "Articles",
+    "PREPOSITION": "Prepositions",
+    "LEXICAL_CHOICE": "False friends",
+}
+
+
+def _kinds_aloud(aloud: dict | None) -> list[str]:
+    """Whether an article, preposition or false-friend mistake reaches the transcript."""
+    if aloud is None:
+        return []
+    lines = [
+        "#### Articles, prepositions and false friends said aloud",
+        "",
+        f"Measured {aloud['measured_at']}, `{aloud['model']}` hearing the voice "
+        f"`{aloud['voice']}`: hand-labelled sentences written for the three scenarios that "
+        "draw these mistakes out, one mistake in each, spoken with it and corrected, and "
+        "compared the same way.",
+        "",
+        "| Kind | Sentences | Mistake heard as said | Mistake heard as the correction "
+        "| Something else or nothing | Corrected heard as corrected |",
+        "|---|---:|---|---|---:|---:|",
+    ]
+    for category, counts in aloud["by_category"].items():
+        sentences = counts["sentences"]
+        said, corrected = counts["spoken_as_said"], counts["spoken_as_corrected"]
+        lines.append(
+            f"| {KINDS.get(category, category)} | {sentences} | "
+            f"{scoring.proportion(said['original'], sentences).format()} | "
+            f"{scoring.proportion(said['corrected'], sentences).format()} | "
+            f"{said['other'] + said['unheard']} | {corrected['corrected']} |"
+        )
+    repaired = [
+        item
+        for item in aloud.get("unexpected", [])
+        if item["spoken_as"] == "said" and item["verdict"] == "corrected"
+    ]
+    lines += [
+        "",
+        "A mistake heard as the correction never reaches the detector, so a scenario "
+        "that draws it out cannot show that it did. One clear synthetic voice, as above.",
+        "",
+    ]
+    if repaired:
+        lines += ["Heard as the correction:", ""]
+        lines += [
+            f"- {KINDS.get(item['category'], item['category'])}: `{item['spoken']}` → "
+            f"`{item['heard']}`"
+            for item in repaired
+        ]
+        lines.append("")
     return lines
 
 
@@ -365,15 +467,26 @@ def _errors_section(results: dict, skips: dict) -> list[str]:
         "errors", "Error detection — precision against hand labels", results, skips
     )
     errors = results.get("errors")
-    if errors is None:
-        return lines
+    if errors is not None:
+        lines += _golden_errors(errors)
+    lines += _planted_errors(results.get("rules"))
+    lines += _form_join(results.get("forms"))
+    lines += _kinds_found(results.get("categories_detected"))
+    return lines
+
+
+def _golden_errors(errors: dict) -> list[str]:
     scored = errors["scored"]
     hits = errors["true_positives"] + errors["mislabelled"]
     detection = scoring.proportion(hits, scored)
     labelling = scoring.proportion(errors["true_positives"], scored)
     recall = scoring.proportion(hits, errors["reachable"])
-    lines += [
-        f"| {errors['model']} on `{errors['golden_set']}` | |",
+    detectors = errors.get("by_detector")
+    # A result written before the rule layer existed has one detector, and its figures
+    # are the model's.
+    who = f"{errors['model']} and the rule layer" if detectors else errors["model"]
+    lines = [
+        f"| {who} on `{errors['golden_set']}` | |",
         "|---|---|",
         f"| Detection precision | **{detection.format()}** |",
         f"| Labelling precision | {labelling.format()} |",
@@ -381,7 +494,7 @@ def _errors_section(results: dict, skips: dict) -> list[str]:
         f"| Turns / words | {errors['turns']} / {errors['words']} |",
         f"| Labelled errors, clear of the confidence gate | "
         f"{errors['labelled_errors']}, {errors['reachable']} |",
-        f"| Proposals, rejected by the taxonomy | {errors['proposed']}, "
+        f"| Model proposals, rejected by the taxonomy | {errors['proposed']}, "
         f"{errors['rejected']} |",
         f"| Scored, excluded as unknowable | {scored}, {errors['excluded']} |",
         f"| True positives / right span wrong label / false positives | "
@@ -390,10 +503,165 @@ def _errors_section(results: dict, skips: dict) -> list[str]:
         "",
         f"Rejection reasons: `{errors['rejection_reasons'] or '{}'}`.",
         "",
-        "The gap between detection and labelling precision is the finding, and it has "
-        "been stable since the detector was built: it finds roughly the right words and "
-        "files them under the wrong category. That is a job for a rule layer or a second "
-        "classifying pass, not for a larger model — `mistral:7b` measured worse.",
+    ]
+    if detectors:
+        lines += [
+            "The figures above are the product's — what a learner is shown, and what "
+            "S5 is graded on. Each detector on its own, with the model scored on "
+            "everything it proposed including what a rule superseded, so that its "
+            "figure is its own:",
+            "",
+            "| | Scored | Detection precision | Labelling precision | TP / wrong "
+            "label / FP | Excluded |",
+            "|---|---:|---|---|---|---:|",
+        ]
+        for name, key in (
+            (f"`{errors['model']}` alone", "llm"),
+            ("Rules alone", "rule"),
+        ):
+            tally = detectors[key]
+            found = tally["true_positives"] + tally["mislabelled"]
+            lines.append(
+                f"| {name} | {tally['scored']} | "
+                f"{scoring.proportion(found, tally['scored']).format()} | "
+                f"{scoring.proportion(tally['true_positives'], tally['scored']).format()}"
+                f" | {tally['true_positives']} / {tally['mislabelled']} / "
+                f"{tally['false_positives']} | {tally['excluded']} |"
+            )
+        lines += [
+            "",
+            f"Model proposals superseded by a rule making the same correction: "
+            f"{errors.get('superseded', 0)}.",
+            "",
+            "The model's finding has been stable since it was first measured: it finds "
+            "roughly the right words and files them under the wrong category. The rule "
+            "layer decides the category for the two errors a parse can settle — "
+            "agreement and a missing article — and this golden set holds almost none of "
+            "either, so on it the layer can say little. The planted errors below are "
+            "what it can be judged on until a learner makes more of them.",
+            "",
+        ]
+    else:
+        lines += [
+            "The gap between detection and labelling precision is the finding, and it "
+            "has been stable since the detector was built: it finds roughly the right "
+            "words and files them under the wrong category. That is a job for a rule "
+            "layer or a second classifying pass, not for a larger model — `mistral:7b` "
+            "measured worse.",
+            "",
+        ]
+    return lines
+
+
+def _planted_errors(rules: dict | None) -> list[str]:
+    """The rule layer on native English with one error planted at a time. No model."""
+    if rules is None:
+        return []
+    labels = {"agreement": "Subject–verb agreement", "article": "Missing article"}
+    lines = [
+        "#### The rule layer on planted errors",
+        "",
+        f"Measured {rules['measured_at']}, with no model: the repository's native "
+        f"English — {rules['texts']} texts, {rules['words']} words — with one verb put "
+        "out of agreement or one indefinite article removed at a time, and each copy "
+        "given to the rules.",
+        "",
+        "| | Planted | Caught | Wrong fix | Missed | Proposed elsewhere |",
+        "|---|---:|---|---:|---:|---:|",
+    ]
+    for family, counts in rules["planted"].items():
+        planted = counts.get("planted", 0)
+        caught = scoring.proportion(counts.get("caught", 0), planted)
+        lines.append(
+            f"| {labels.get(family, family)} | {planted} | {caught.format()} | "
+            f"{counts.get('wrong_fix', 0)} | {counts.get('missed', 0)} | "
+            f"{counts.get('elsewhere', 0)} |"
+        )
+    lines += [
+        "",
+        "A planted error sits in otherwise clean English, so this is an upper bound on "
+        "what the layer catches in a learner's speech, where the parse is worse. What it "
+        "does settle is that when the layer speaks it is right: a wrong fix, or a "
+        "proposal away from the planted error, would be a false one stated with full "
+        "confidence. The article rule covers two shapes on purpose — a noun after `be` "
+        "with a pronoun subject, and a role after `as`: everywhere else, whether a bare "
+        "noun is missing its article depends on whether it can be counted, which a parse "
+        "cannot say.",
+        "",
+    ]
+    return lines
+
+
+def _form_join(forms: dict | None) -> list[str]:
+    """How often a correction is filed under the verb forms a teacher would name. No model."""
+    if forms is None:
+        return []
+    names = {
+        "labelled": "Development set — the join was built against it",
+        "held_out": "Held out — never changed the join",
+        "golden": f"Golden set, `{forms.get('golden_set')}` — real learner turns",
+    }
+    lines = [
+        "#### Which verb form a correction was made in",
+        "",
+        f"Measured {forms['measured_at']}, with no model: hand-labelled corrections, each "
+        "with the form its words were said in and the form it needs, given to the join "
+        "that accuracy per form is computed from.",
+        "",
+        "| | Corrections | Both forms right | One side found | Wrong form |",
+        "|---|---:|---|---:|---:|",
+    ]
+    for name, counts in forms["sets"].items():
+        exact = scoring.proportion(counts.get("exact", 0), counts.get("cases", 0))
+        lines.append(
+            f"| {names.get(name, name)} | {counts.get('cases', 0)} | {exact.format()} | "
+            f"{counts.get('partial', 0)} | {counts.get('wrong', 0)} |"
+        )
+    lines += [
+        "",
+        "A side the join cannot find is a verb the parser lost, commonest in an "
+        "unpunctuated transcript; that side is left out of accuracy per form rather "
+        "than guessed. A wrong form would count a mistake against a form the learner "
+        "did not get wrong, and the suite fails on one.",
+        "",
+    ]
+    return lines
+
+
+def _kinds_found(found: dict | None) -> list[str]:
+    """Whether the detectors find an article, preposition or false-friend mistake, and
+    file it under its kind."""
+    if found is None:
+        return []
+    lines = [
+        "#### Articles, prepositions and false friends, found",
+        "",
+        f"Measured {found['measured_at']}, `{found['model']}` and the rule layer: the "
+        "sentences written for the three scenarios that draw these mistakes out, one "
+        "mistake in each and nothing else wrong, then each sentence corrected.",
+        "",
+        "| Kind | Sentences | Found and filed under it | With the labelled correction "
+        "| Found under another kind | Missed | Proposed elsewhere | Proposed on the "
+        "corrected sentence |",
+        "|---|---:|---|---:|---:|---:|---:|---:|",
+    ]
+    for category, counts in found["by_category"].items():
+        scored = counts["sentences"] - counts.get("failed", 0)
+        lines.append(
+            f"| {KINDS.get(category, category)} | {scored} | "
+            f"{scoring.proportion(counts['found'], scored).format()} — rules "
+            f"{counts['found_by_rule']}, model {counts['found_by_llm']} | "
+            f"{counts.get('fixed', 0)} | {counts['other_kind']} | {counts['missed']} | "
+            f"{counts['elsewhere']} | {counts['corrected_flagged']} |"
+        )
+    lines += [
+        "",
+        "A scenario draws out a kind of mistake, as far as the product can tell, only as "
+        "often as the detector finds that kind and files it there: this is the ceiling "
+        "on what its corrections can show. A proposal on the right words under the right "
+        "kind can still put the wrong words in, which is why the labelled correction is "
+        "counted apart. Anything proposed elsewhere, or on a corrected sentence, was "
+        "proposed on English that is right.",
         "",
     ]
     return lines
@@ -679,10 +947,12 @@ def render(
         "2. **More recorded conversation, on more than one day.** It is the only thing "
         "that moves S5 and S7 at once: more turns means more labelled errors to score a "
         "detector against, and more days means a trend with a direction in it.",
-        "3. **A rule layer for the two categories a parse can decide.** Subject-verb "
-        "agreement and article omission. It raises detection precision without touching "
-        "the model, and it makes the category mix a property of the detector — which has "
-        "to be visible in this report when it lands.",
+        "3. **Not the rule layer, on this corpus.** It exists for the two categories a "
+        "parse can decide — subject–verb agreement and a missing article — and is right "
+        "when it speaks, but the golden set holds no agreement error and one article "
+        "error in a shape it leaves alone. It cannot move S5 until more speech is "
+        "recorded, which is item 2 again. It also makes the category mix partly a "
+        "property of the detector, which is why each detector is reported apart.",
         "",
         "## Reproducing this",
         "",

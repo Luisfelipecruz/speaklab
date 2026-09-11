@@ -20,6 +20,8 @@ from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
 from routers.attempts import router as attempts_router
 from routers.audio import router as audio_router
 from routers.auth import router as auth_router
+from routers.drills import router as drills_router
+from routers.grammar import router as grammar_router
 from routers.health import router as health_router
 from routers.passages import router as passages_router
 from routers.progress import router as progress_router
@@ -66,6 +68,13 @@ app.include_router(attempts_router)
 # Trends and recommendations. Last, because it is the only router that reads what every
 # other one wrote and adds nothing of its own to the schema.
 app.include_router(progress_router)
+
+# Your corrections, grouped, and the verb form to practise. Beside progress: it reads the
+# same rows the snapshots are built from, and lists the sentences a snapshot cannot hold.
+app.include_router(grammar_router)
+
+# One of those corrections, said again and compared with what the recogniser heard.
+app.include_router(drills_router)
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel
 # signing key is the right default for a laptop and a serious problem anywhere else,

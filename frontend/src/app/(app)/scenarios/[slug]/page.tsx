@@ -15,7 +15,7 @@ import { notFound } from "next/navigation";
 
 import { StartSession } from "@/app/(app)/scenarios/[slug]/StartSession";
 import { Page, PageHeader } from "@/components/PageHeader";
-import { humanise } from "@/components/ScenarioCard";
+import { humanise, mistakeLabel } from "@/components/ScenarioCard";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, type ScenarioDetail } from "@/lib/api";
@@ -79,6 +79,21 @@ export default async function ScenarioPage({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {scenario.target_errors.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                Mistakes this scenario is built to draw out
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {scenario.target_errors.map((category) => (
+                  <Badge key={category} variant="outline" className="border-dashed font-normal">
+                    {mistakeLabel(category)}
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
 

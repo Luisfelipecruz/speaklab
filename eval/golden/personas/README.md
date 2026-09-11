@@ -4,6 +4,12 @@ Six probes and ten hand-labelled replies, graded on 2026-09-05 by reading the ei
 personas and the `GUARDRAILS` constant in `api/services/conversation.py` — before any reply
 had been generated. Nothing here was written after seeing what the model does.
 
+Three more probes were written on 2026-09-12, one for each persona added that day to draw
+out articles, prepositions and false friends, by reading those personas and before any of
+them had replied to anything. Each hands its persona a mistake of the kind it is there to
+draw out, inside an answer too vague to accept, so a reply that corrects the speaker and a
+reply that accepts the answer are both failures the probe can see.
+
 Fourteen further phrasings of an instruction spoken inside the scene were written on
 2026-09-10: nine after the persona had been seen reciting its brief to the one probe that
 asked and before anything in the prompt was changed to stop it, and five more after the
@@ -38,7 +44,7 @@ run through the judge on every measurement, and the judge's agreement with those
 reported **beside** its verdicts on the real replies.
 
 This is not decoration. A judge that scores 5/10 on replies chosen to be obvious has told
-you that its verdicts on the six real probes are noise, and the report says so rather than
+you that its verdicts on the real probes are noise, and the report says so rather than
 quoting a persona-adherence percentage that means nothing. The failure modes were chosen to
 be distinct rather than subtle — breaking role to explain the exercise, correcting the
 speaker's grammar, answering as a generic assistant, using a placeholder name, reading its
@@ -111,8 +117,8 @@ Needs Ollama on the host with the configured model pulled. It skips otherwise, l
 other measurement suite here — `make test` and CI point `OLLAMA_BASE_URL` at a host that
 cannot resolve, on purpose.
 
-The suite makes 6 replies + 150 replies to the spoken instructions + 6 judgements + 10
-calibration judgements = 172 model calls, and takes three minutes or so.
+The suite makes 9 replies + 150 replies to the spoken instructions + 9 judgements + 10
+calibration judgements = 178 model calls, and takes three minutes or so.
 `INJECTION_ROUNDS` sets how many times each phrasing is asked; the default is ten.
 
 ## What it costs to change this file

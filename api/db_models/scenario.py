@@ -43,6 +43,11 @@ class Scenario(Base):
     target_functions: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )
+    # Error taxonomy categories the scenario is built to draw out. `target_grammar` is in
+    # the parser's vocabulary and cannot name an article or a false friend.
+    target_errors: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
     rubric: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 
     # Retiring a scenario must not orphan the sessions that used it, so content is

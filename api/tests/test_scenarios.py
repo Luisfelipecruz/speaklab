@@ -5,33 +5,43 @@ The properties worth asserting are not "the endpoint returns rows". They are:
 * the filters actually filter, and an unknown band is *rejected* rather than silently
   answered with an empty list;
 * `persona_prompt` never leaves the server;
-* every seeded scenario declares the forms it is designed to elicit, because a scenario
-  that declares none can never fail the check that it elicited them.
+* every seeded scenario declares the forms it is designed to elicit, and the kinds of
+  mistake it is built to draw out, because a scenario that declares none can never fail
+  the check that it elicited them.
 """
+
+from collections import Counter
 
 import pytest
 from sqlalchemy import select
 
 from db_models import Scenario
+from models.scenario import ScenarioSeed
+from scripts.seed import _load
+from services.taxonomy import CATEGORIES, TAXONOMY
+from tests.category_labels import CASES
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
 
-async def test_the_list_returns_the_eight_seeded_scenarios(client):
+async def test_the_list_returns_the_eleven_seeded_scenarios(client):
     response = await client.get("/scenarios")
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 8
+    assert len(body) == 11
     assert {row["slug"] for row in body} == {
         "airport-rebooking",
         "apartment-viewing",
+        "courier-directions",
         "daily-standup",
         "doctors-appointment",
         "incident-explanation",
         "job-interview-backend",
+        "lost-property-office",
         "restaurant-complaint",
         "sprint-retrospective",
+        "training-programme-intake",
     }
 
 
@@ -46,6 +56,7 @@ async def test_the_list_row_carries_what_a_chooser_needs(client):
         "cefr_band",
         "target_grammar",
         "target_functions",
+        "target_errors",
     }
 
 
@@ -170,6 +181,46 @@ async def test_every_scenario_declares_the_forms_it_should_elicit(seeded):
     for scenario in scenarios:
         assert scenario.target_grammar, f"{scenario.slug} declares no target grammar"
         assert scenario.target_functions, f"{scenario.slug} declares no functions"
+        assert scenario.target_errors, f"{scenario.slug} declares no kind of mistake"
+        assert set(scenario.target_errors) <= CATEGORIES, scenario.slug
+
+
+async def test_articles_prepositions_and_false_friends_each_have_a_scenario(client):
+    """The three kinds of mistake nothing in the catalogue was written for, each drawn
+    out by a scenario of its own, at three different bands."""
+    rows = {row["slug"]: row for row in (await client.get("/scenarios")).json()}
+
+    declared = {
+        slug: (rows[slug]["target_errors"], rows[slug]["cefr_band"])
+        for slug in (
+            "lost-property-office",
+            "courier-directions",
+            "training-programme-intake",
+        )
+    }
+    assert declared == {
+        "lost-property-office": (["ARTICLE"], "A2"),
+        "courier-directions": (["PREPOSITION"], "B1"),
+        "training-programme-intake": (["LEXICAL_CHOICE"], "B2"),
+    }
+
+
+def test_the_labelled_sentences_belong_to_the_scenario_that_draws_them_out():
+    """The sentences the three scenarios are measured with are labelled in the taxonomy,
+    each with the one mistake it holds, and each in a scenario that declares its kind.
+    """
+    seeds = {seed.slug: seed for seed in _load("scenarios.json", ScenarioSeed)}
+
+    for case in CASES:
+        assert case.category in seeds[case.scenario].target_errors, case.transcript
+        assert case.subcategory in TAXONOMY[case.category], case.transcript
+        assert case.span_end > case.span_start
+        assert case.corrected != case.transcript
+    assert Counter(case.category for case in CASES) == {
+        "ARTICLE": 20,
+        "PREPOSITION": 20,
+        "LEXICAL_CHOICE": 20,
+    }
 
 
 async def test_every_persona_prompt_forbids_correcting_the_user(seeded):

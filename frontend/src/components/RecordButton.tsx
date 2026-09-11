@@ -40,6 +40,8 @@ export interface RecordButtonProps {
   onStop: () => void;
   /** Shown while recording, so a held button has a visible clock. */
   elapsedMs?: number;
+  /** Wording for what is being recorded, where it is not a conversation turn. */
+  labels?: Partial<Record<RecordPhase, string>>;
   className?: string;
 }
 
@@ -61,8 +63,10 @@ export function RecordButton({
   onStart,
   onStop,
   elapsedMs = 0,
+  labels,
   className,
 }: RecordButtonProps) {
+  const label = { ...LABEL, ...labels };
   const recording = phase === "recording";
   // Everything except idle and recording is a state where a new gesture must not start
   // one: the microphone is being granted, the last turn is still in flight, or recording
@@ -85,7 +89,7 @@ export function RecordButton({
         variant={recording ? "destructive" : "default"}
         disabled={phase === "disabled"}
         aria-pressed={recording}
-        aria-label={LABEL[phase]}
+        aria-label={label[phase]}
         className={cn(
           "h-16 w-64 select-none text-base font-medium",
           recording && "animate-pulse",
@@ -123,7 +127,7 @@ export function RecordButton({
         ) : (
           <Mic />
         )}
-        <span>{recording ? `Recording ${seconds(elapsedMs)}` : LABEL[phase]}</span>
+        <span>{recording ? `Recording ${seconds(elapsedMs)}` : label[phase]}</span>
       </Button>
 
       <p className="text-xs text-muted-foreground">

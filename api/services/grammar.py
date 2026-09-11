@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import threading
 from collections import Counter
+from dataclasses import dataclass
 
 from config import SPACY_MODEL
 
@@ -42,6 +43,7 @@ TENSE_ASPECT: tuple[str, ...] = (
     "present_perfect",
     "present_perfect_continuous",
     "past_perfect",
+    "past_perfect_continuous",
     "future_will",
     "going_to_future",
 )
@@ -74,6 +76,10 @@ STRUCTURE: tuple[str, ...] = (
 )
 
 FEATURES: frozenset[str] = frozenset(TENSE_ASPECT + MODALITY + STRUCTURE)
+
+# The forms a single verb phrase is classified into. The rest of the vocabulary lives on a
+# clause, a word or a whole sentence, and no one verb phrase can be said to be in it.
+VERB_FORMS: tuple[str, ...] = TENSE_ASPECT + MODALITY
 
 _MODAL_FEATURE = {
     "can": "modal_can",
@@ -115,24 +121,38 @@ def load():
     return _nlp
 
 
+def parse(transcript: str):
+    """The parse of one transcript, or None when there is nothing to parse.
+
+    Separate from `analyse` because the rule layer in `services/rules.py` reads the same
+    parse, and a turn is parsed once rather than once per reader.
+    """
+    text = (transcript or "").strip()
+    if not text:
+        return None
+    nlp = load()
+    with _lock:
+        return nlp(text)
+
+
 def analyse(transcript: str) -> dict[str, int]:
     """Feature counts for one transcript. Only features that occurred appear.
 
     Absent means zero, and the caller writes one row per entry — a turn with no
-    conditionals should not carry twenty-seven rows of zero to say so.
+    conditionals should not carry a row of zero for every form it did not use.
     """
-    text = (transcript or "").strip()
-    if not text:
-        return {}
+    return count(parse(transcript))
 
-    nlp = load()
-    with _lock:
-        doc = nlp(text)
+
+def count(doc) -> dict[str, int]:
+    """Feature counts from a parse `parse` returned."""
+    if doc is None:
+        return {}
 
     counts: Counter[str] = Counter()
     for token in doc:
-        if token.pos_ in ("VERB", "AUX") and token.dep_ not in ("aux", "auxpass"):
-            _count_verb_phrase(token, counts)
+        if _heads_phrase(token):
+            counts.update(_verb_phrase_forms(token))
             _count_clause(token, counts)
         _count_word_level(token, counts)
 
@@ -143,67 +163,166 @@ def analyse(transcript: str) -> dict[str, int]:
 # ── Verb phrases ────────────────────────────────────────────────────────────
 
 
-def _count_verb_phrase(head, counts: Counter[str]) -> None:
+@dataclass(frozen=True)
+class Phrase:
+    """One verb phrase the counter classified, with the words it is made of.
+
+    `tokens` are the head, its auxiliaries and, for a `going to` future, the complement
+    that carries its meaning — the words a correction has to change for the phrase to be
+    a different phrase.
+    """
+
+    form: str
+    head: int
+    tokens: tuple[int, ...]
+    words: tuple[str, ...]
+    spans: tuple[tuple[int, int], ...]
+
+    def overlaps(self, start: int, end: int) -> bool:
+        return any(left < end and start < right for left, right in self.spans)
+
+
+def verb_phrases(doc) -> list[Phrase]:
+    """Every verb phrase `count` counts a form for, in order.
+
+    The same classification as the counts, from the same function, so a form a
+    correction is linked to is always a form the repertoire counted.
+    """
+    if doc is None:
+        return []
+    phrases = []
+    for token in doc:
+        if not _heads_phrase(token):
+            continue
+        found = _verb_phrase_forms(token)
+        if not found:
+            continue
+        members = sorted(
+            {token.i} | {aux.i for aux in _auxes(token)} | _going_to_complement(token)
+        )
+        phrases.append(
+            Phrase(
+                form=found[0],
+                head=token.i,
+                tokens=tuple(members),
+                words=tuple(doc[i].lower_ for i in members),
+                spans=tuple((doc[i].idx, doc[i].idx + len(doc[i])) for i in members),
+            )
+        )
+    return phrases
+
+
+def _verb_phrase_forms(head) -> list[str]:
     """One verb phrase, classified by its auxiliaries and its morphology together.
 
     The head carries the aspect and the auxiliaries carry the tense, which is why neither
     is read alone: `been working` is a participle whose tense sits two tokens to its left,
     and `going` is progressive in form while being future in meaning.
     """
-    auxes = [child for child in head.children if child.dep_ in ("aux", "auxpass")]
+    auxes = _auxes(head)
+    found: list[str] = []
 
     for aux in auxes:
         if aux.tag_ == "MD" and aux.lower_ in _MODAL_FEATURE:
-            counts[_MODAL_FEATURE[aux.lower_]] += 1
+            found.append(_MODAL_FEATURE[aux.lower_])
         if aux.lower_ in ("will", "'ll"):
-            counts["future_will"] += 1
+            found.append("future_will")
 
     if head.tag_ == "MD" and head.lower_ in _MODAL_FEATURE:
-        counts[_MODAL_FEATURE[head.lower_]] += 1
+        found.append(_MODAL_FEATURE[head.lower_])
 
     if any(aux.tag_ == "MD" for aux in auxes) or head.tag_ == "MD":
         # A modal phrase is the modal, and nothing else. Without this, "would have told"
         # is counted as a present perfect as well, which puts a form the speaker did not
         # produce into their repertoire.
-        return
+        return found
 
     if _heads_going_to(head):
         # `going` is the tensed half and the complement is the meaning. Counted here, on
         # the `going`, and skipped below when the complement comes round in its own turn
         # of the loop — otherwise one future is counted twice.
-        counts["going_to_future"] += 1
-        return
+        return ["going_to_future"]
     if _is_going_to_complement(head):
-        return
+        return []
+
+    # A tense is a property of a finite phrase. `having finished` and `being told` carry
+    # an aspect and no tense, and are not a perfect or a continuous anybody said.
+    if not _is_finite(head):
+        return []
 
     perfect = any(aux.lemma_.lower() == "have" for aux in auxes)
-    be_aux = [aux for aux in auxes if aux.lemma_.lower() == "be"]
+    be_aux = any(aux.lemma_.lower() == "be" for aux in auxes)
 
     # Progressive needs the auxiliary, not just the participle: `start checking` is an
-    # -ing form under another verb and is not the continuous at all.
-    progressive = bool(be_aux) and (
-        "Prog" in head.morph.get("Aspect") or head.tag_ == "VBG"
+    # -ing form under another verb and is not the continuous at all. In a passive the
+    # -ing is on the auxiliary: `is being built`.
+    progressive = be_aux and (
+        "Prog" in head.morph.get("Aspect")
+        or head.tag_ == "VBG"
+        or any(aux.dep_ == "auxpass" and aux.tag_ == "VBG" for aux in auxes)
     )
-    past_aux = any("Past" in aux.morph.get("Tense") for aux in auxes)
+
+    # The tense is on the first finite word. Read from the head it is wrong whenever the
+    # head is a participle: `is built` and `has been finished` have a past participle and
+    # a present tense.
+    tensed = next((aux for aux in auxes if _finite_word(aux)), None)
+    past = "Past" in (tensed or head).morph.get("Tense")
 
     if perfect and progressive:
-        counts["present_perfect_continuous"] += 1
-        return
+        return ["past_perfect_continuous" if past else "present_perfect_continuous"]
     if perfect:
-        counts["past_perfect" if past_aux else "present_perfect"] += 1
-        return
+        return ["past_perfect" if past else "present_perfect"]
     if progressive:
-        counts["past_continuous" if past_aux else "present_continuous"] += 1
-        return
+        return ["past_continuous" if past else "present_continuous"]
 
-    # No auxiliary carrying the tense: the head itself does, if it is finite.
-    if not _is_finite(head):
-        return
-    tense = head.morph.get("Tense")
-    if "Past" in tense:
-        counts["past_simple"] += 1
-    elif "Pres" in tense:
-        counts["present_simple"] += 1
+    if tensed is not None and tensed.lemma_.lower() == "do" and not _has_subject(head):
+        # `Don't worry` is an imperative, and `do` is the only finite word in it.
+        return []
+    if past:
+        return ["past_simple"]
+    if "Pres" in (tensed or head).morph.get("Tense"):
+        return ["present_simple"]
+    return []
+
+
+def _heads_phrase(token) -> bool:
+    """Whether a verb phrase is classified on this token.
+
+    Every verb that is not an auxiliary of another. The tagger sometimes calls a lexical
+    verb an auxiliary — `enjoy` in `I enjoy swimming` — and that verb still heads its
+    own phrase.
+    """
+    if token.pos_ not in ("VERB", "AUX"):
+        return False
+    return token.dep_ not in ("aux", "auxpass") or not _is_auxiliary(token)
+
+
+def _auxes(head) -> list:
+    """The auxiliaries of a verb phrase, without a lexical verb the tagger miscalled one."""
+    return [
+        child
+        for child in head.children
+        if child.dep_ in ("aux", "auxpass") and _is_auxiliary(child)
+    ]
+
+
+def _is_auxiliary(token) -> bool:
+    return token.tag_ in ("MD", "TO") or token.lemma_.lower() in (
+        "be",
+        "have",
+        "do",
+        "get",
+    )
+
+
+def _has_subject(head) -> bool:
+    """Whether a verb has a subject, its own or one shared with the verb it is joined to."""
+    if any(
+        child.dep_ in ("nsubj", "nsubjpass", "expl", "csubj", "csubjpass")
+        for child in head.children
+    ):
+        return True
+    return head.dep_ == "conj" and head.head is not head and _has_subject(head.head)
 
 
 def _heads_going_to(token) -> bool:
@@ -222,26 +341,42 @@ def _is_going_to_complement(token) -> bool:
     return token.dep_ == "xcomp" and _has_to_aux(token) and _heads_going_to(token.head)
 
 
+def _going_to_complement(token) -> set[int]:
+    """The complement of a `going to` future and its `to`, as token indices."""
+    if not _heads_going_to(token):
+        return set()
+    for child in token.children:
+        if child.dep_ == "xcomp" and _has_to_aux(child):
+            return {child.i} | {
+                grandchild.i
+                for grandchild in child.children
+                if grandchild.dep_ == "aux" and grandchild.lower_ == "to"
+            }
+    return set()
+
+
 def _has_to_aux(token) -> bool:
     return any(child.dep_ == "aux" and child.lower_ == "to" for child in token.children)
 
 
 def _is_finite(token) -> bool:
     """Whether this verb phrase carries tense, from the head or from an auxiliary."""
-    if "Fin" in token.morph.get("VerbForm") or token.tag_ in (
+    return _finite_word(token) or any(_finite_word(aux) for aux in _auxes(token))
+
+
+def _finite_word(token) -> bool:
+    """Whether this one word carries tense.
+
+    `been` never does, whatever the tagger says: in `I been to Paris` it is tagged as a
+    present-tense verb, and it is a participle with its auxiliary missing.
+    """
+    if token.lower_ == "been":
+        return False
+    return "Fin" in token.morph.get("VerbForm") or token.tag_ in (
         "VBD",
         "VBZ",
         "VBP",
         "MD",
-    ):
-        return True
-    return any(
-        child.dep_ in ("aux", "auxpass")
-        and (
-            "Fin" in child.morph.get("VerbForm")
-            or child.tag_ in ("VBD", "VBZ", "VBP", "MD")
-        )
-        for child in token.children
     )
 
 

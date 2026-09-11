@@ -20,7 +20,7 @@ import os
 # drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
 # which is the small version of the rule this project runs on: a number is reported by
 # the thing it describes, never written down beside it.
-VERSION = "0.13.3"
+VERSION = "0.14.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -336,13 +336,18 @@ ANALYSIS_BATCH_SIZE = int(os.environ.get("ANALYSIS_BATCH_SIZE", "20"))
 
 # How long ending a session will wait for the analysis of its own turns before writing
 # the report without them. Analysis runs behind each turn, so by the time somebody stops
-# talking the only outstanding turn is usually the last one — a second or two.
+# talking the only outstanding turn is usually the last one, already being analysed — a
+# few seconds.
 #
 # The budget exists for the case where it is not: a session recorded while the labelling
 # model was down has every turn outstanding, and an unbounded wait would turn "end the
 # session" into a request that hangs for minutes. A report written short says how many
-# turns it is missing, and ending the session again picks up where it left off.
+# turns it is missing, and the session page finishes it when it is next opened.
 ANALYSIS_SESSION_BUDGET_S = float(os.environ.get("ANALYSIS_SESSION_BUDGET_S", "60"))
+
+# How often ending a session looks again at a turn being analysed by another process — a
+# backfill run from the command line. A job in the API's own process is awaited instead.
+ANALYSIS_CLAIM_POLL_S = float(os.environ.get("ANALYSIS_CLAIM_POLL_S", "0.25"))
 
 
 # ── Progress (rollups, trends, recommendations) ─────────────────────────────
@@ -369,6 +374,14 @@ PROGRESS_MIN_ATTEMPTS = int(os.environ.get("PROGRESS_MIN_ATTEMPTS", "5"))
 # sample of two, whatever the surrounding reading was worth.
 PROGRESS_MIN_PHONE_SAMPLES = int(os.environ.get("PROGRESS_MIN_PHONE_SAMPLES", "5"))
 
+# Times a verb form was said or needed before the API gives its accuracy as a proportion,
+# and before the grammar page can name it the form to practise. "right 2 of 3" is a
+# count, and 67 % would claim a precision three observations do not have. At ten the 95 %
+# interval around 0.8 is still 0.49 to 0.94, which is as wide as a figure worth reading
+# gets. The pages show the counts and not the proportion: a floor on the sample does
+# nothing about the corrections underneath, and those are the larger error.
+PROGRESS_MIN_FORM_CONTEXTS = int(os.environ.get("PROGRESS_MIN_FORM_CONTEXTS", "10"))
+
 # Points on a series before a *direction* is claimed. The points themselves are drawn as
 # soon as they exist — hiding a measurement is its own dishonesty — but "improving" over
 # two of them is a line through noise, and it is the sentence a learner would act on.
@@ -383,3 +396,25 @@ PROGRESS_BASELINE_DAYS = int(os.environ.get("PROGRESS_BASELINE_DAYS", "90"))
 # How many things to suggest practising next. Three: a list long enough to offer a
 # choice and short enough that every entry has a measured reason worth reading.
 RECOMMEND_LIMIT = int(os.environ.get("RECOMMEND_LIMIT", "3"))
+
+
+# ── The grammar page ────────────────────────────────────────────────────────
+
+# Corrections shown under each category, newest first. The count beside the category
+# covers all of them; five is enough to see a pattern in without scrolling past it.
+GRAMMAR_EXAMPLES_PER_CATEGORY = int(
+    os.environ.get("GRAMMAR_EXAMPLES_PER_CATEGORY", "5")
+)
+
+# Corrections listed under each verb form. The form's counts cover all of them.
+GRAMMAR_CORRECTIONS_PER_FORM = int(os.environ.get("GRAMMAR_CORRECTIONS_PER_FORM", "3"))
+
+# Corrections against a verb form — said wrongly, or needed and not said — before it can
+# be named the one to practise. The language model's corrections are often wrong: if half
+# of them were, five that were all wrong would happen about one time in thirty, and with
+# fewer the recommendation could be the detector's mistake rather than the speaker's.
+GRAMMAR_MIN_FORM_CORRECTIONS = int(os.environ.get("GRAMMAR_MIN_FORM_CORRECTIONS", "5"))
+
+# Characters of the sentence kept either side of a correction. Enough to read it in its
+# sentence; an unpunctuated turn would otherwise be quoted whole.
+GRAMMAR_CONTEXT_CHARS = int(os.environ.get("GRAMMAR_CONTEXT_CHARS", "90"))
