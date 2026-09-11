@@ -330,7 +330,11 @@ def _asr_section(results: dict, skips: dict) -> list[str]:
         "rank two configurations a few errors apart.",
         "",
     ]
-    return lines + _drill(results.get("drill"))
+    return (
+        lines
+        + _drill(results.get("drill"))
+        + _kinds_aloud(results.get("categories_aloud"))
+    )
 
 
 def _drill(drill: dict | None) -> list[str]:
@@ -376,6 +380,61 @@ def _drill(drill: dict | None) -> list[str]:
     return lines
 
 
+# The three kinds of mistake a scenario was written to draw out, as a reader names them.
+KINDS = {
+    "ARTICLE": "Articles",
+    "PREPOSITION": "Prepositions",
+    "LEXICAL_CHOICE": "False friends",
+}
+
+
+def _kinds_aloud(aloud: dict | None) -> list[str]:
+    """Whether an article, preposition or false-friend mistake reaches the transcript."""
+    if aloud is None:
+        return []
+    lines = [
+        "#### Articles, prepositions and false friends said aloud",
+        "",
+        f"Measured {aloud['measured_at']}, `{aloud['model']}` hearing the voice "
+        f"`{aloud['voice']}`: hand-labelled sentences written for the three scenarios that "
+        "draw these mistakes out, one mistake in each, spoken with it and corrected, and "
+        "compared the same way.",
+        "",
+        "| Kind | Sentences | Mistake heard as said | Mistake heard as the correction "
+        "| Something else or nothing | Corrected heard as corrected |",
+        "|---|---:|---|---|---:|---:|",
+    ]
+    for category, counts in aloud["by_category"].items():
+        sentences = counts["sentences"]
+        said, corrected = counts["spoken_as_said"], counts["spoken_as_corrected"]
+        lines.append(
+            f"| {KINDS.get(category, category)} | {sentences} | "
+            f"{scoring.proportion(said['original'], sentences).format()} | "
+            f"{scoring.proportion(said['corrected'], sentences).format()} | "
+            f"{said['other'] + said['unheard']} | {corrected['corrected']} |"
+        )
+    repaired = [
+        item
+        for item in aloud.get("unexpected", [])
+        if item["spoken_as"] == "said" and item["verdict"] == "corrected"
+    ]
+    lines += [
+        "",
+        "A mistake heard as the correction never reaches the detector, so a scenario "
+        "that draws it out cannot show that it did. One clear synthetic voice, as above.",
+        "",
+    ]
+    if repaired:
+        lines += ["Heard as the correction:", ""]
+        lines += [
+            f"- {KINDS.get(item['category'], item['category'])}: `{item['spoken']}` → "
+            f"`{item['heard']}`"
+            for item in repaired
+        ]
+        lines.append("")
+    return lines
+
+
 def _pron_section(results: dict, skips: dict) -> list[str]:
     lines = _suite_heading(
         "pron", "Pronunciation — goodness of pronunciation", results, skips
@@ -412,6 +471,7 @@ def _errors_section(results: dict, skips: dict) -> list[str]:
         lines += _golden_errors(errors)
     lines += _planted_errors(results.get("rules"))
     lines += _form_join(results.get("forms"))
+    lines += _kinds_found(results.get("categories_detected"))
     return lines
 
 
@@ -563,6 +623,45 @@ def _form_join(forms: dict | None) -> list[str]:
         "unpunctuated transcript; that side is left out of accuracy per form rather "
         "than guessed. A wrong form would count a mistake against a form the learner "
         "did not get wrong, and the suite fails on one.",
+        "",
+    ]
+    return lines
+
+
+def _kinds_found(found: dict | None) -> list[str]:
+    """Whether the detectors find an article, preposition or false-friend mistake, and
+    file it under its kind."""
+    if found is None:
+        return []
+    lines = [
+        "#### Articles, prepositions and false friends, found",
+        "",
+        f"Measured {found['measured_at']}, `{found['model']}` and the rule layer: the "
+        "sentences written for the three scenarios that draw these mistakes out, one "
+        "mistake in each and nothing else wrong, then each sentence corrected.",
+        "",
+        "| Kind | Sentences | Found and filed under it | With the labelled correction "
+        "| Found under another kind | Missed | Proposed elsewhere | Proposed on the "
+        "corrected sentence |",
+        "|---|---:|---|---:|---:|---:|---:|---:|",
+    ]
+    for category, counts in found["by_category"].items():
+        scored = counts["sentences"] - counts.get("failed", 0)
+        lines.append(
+            f"| {KINDS.get(category, category)} | {scored} | "
+            f"{scoring.proportion(counts['found'], scored).format()} — rules "
+            f"{counts['found_by_rule']}, model {counts['found_by_llm']} | "
+            f"{counts.get('fixed', 0)} | {counts['other_kind']} | {counts['missed']} | "
+            f"{counts['elsewhere']} | {counts['corrected_flagged']} |"
+        )
+    lines += [
+        "",
+        "A scenario draws out a kind of mistake, as far as the product can tell, only as "
+        "often as the detector finds that kind and files it there: this is the ceiling "
+        "on what its corrections can show. A proposal on the right words under the right "
+        "kind can still put the wrong words in, which is why the labelled correction is "
+        "counted apart. Anything proposed elsewhere, or on a corrected sentence, was "
+        "proposed on English that is right.",
         "",
     ]
     return lines

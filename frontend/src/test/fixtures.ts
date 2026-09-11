@@ -88,6 +88,7 @@ export function makeScenario(overrides: Partial<ScenarioSummary> = {}): Scenario
     cefr_band: "B2",
     target_grammar: ["present_perfect", "past_simple", "conditionals"],
     target_functions: ["describing_experience"],
+    target_errors: ["VERB_TENSE"],
     ...overrides,
   };
 }
@@ -399,6 +400,8 @@ export function makeCategory(overrides: Partial<CategoryCorrections> = {}): Cate
     per_100_words: 0.37,
     by_detector: { llm: 1 },
     examples: [makeCorrectionExample()],
+    scenario_slug: "apartment-viewing",
+    scenario_title: "Apartment viewing",
     ...overrides,
   };
 }

@@ -697,3 +697,76 @@ def test_a_recorded_result_carries_the_date_it_was_measured(monkeypatch, tmp_pat
     assert written["suite"] == "asr"
     assert written["wer"] == 0.0172
     assert written["measured_at"].startswith("20")
+
+
+def test_the_three_kinds_of_mistake_are_reported_heard_and_found():
+    """Each kind on its own row, in the reader's words, in the section of the suite that
+    measured it: said aloud under speech recognition, found under error detection."""
+    aloud = {
+        "measured_at": "2026-09-12T10:00:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "voice": "en_US-lessac-medium",
+        "by_category": {
+            "ARTICLE": {
+                "sentences": 20,
+                "spoken_as_said": {
+                    "corrected": 4,
+                    "original": 14,
+                    "other": 2,
+                    "unheard": 0,
+                },
+                "spoken_as_corrected": {
+                    "corrected": 19,
+                    "original": 0,
+                    "other": 1,
+                    "unheard": 0,
+                },
+            },
+        },
+        "unexpected": [
+            {
+                "category": "ARTICLE",
+                "spoken_as": "said",
+                "verdict": "corrected",
+                "spoken": "It is a orange bag.",
+                "heard": "It is an orange bag.",
+            }
+        ],
+    }
+    found = {
+        "measured_at": "2026-09-12T10:10:00+00:00",
+        "status": "measured",
+        "model": "gemma3:4b",
+        "by_category": {
+            "LEXICAL_CHOICE": {
+                "sentences": 20,
+                "found": 6,
+                "fixed": 4,
+                "other_kind": 3,
+                "missed": 10,
+                "elsewhere": 2,
+                "corrected_flagged": 1,
+                "failed": 1,
+                "found_by_rule": 0,
+                "found_by_llm": 6,
+            },
+        },
+    }
+    results = {
+        "asr": asr_result(),
+        "categories_aloud": aloud,
+        "categories_detected": found,
+    }
+    document = report.render(results, report.adjudicate(results, skips={}, readme=""))
+
+    speech = document.split("\n### Speech recognition")[1].split("\n### ")[0]
+    assert "#### Articles, prepositions and false friends said aloud" in speech
+    assert "| Articles | 20 | 0.700 [" in speech
+    assert "| 2 | 19 |" in speech
+    assert "- Articles: `It is a orange bag.` → `It is an orange bag.`" in speech
+
+    errors = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "#### Articles, prepositions and false friends, found" in errors
+    assert "| False friends | 19 | 0.316 [" in errors
+    assert "— rules 0, model 6 | 4 | 3 | 10 | 2 | 1 |" in errors

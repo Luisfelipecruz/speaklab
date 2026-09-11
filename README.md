@@ -63,7 +63,7 @@ make setup
 
 `make setup` writes `.env` from `.env.example` if you have none, builds and starts the
 five default containers, waits for them to report healthy, applies the migrations, loads
-the 8 scenarios and 12 passages, and finally asks the API whether it can reach Ollama with
+the 11 scenarios and 12 passages, and finally asks the API whether it can reach Ollama with
 the model pulled. The whole of what it runs is readable in the `Makefile`. Every step is
 idempotent, so it is also the command to run after a `git pull`.
 
@@ -192,25 +192,27 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 ## Measured
 
 Counted against the running system on 2026-09-05, not recalled — except the first run and
-memory, measured on 2026-09-10, and the two test suites, error detection, the form join,
-the forms in the stored corpus and a mistake said aloud, measured on 2026-09-11. Anything not listed here has
-not been measured yet and is not claimed.
+memory, measured on 2026-09-10; error detection, the form join, the forms in the stored
+corpus and a mistake said aloud, measured on 2026-09-11; and the two test suites, the
+grammar rules, the three kinds of mistake and persona adherence, measured on 2026-09-12.
+Anything not listed here has not been measured yet and is not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | **First run, from nothing** | **7 min 12 s** for `make setup`, **8 min 58 s** until Whisper was loaded — against five minutes in PRD §9, **missed**, and the build is nearly all of it. One run, one connection; [Quick start](#quick-start) has what it did and did not include |
 | Memory, five containers, models loaded | **1.94 GiB**, excluding Ollama, against under 8 GB |
-| API test suite | **927** — 893 pass with Postgres and no model services running; the other 34 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **267** across 41 suites, Jest and React Testing Library, no services needed |
+| API test suite | **940** — 904 pass with Postgres and no model services running; the other 36 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **270** across 41 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
 | API operations implemented | 28 of the 30 forecast, counted from the running app — m10 added three and m14 three; the progress operations take no user id, and a correction's drill is found through its owner |
 | **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size**. The model's figure and the product's are the same, because the grammar rules propose nothing on this golden set: it holds no agreement error, and one article error in a shape they leave alone |
-| **Grammar rules, on planted errors** | **100 of 126** agreement errors caught — 0.794 [0.715, 0.855] — and **2 of 93** missing articles, with **no wrong fix and no stray proposal**; no proposal on 2 454 words of native English. No model involved. See [decision 0014](docs/decisions/0014-the-rule-layer.md) |
+| **Grammar rules, on planted errors** | **130 of 172** agreement errors caught — 0.756 [0.686, 0.814] — and **2 of 129** missing articles, with **no wrong fix and no stray proposal**; no proposal on 3 111 words of native English. The three new scenarios' text added 46 agreement errors to plant and found one wrong fix, now guarded; on the 2 454 words there were before, 100 of 126 and 2 of 93, unchanged. No model involved. See decisions [0014](docs/decisions/0014-the-rule-layer.md) and [0018](docs/decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 on the golden set's real turns, where the parse of unpunctuated speech loses the verb; **no correction on any set joined to a wrong form**. No model involved. See [decision 0015](docs/decisions/0015-accuracy-per-form.md) |
 | **A mistake said aloud, as the recogniser hears it** | Of 89 hand-labelled learner sentences spoken with their mistake by the `tts` voice, **2, 3 and 2** came back as the correction in three runs, and **none** of the same 89 spoken corrected came back as the mistake in any. One clear synthetic voice, so not a learner's rate. It is what the spoken drill can and cannot tell; see [decision 0017](docs/decisions/0017-the-spoken-drill.md) |
+| **Articles, prepositions and false friends** | Sixty hand-labelled sentences, twenty per kind, one mistake each. **Said aloud** by the `tts` voice: 17–19 of 20 of each kind came back as said in three runs, and only prepositions were ever repaired — 4 of 60 tries, *depends of* heard as *depends on*. **Found** by the detectors and filed under their kind: articles **6 of 20**, prepositions **12 of 20**, false friends **6 of 20**, the rest mostly filed under another kind; 22 of the 60 corrected sentences drew a proposal. See [decision 0018](docs/decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
 | Grammar forms detected in the stored corpus | **13 distinct**, over 106 counted instances in 11 turns, 48 of them verb phrases — recounted after the counter stopped missing every negative and question in the simple tenses and reading every present passive as a past |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
@@ -218,7 +220,7 @@ not been measured yet and is not claimed.
 | **Progress trends rendered from real sessions** | **2**, against a bar of 20 — **not met.** Two conversations and two readings, all on one calendar day. Three of the four families draw a single point and the fourth is gated off |
 | The whole stored corpus, rolled up | 7 turns · 272 words · 2 readings · 450 phone instances · **2.57 errors per 100 words** · 11 distinct forms · one week |
 | Reading the progress page | **7 ms** — it reads snapshots and computes nothing. A rollup with nothing to do is also 7 ms; a forced rebuild of both snapshots is 17 ms |
-| **Persona adherence, deterministic rules** | **4–5 of 6** probe replies clean across three runs of the current prompt. What fails is the sentence cap the persona itself states |
+| **Persona adherence, deterministic rules** | **6 of 9** probe replies clean — 4 of the first six, which had 4 or 5 in the three runs before, and 2 of the three written for the new personas. What fails is the sentence cap the persona itself states |
 | **An instruction spoken inside the scene** | **16 of 200** attempts — 0.080 [0.050, 0.126] — made the persona give its instructions away, over ten phrasings in all eight scenarios; **59 of 200** before the speaker's words were framed as quoted speech. On five phrasings written after that fix and never used to choose it: 26 of 100 before, **1 of 100** after. It breaks the exercise rather than disclosing anything: see [decision 0013](docs/decisions/0013-an-instruction-spoken-in-the-scene.md) |
 | **The persona judge, against hand labels** | **0.800** over ten replies. It missed exactly the two the deterministic layer catches — the same two on all four runs |
 | **Word error rate, `small.en`** | **1.72 %** on ten LibriSpeech utterances, 232 reference words |
@@ -385,6 +387,18 @@ said — for a clear synthetic voice, 2 or 3 times in 89 — and the correction 
 wrong. No model is asked anything. See
 [decision 0017](docs/decisions/0017-the-spoken-drill.md).
 
+**Three scenarios are written for the mistakes the others do not draw out**: describing a
+lost bag to a clerk with several like it, for articles; talking a courier to your door and
+agreeing when to come back, for prepositions; and an intake call for a training
+programme, for the words with a Spanish look-alike that means something else. Every
+scenario now says which kinds of mistake it is built to draw out, and the grammar page
+links each kind of correction to a scenario that declares it. Whether they draw those
+mistakes out of a learner is not measured — it needs a person — but what stands between
+such a mistake and a correction is: said aloud in a clear voice, 17–19 of 20 of each kind
+reach the transcript as said, and the detector files 12 of 20 prepositions under
+prepositions but only 6 of 20 articles and 6 of 20 false friends under theirs. See
+[decision 0018](docs/decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md).
+
 **Once a session has been ended, the transcript marks each accepted correction on the
 words it quotes** — a superscript number on the words, a numbered row under the turn with
 the replacement, the category and the explanation. A correction on words the recogniser
@@ -474,6 +488,7 @@ Named explicitly so nothing here reads as a claim.
 | m14 | **Accuracy per form is as right as the corrections under it, and no more.** The join is measured — 32 of 34 held out, no wrong form — but every tense correction is the model's, right half the time on the hand-checked set. On the live corpus the only two corrections that joined a form were both false positives, and a present simple the golden labels mark wrong reads as right because the model filed it under prepositions. The grammar page shows counts and the sentences behind them and no percentage anywhere, and names a form for practice only at ten uses and five corrections — on the live corpus none qualifies |
 | m14 | **The spoken drill says what the recogniser heard, not whether you said it right.** A mistake said by a clear synthetic voice came back as its correction 2 or 3 times in 89; for a learner's voice that rate has not been measured, and needs a person's recordings. A contraction the recogniser writes — *he's* for *he is* — reads as something else. And the sentence to say carries every correction it held, so a wrong one elsewhere in it is in it too; the page lists them first |
 | m14 | **The grammar rules have never been measured on a learner's speech.** The stored corpus holds none of the two errors they cover, so their only figures come from errors planted in native English — an upper bound, because a learner's parse is worse. And the article rule covers two shapes, after *be* and after *as*: a bare noun after a preposition or as an object depends on whether it can be counted, which a parse cannot say, so it is left to the model |
+| m14 | **The scenarios for articles, prepositions and false friends are not shown to draw them out of anyone.** That needs a person holding them. What was measured is the path a mistake takes to a correction, and for two of the three kinds it is narrow: the detector files most article and false-friend mistakes under another kind, so those scenarios' own kind will be sparse on the grammar page, and in a check of all three some of what appeared there was wrong. The personas also repeat a mistake back corrected — *so you attended a conference* — which nothing counts |
 | m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
 | m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |
 | m10 | **The progress page has almost nothing to show, and the criterion it is judged by is not met.** S7 asks for 30-day trends across four families from ≥ 20 real sessions; the database holds **2** conversations and **2** readings, all on one calendar day. Three families draw a single point, the fourth is gated off, and no direction is claimed anywhere. That is the page behaving correctly, and it is also the whole of what has been demonstrated about it |
@@ -499,7 +514,7 @@ api/            FastAPI. No model weights, no torch.
   services/     Logic that is neither a route nor a row (hashing, tokens, ASR, TTS, audio, WER)
   dependencies.py  current_user, and the ownership guard
   alembic/      One revision per milestone that changes schema
-  seeds/        The 8 scenarios and 12 passages, as JSON
+  seeds/        The 11 scenarios and 12 passages, as JSON
 frontend/       Next.js 15, React 19, shadcn/ui
   src/app/      Routes. (auth) is a group; scenarios/, sessions/, read/ and progress/
                 are the application

@@ -12,6 +12,10 @@ has come up often enough to be a sample and been corrected often enough that the
 corrections are unlikely all to be the detector's mistakes; among those, the one right
 least often is named, with its counts and a scenario written to draw it out. Below the
 floor nothing is named, and the page says how far the nearest form is from it.
+
+**Each kind of correction points at a scenario written to draw it out**, where one
+declares it — at the learner's own band when there is one. That is a way to practise, not
+a verdict, so it needs no floor.
 """
 
 from __future__ import annotations
@@ -155,7 +159,7 @@ async def build(db: AsyncSession, user: User, days: int) -> GrammarOut:
             corrections=len(rows),
             counted=len(counted),
         ),
-        categories=await _categories(db, rows, words),
+        categories=await _categories(db, rows, words, user.cefr_self_assessed),
         forms=_forms(tallies, counted),
         weakest=weakest,
         weakest_gate=gate,
@@ -164,7 +168,7 @@ async def build(db: AsyncSession, user: User, days: int) -> GrammarOut:
 
 
 async def _categories(
-    db: AsyncSession, rows: list, words: int
+    db: AsyncSession, rows: list, words: int, band: str | None
 ) -> list[CategoryCorrections]:
     """Each kind of correction, most counted first, with its newest few in their sentence."""
     grouped: dict[str, list] = {}
@@ -188,9 +192,11 @@ async def _categories(
         ).all()
     }
 
+    scenarios = await _active_scenarios(db) if grouped else []
     categories = []
     for category, found in grouped.items():
         counted = [row for row in found if is_counted(row)]
+        scenario = _declaring(scenarios, band, category=category)
         by_detector: dict[str, int] = {}
         for row in found:
             by_detector[row.detector] = by_detector.get(row.detector, 0) + 1
@@ -207,6 +213,8 @@ async def _categories(
                     _example(row, *context.get(row.turn_id, ("", None)))
                     for row in found[:GRAMMAR_EXAMPLES_PER_CATEGORY]
                 ],
+                scenario_slug=scenario.slug if scenario else None,
+                scenario_title=scenario.title if scenario else None,
             )
         )
     categories.sort(
@@ -388,7 +396,9 @@ async def _weakest(
             item[0],
         ),
     )
-    scenario = await _scenario_for(db, form, user.cefr_self_assessed)
+    scenario = _declaring(
+        await _active_scenarios(db), user.cefr_self_assessed, form=form
+    )
     parts = [
         part
         for part in (
@@ -430,20 +440,32 @@ def _times(count: int) -> str:
     return "once" if count == 1 else f"{count} times"
 
 
-async def _scenario_for(
-    db: AsyncSession, form: str, band: str | None
-) -> Scenario | None:
-    """An active scenario that declares the form, at the learner's own band where one does."""
-    offering = [
-        scenario
-        for scenario in (
+async def _active_scenarios(db: AsyncSession) -> list[Scenario]:
+    return list(
+        (
             await db.scalars(
                 select(Scenario)
                 .where(Scenario.is_active.is_(True))
                 .order_by(Scenario.slug)
             )
         ).all()
-        if form in (scenario.target_grammar or [])
+    )
+
+
+def _declaring(
+    scenarios: list[Scenario],
+    band: str | None,
+    *,
+    form: str | None = None,
+    category: str | None = None,
+) -> Scenario | None:
+    """A scenario that declares the form or the kind of mistake, at the learner's own band
+    where one does."""
+    offering = [
+        scenario
+        for scenario in scenarios
+        if (form is not None and form in (scenario.target_grammar or []))
+        or (category is not None and category in (scenario.target_errors or []))
     ]
     if not offering:
         return None

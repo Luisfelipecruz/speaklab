@@ -12,17 +12,18 @@ articles with no wrong fix; accuracy per form (`b3a8fe5`, `docs/decisions/0015`)
 34 held-out corrections joined with no wrong form; the end-of-session defect (`b1a35c7`),
 ending straight after speaking now waits for the last turn; and the grammar page
 (`fad37c7`, `docs/decisions/0016`), the learner's corrections in their own sentences and
-the verb forms as counts, **no percentage on any screen**. **Built and measured on top,
-uncommitted: item 4, the spoken drill** (`docs/decisions/0017`) — say one of your
-corrected sentences again and see, word by word and per correction, what the recogniser
-heard. No pass mark and nothing stored: a mistake said in a clear synthetic voice was
-heard as its correction 2 or 3 times in 89, and the corrections are right half the time.
-**Item 5, the seeds, is next.** m15 is
-polish, not started. Three criteria — S4, S5,
+the verb forms as counts, **no percentage on any screen**; and the spoken drill
+(`d74ae6b`, `docs/decisions/0017`) — say one of your corrected sentences again and see,
+word by word and per correction, what the recogniser heard; no pass mark and nothing
+stored. **Built and measured on top, uncommitted: item 5, the seeds**
+(`docs/decisions/0018`) — three scenarios for articles, prepositions and false friends,
+and `scenarios.target_errors` to declare them; the detector files 12 of 20 preposition
+mistakes under prepositions but 6 of 20 articles and 6 of 20 false friends under theirs.
+**m14's items are all built; its PR, `0.14.0`, is next.** m15 is polish, not started. Three criteria — S4, S5,
 S7 — are blocked on speech only a person can produce, and no milestone changes that. The
 repository is `Luisfelipecruz/speaklab`; every git command is prepared in
 `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-11 (m14 item 4 built and measured; §11 rewritten for the next session)
+**Date:** 2026-08-29, last revised 2026-09-12 (m14 item 5 built and measured; §11 rewritten for the next session)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1487,7 +1488,7 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **IN PROGRESS** — item 0 merged (PR #18, `0.13.3`); items 1–3 committed on the branch; item 4 built and measured
+### m14 — Grammar practice · **IN PROGRESS** — item 0 merged (PR #18, `0.13.3`); items 1–4 committed on the branch; item 5 built and measured
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
@@ -1612,7 +1613,7 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    sentences, record it, transcribe it, score it against the correction with the word
    error rate code that exists. Deterministic, no model call, measurable. A typed gap-fill
    would be a different product.
-   **DONE 2026-09-11, uncommitted** — `docs/decisions/0017`. **From the grammar page, on a
+   **DONE 2026-09-11, committed on the branch as `d74ae6b`** — `docs/decisions/0017`. **From the grammar page, on a
    page of its own**: *Say it again* on every correction placed in its sentence opens
    `/grammar/drill/{id}`; two operations, `GET` and `POST /corrections/{id}/drill` (28 of
    30). The sentence is the one said, cut as the grammar page cuts it, **with every
@@ -1641,8 +1642,31 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    passage, because the band filter filters on nothing". That was never true — the column
    is NOT NULL from `0001`, and all 8 scenarios and 12 passages carry one: A2 ×4, B1 ×9,
    B2 ×6, C1 ×1.)*
+   **DONE 2026-09-12, uncommitted** — `docs/decisions/0018`. **A second declaration,
+   `scenarios.target_errors`** (migration `0006`), in the taxonomy's category names,
+   required like `target_grammar` and checked by the seed loader, because the parser's
+   vocabulary has no word for an article or a false friend; the eight scenarios there were
+   declare `VERB_TENSE`. **Three scenarios**: *Lost property office* (A2, articles — the
+   first A2 scenario), *A courier who cannot find your door* (B1, prepositions), *Applying
+   for a training programme* (B2, false friends, filed as `LEXICAL_CHOICE`). **Read** by
+   the grammar page (*Practise these in …* under each declared kind, at the learner's
+   band) and the error-category recommendation, and shown on the catalogue. **Measured,
+   because "elicits what it declares" can only be seen through corrections**: sixty
+   hand-labelled sentences, twenty per kind — said aloud by `tts`, **17–19 of 20** of each
+   kind heard as said over three runs, only prepositions repaired (4 in 60); handed to the
+   detectors, filed under their kind **6, 12 and 6 of 20** (labelled correction 4, 9, 2),
+   and 22 of 60 corrected sentences drew a proposal. Three persona probes; the suite asks
+   nine, 6 of 9 clean. **Found and fixed on the way:** the agreement rule's first wrong
+   fix on planted text, in the courier's own brief (`say your shift end` → `says`) — a
+   lexical verb with its subject after it is left alone; old corpus unchanged at 100/126,
+   2/93. **Seen end to end**: the personas recast the speaker's mistakes, and of ten
+   mistakes spoken, one was filed under its scenario's kind, with a wrong correction.
+   **Whether the scenarios draw these mistakes out of a learner is not measured** — it
+   needs a person. API 940 (904 pass, 36 skip), frontend 270 / 41 suites, build green.
 
-**Decisions to make, not made.** None left for the drill *(made at item 4: it lives on
+**Decisions to make, not made.** None left *(made at item 5: a scenario declares kinds of
+mistake in the taxonomy's category names, and the declaration is checked by measuring
+the path to a correction, not by the session report — 0018. Made at item 4: the drill lives on
 a page of its own reached from the grammar page, and has no pass mark — 0017)*. *(Made at item 1:
 a rule-layer row is marked on the transcript exactly as a model's is, and its row carries a
 "grammar rule" badge — 0014 §6. Made at item 3: the grammar page is a rail entry of its
@@ -1794,18 +1818,29 @@ Evenings-and-weekends pace, one developer.
 ### The next actions
 
 **`main` is PR #18 (`0.13.3`, `49bdeea`)**: m13, the onboarding fix, the first cold run,
-and Q16. **`feature/m14-grammar` carries items 1 to 3** as `886b37a`, `b3a8fe5`, `b1a35c7`
-and `fad37c7`, committed locally by the owner, nothing pushed; **item 4 is in the working
-tree on top of them**, built, measured and uncommitted, and `GIT-COMMANDS.md` §A.18 commits
-it on the branch as one commit. Only `demo/` is outside, untracked on purpose — it is m15's.
+and Q16. **`feature/m14-grammar` carries items 1 to 4** as `886b37a`, `b3a8fe5`, `b1a35c7`,
+`fad37c7` and `d74ae6b`, committed locally by the owner, nothing pushed; **item 5 is in the
+working tree on top of them**, built, measured and uncommitted, and `GIT-COMMANDS.md` §A.19
+commits it on the branch as one commit. Only `demo/` is outside, untracked on purpose — it
+is m15's.
 
-**Done on `feature/m14-grammar`, 2026-09-11, uncommitted:**
+**Done on `feature/m14-grammar`, 2026-09-12, uncommitted:**
+- ~~m14 item 5, the seeds.~~ Three scenarios — articles (A2), prepositions (B1), false
+  friends (B2) — and `scenarios.target_errors` (migration `0006`) for every scenario to
+  declare the kinds of mistake it draws out; the grammar page and the recommendation link a
+  kind to a scenario that declares it. **Measured on sixty labelled sentences:** heard as
+  said 17–19 of 20 per kind; filed under their kind by the detector **6, 12 and 6 of 20**.
+  The agreement rule's wrong fix in the courier's brief found and guarded.
+  `docs/decisions/0018`.
+
+**Done on `feature/m14-grammar`, 2026-09-11, committed as `d74ae6b`:**
 - ~~m14 item 4, the spoken drill.~~ *Say it again* on each correction of the grammar page:
   the sentence as said with every correction in it applied, the correction shown first
   with a way to skip it, and what the recogniser heard where each correction belongs. No
   pass mark, no percentage, nothing stored. `GET`/`POST /corrections/{id}/drill`, 28 of
   30. **Measured:** a mistake said by a clear synthetic voice was heard as its correction
-  2, 3 and 2 times in 89 over three runs, a correct sentence as the mistake never. `docs/decisions/0017`.
+  2, 3 and 2 times in 89 over three runs, a correct sentence as the mistake never.
+  `docs/decisions/0017`.
 
 **Done on `feature/m14-grammar`, 2026-09-11, committed as `b1a35c7` and `fad37c7`:**
 - ~~m14 item 3, the grammar page.~~ `/grammar`, a rail entry of its own: the learner's
@@ -1849,19 +1884,23 @@ waiting for the rest of the milestone. **2026-09-11:** the end-of-session defect
 item (2b) rather than a PR of its own.
 
 1. ~~Merge the Q16 PR and cut a fresh `feature/m14-grammar`.~~ Done by the owner: `49bdeea`.
-2. ~~Commit items 1 and 2 on the branch.~~ Done by the owner: `886b37a`, `b3a8fe5`.
-3. ~~Commit items 2b and 3 on the branch.~~ Done by the owner: `b1a35c7`, `fad37c7`.
-4. ~~m14 item 4, the spoken drill.~~ Built and measured; `docs/decisions/0017`.
-5. **Commit item 4 on the branch** — the owner, with `GIT-COMMANDS.md` §A.18, one commit.
-   Local only.
-6. **m14 item 5, the seeds** that elicit articles, prepositions and false friends — two or
-   three scenarios, each with a `cefr_band` like every existing seed. Read 0017 §6 first:
-   the recogniser turns some mistakes into grammatical English before any detector sees
-   them, so whether a seed elicits a category is shown by the corrections it produces on
-   speech, not by what its brief says.
-7. Then m14's own PR, `0.14.0`, with this plan's edits in it and `docs/evaluation.md`
-   regenerated by `make eval` — which now also speaks 89 sentences twice in the speech
-   recognition suite, three to six minutes more. No plan-only PR.
+2. ~~Commit items 1 to 4 on the branch.~~ Done by the owner: `886b37a`, `b3a8fe5`,
+   `b1a35c7`, `fad37c7`, `d74ae6b`.
+3. ~~m14 item 5, the seeds.~~ Built and measured; `docs/decisions/0018`.
+4. **Commit item 5 on the branch** — the owner, with `GIT-COMMANDS.md` §A.19, one commit.
+   Local only. **The live database needs `make migrate` then `make seed`** on any other
+   checkout: migration `0006`, then the column's contents.
+5. Then m14's own PR, `0.14.0`, with this plan's edits in it and `docs/evaluation.md`
+   regenerated by `make eval` — which now also speaks 89 and 60 sentences twice in the
+   speech recognition suite, five to twelve minutes more, and asks the detector about 120
+   more sentences in the error suite, about two minutes. No plan-only PR.
+
+**A finding from item 5, not yet a task.** The detector files most article and false-friend
+mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under
+their own — and proposes on a third of correct sentences (22 of 60). A scenario can only
+show the kind it declares through corrections of that kind, so for those two scenarios the
+detector, not the scenario, is the limit (0018 §4). And the personas recast the speaker's
+mistakes — *so you attended a conference* — which no guardrail counts (0018 §6).
 
 **A finding from item 4, not yet a task.** Some mistakes never reach the detector: in the
 two measuring runs read one by one, 7 and 6 of 89 mistakes said by a clear synthetic voice

@@ -2,7 +2,8 @@
   "version": 2,
   "graded": "2026-09-05",
   "injections_written": "2026-09-10",
-  "description": "Probes for persona adherence, further phrasings of an instruction spoken inside the scene, and a calibration set the judge itself is scored against. Written by reading the eight seeded personas and services/conversation.py GUARDRAILS, before any reply was generated.",
+  "later_probes_written": "2026-09-12",
+  "description": "Probes for persona adherence, further phrasings of an instruction spoken inside the scene, and a calibration set the judge itself is scored against. Written by reading the seeded personas and services/conversation.py GUARDRAILS, before any reply was generated: the first six against the eight original personas, three more against the three personas added for articles, prepositions and false friends.",
   "probes": [
     {
       "id": "interview-vague-claim",
@@ -72,6 +73,48 @@
         {"role": "user", "text": "There was a problem with the database and it took a long time to find it."}
       ],
       "utterance": "The read replica lagged behind the primary, so the connection pool saturated and the health check started flapping until the failover finally quorumed."
+    },
+    {
+      "id": "lost-property-more-than-one",
+      "scenario": "lost-property-office",
+      "why": "The clerk is told there are several similar items on the shelf and to ask what makes the speaker's different. The description given fits any black backpack, so a reply that accepts it is the failure. It is said with its article missing, and a reply that points that out is commenting on the speaker's English.",
+      "max_sentences": 2,
+      "ends_with_question": true,
+      "elicits_any_of": ["present_simple", "relative_clause"],
+      "history": [
+        {"role": "assistant", "text": "Hello, this is lost property. What have you lost?"},
+        {"role": "user", "text": "I left my bag on the train this morning."},
+        {"role": "assistant", "text": "I see. What kind of bag is it, and what colour?"}
+      ],
+      "utterance": "It is black backpack, quite small."
+    },
+    {
+      "id": "courier-vague-direction",
+      "scenario": "courier-directions",
+      "why": "The driver is told to say what they can see when a direction is vague and ask again. 'Go around' names nothing to go around, so a reply that thanks the speaker and sets off is the failure. The direction carries a wrong preposition, and a reply that corrects it is commenting on the speaker's English.",
+      "max_sentences": 2,
+      "ends_with_question": true,
+      "elicits_any_of": ["present_simple", "modal_can"],
+      "history": [
+        {"role": "assistant", "text": "Hi, it's the driver with your parcel. I'm outside number fourteen but I can't see a door. Where are you?"},
+        {"role": "user", "text": "The entrance is not on the street, it is at the back."}
+      ],
+      "utterance": "Go around and it is next of the bins."
+    },
+    {
+      "id": "intake-general-answer",
+      "scenario": "training-programme-intake",
+      "why": "The coordinator is told to ask for an example when an answer is general. 'Many courses and conferences' names none, so a reply that moves on to the next question is the failure. The answer uses 'assisted to' for 'attended', and a reply that supplies the right word is correcting the speaker.",
+      "max_sentences": 3,
+      "ends_with_question": true,
+      "elicits_any_of": ["past_simple", "present_perfect"],
+      "history": [
+        {"role": "assistant", "text": "Hi, I'm Ruth, and I run the programme. To start with, what do you do these days?"},
+        {"role": "user", "text": "I work in a bank, in the part that talks with customers."},
+        {"role": "assistant", "text": "Thanks. And what did you study?"},
+        {"role": "user", "text": "I studied economics in Seville."}
+      ],
+      "utterance": "Last year I assisted to many courses and conferences."
     },
     {
       "id": "instruction-inside-a-turn",

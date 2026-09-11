@@ -18,7 +18,7 @@ layer proposed it.
 
 | Table | Holds |
 |---|---|
-| `scenarios` | Persona, goal, target grammar and functions, band, rubric |
+| `scenarios` | Persona, goal, target grammar, functions and kinds of mistake, band, rubric |
 | `passages` | Reference text, band, phoneme focus, word count |
 
 Both are keyed by `slug`, which is the seed key, the URL segment, and what a session's
@@ -93,6 +93,13 @@ NULL is a finding: `She going` said no finite form, and a preposition error is n
 correction of a verb. They are derived from the transcript and the correction, so `make
 reparse` recomputes them — and `grammar_usage` — without asking the model anything again.
 
+`scenarios.target_errors` (revision `0006`) is the second thing a scenario declares: the
+error categories it is built to draw out, in `language_errors.category`'s vocabulary.
+`target_grammar` is in the parser's vocabulary, which has no word for an article, a
+preposition or a false friend — those exist only as the categories corrections are filed
+under. It is how a learner corrected on prepositions is pointed at a scenario written to
+draw them out. The seed loader rejects a name the taxonomy does not have.
+
 `progress_snapshots` is the only table nothing writes per turn: one row per user per
 period, at day and week granularity, rewritten from the rows underneath whenever they
 change. `updated_at` (revision `0004`) is what makes "is this row still current?" a
@@ -146,15 +153,15 @@ than an `ALTER TYPE` that cannot run inside a transaction.
 
 ## 3. Why JSONB, five times
 
-`scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.rubric`,
-`passages.phoneme_focus`, `turns.words`, `sessions.report`, and the five families on
-`progress_snapshots`.
+`scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.target_errors`,
+`scenarios.rubric`, `passages.phoneme_focus`, `turns.words`, `sessions.report`, and the
+five families on `progress_snapshots`.
 
 Two different reasons, worth keeping apart:
 
-- **Lists that are filtered by containment** — `target_grammar`, `phoneme_focus`. The
-  query is `@>`, one indexable predicate, and GIN indexes it when the seed set outgrows a
-  sequential scan over a dozen rows.
+- **Lists that are filtered by containment** — `target_grammar`, `target_errors`,
+  `phoneme_focus`. The query is `@>`, one indexable predicate, and GIN indexes it when the
+  seed set outgrows a sequential scan over a dozen rows.
 - **Documents read whole for one screen** — `rubric`, `words`, `report`, and the progress
   families. Nothing queries inside them across rows. The set of fluency measures is still
   moving, and a schema migration per metric added is a tax on exactly the experimentation

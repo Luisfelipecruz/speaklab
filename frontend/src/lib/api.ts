@@ -169,6 +169,8 @@ export interface ScenarioSummary {
   cefr_band: CefrBand;
   target_grammar: string[];
   target_functions: string[];
+  /** Error categories, in the taxonomy's names, that the scenario is built to draw out. */
+  target_errors: string[];
 }
 
 /**
@@ -809,6 +811,9 @@ export interface CategoryCorrections {
   by_detector: Record<string, number>;
   /** The newest few; `counted + not_counted` covers them all. */
   examples: CorrectionExample[];
+  /** A scenario written to draw this kind of mistake out, when one declares it. */
+  scenario_slug: string | null;
+  scenario_title: string | null;
 }
 
 export interface FormCorrection {

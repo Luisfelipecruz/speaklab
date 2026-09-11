@@ -65,6 +65,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   their mistake and corrected, and compares what `small.en` heard as the drill does: a
   mistake heard as its correction **2, 3 and 2 of 89** in three runs, a correct sentence
   heard as the mistake **0 of 89** in each. `docs/evaluation.md` gains the table when it is next generated.
+- **Three scenarios for the mistakes the others do not draw out.** *Lost property office*
+  (A2) for articles, *A courier who cannot find your door* (B1) for prepositions, and
+  *Applying for a training programme* (B2) for false friends. Eleven scenarios, and the
+  catalogue's first at A2. `docs/decisions/0018`.
+- **Every scenario declares the kinds of mistake it is built to draw out**,
+  `scenarios.target_errors` (migration `0006`), in the error taxonomy's category names;
+  the seed loader rejects any other. The eight there were declare `VERB_TENSE`. Shown on
+  the catalogue and the scenario page beside the forms. Run `make seed` after `make
+  migrate` to fill it.
+- **A kind of correction points at a scenario that draws it out.** On the grammar page,
+  *Practise these in …* under each kind a scenario declares, at the learner's band where
+  one does; and an error-category recommendation now links to one, as forms and sounds
+  already did.
+- **Articles, prepositions and false friends, measured on the way to a correction.** Sixty
+  hand-labelled sentences written for the three scenarios, twenty per kind. Said aloud in
+  the speech recognition suite: **17–19 of 20** of each kind came back as said, in three
+  runs; only prepositions were repaired, **4 in 60** tries. Found in the error detection
+  suite and filed under their kind: articles **6 of 20**, prepositions **12 of 20**, false
+  friends **6 of 20**, with the labelled correction 4, 9 and 2; **22 of the 60 corrected
+  sentences** drew a proposal. `docs/evaluation.md` gains both tables when it is next
+  generated.
+- **Three persona probes**, one for each new persona, each handing it a mistake of its kind
+  inside an answer too vague to accept. The persona suite asks nine: **6 of 9** replies
+  clean of the deterministic rules in the run that added them.
 
 ### Changed
 
@@ -104,6 +128,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **End could be pressed while a turn was still being sent**, which ended the session
   before the turn was stored and refused the turn. The button is disabled until the turn
   is back.
+- **The agreement rule corrected an imperative to agree with a noun after it.** In *say your
+  shift end soon* the parser made *your shift end* the subject of *say*, and the rule
+  proposed *says* — found by the planted-error suite in the courier scenario's own brief.
+  Only an auxiliary or *be* comes before its subject, so a lexical verb with its subject
+  after it is now left alone. Planted errors on the text there was before: **100 of 126**
+  and **2 of 93**, unchanged; with the new scenarios, **130 of 172** and **2 of 129**, and
+  the one wrong fix is now a miss.
 - **Every present passive was counted as a past simple.** The tense was read from the
   head, which in a passive is a past participle: `Is parking included?` was a past simple
   and `has been cancelled` a past perfect. The tense is now read from the first finite

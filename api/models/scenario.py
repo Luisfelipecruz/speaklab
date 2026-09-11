@@ -12,9 +12,10 @@ Enforced by a test rather than by this note — `test_scenarios.py` asserts the 
 is absent from every response body.
 """
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from models.common import CEFRBand, ORMModel, SeedModel, Slug
+from services.taxonomy import CATEGORIES
 
 
 class RubricCriterion(SeedModel):
@@ -46,6 +47,7 @@ class ScenarioSummary(ORMModel):
     cefr_band: CEFRBand
     target_grammar: list[str]
     target_functions: list[str]
+    target_errors: list[str]
 
 
 class ScenarioDetail(ScenarioSummary):
@@ -82,5 +84,25 @@ class ScenarioSeed(SeedModel):
     target_grammar: list[str] = Field(min_length=1)
     target_functions: list[str] = Field(min_length=1)
 
+    # The kinds of mistake the scenario is built to give a speaker room to make, in the
+    # error taxonomy's own category names. The forms above are what the parser counts;
+    # these are what the detector files corrections under, and articles, prepositions and
+    # false friends are only ever the second. Required for the same reason: the
+    # corrections a scenario produces are the only evidence that it draws out what it
+    # claims, and a scenario that claims nothing has nothing to be checked against.
+    target_errors: list[str] = Field(min_length=1)
+
     rubric: Rubric
     is_active: bool = True
+
+    @field_validator("target_errors")
+    @classmethod
+    def _in_the_taxonomy(cls, value: list[str]) -> list[str]:
+        unknown = sorted(set(value) - CATEGORIES)
+        if unknown:
+            raise ValueError(
+                f"not error categories: {unknown}; choose from {sorted(CATEGORIES)}"
+            )
+        if len(set(value)) != len(value):
+            raise ValueError("a category is declared twice")
+        return value

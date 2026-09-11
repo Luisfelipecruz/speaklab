@@ -55,6 +55,9 @@ class CategoryCorrections(BaseModel):
     per_100_words: float | None = None
     by_detector: dict[str, int] = Field(default_factory=dict)
     examples: list[CorrectionExample] = Field(default_factory=list)
+    # A scenario written to draw this kind of mistake out, when one declares it.
+    scenario_slug: str | None = None
+    scenario_title: str | None = None
 
 
 class FormCorrection(BaseModel):

@@ -9,6 +9,7 @@
     "goal": "The candidate has summarised their experience, described one project in technical detail, and answered a direct challenge to a vague claim.",
     "target_grammar": ["present_perfect", "past_simple", "conditional_2"],
     "target_functions": ["describe_experience", "handle_objection", "ask_clarification"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "Covered experience, one project in depth, and responded to the challenge without deflecting."},
@@ -29,6 +30,7 @@
     "goal": "The user has reported yesterday's work, today's plan, and either named a blocker or explicitly confirmed there is none.",
     "target_grammar": ["past_simple", "present_continuous", "going_to_future"],
     "target_functions": ["report_progress", "flag_blocker", "ask_for_help"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "All three parts of the update were given without prompting for more than one of them."},
@@ -48,6 +50,7 @@
     "goal": "The user has described what went wrong, disagreed with the persona's explanation with a reason, and proposed one concrete action.",
     "target_grammar": ["past_simple", "present_perfect", "conditional_2", "modal_should"],
     "target_functions": ["give_feedback", "disagree_politely", "propose_action"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "Named a cause, contested the persona's account, and landed a specific proposal."},
@@ -68,6 +71,7 @@
     "goal": "The user has described a symptom, given its duration, answered the follow-up questions, and confirmed back what they were told to do.",
     "target_grammar": ["present_perfect", "past_simple", "duration_for_since"],
     "target_functions": ["describe_symptom", "ask_clarification", "confirm_understanding"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "The symptom, its duration, and what has already been tried all came out."},
@@ -87,6 +91,7 @@
     "goal": "The user has stated the problem specifically, asked for a remedy, and reached an agreed outcome with the manager.",
     "target_grammar": ["past_simple", "modal_would", "polite_request"],
     "target_functions": ["complain", "request_remedy", "negotiate"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "The complaint was specific enough to act on and ended in an agreed outcome."},
@@ -106,6 +111,7 @@
     "goal": "The user has explained their situation, obtained an option better than the first one offered, and confirmed the details back to the agent.",
     "target_grammar": ["present_perfect", "conditional_1", "modal_could", "reported_speech"],
     "target_functions": ["explain_problem", "negotiate", "confirm_details"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "Got past the first offer and finished with confirmed details, not an unresolved conversation."},
@@ -126,6 +132,7 @@
     "goal": "The user has asked about cost, condition and terms, compared the flat with an alternative, and made or declined an offer.",
     "target_grammar": ["present_simple", "comparatives", "modal_can", "going_to_future"],
     "target_functions": ["ask_information", "compare_options", "negotiate"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "The practical facts were extracted rather than volunteered, and the viewing ended in a decision."},
@@ -145,12 +152,73 @@
     "goal": "The user has explained cause, duration and prevention without unexplained jargon, and given the stakeholder something they can repeat to a client.",
     "target_grammar": ["past_perfect", "past_simple", "passive_voice", "conditional_3"],
     "target_functions": ["explain_cause", "simplify_technical", "reassure"],
+    "target_errors": ["VERB_TENSE"],
     "rubric": {
       "criteria": [
         {"name": "task_completion", "descriptor": "Cause, duration and prevention were all covered, and the stakeholder was given a sentence they could reuse."},
         {"name": "grammatical_range", "descriptor": "Past perfect to sequence what had already happened before the outage was noticed; passive voice where the actor is irrelevant."},
         {"name": "appropriacy", "descriptor": "Register stayed non-technical after the first interruption, rather than reverting."},
         {"name": "accuracy", "descriptor": "Third conditional forms held together when discussing what would have happened otherwise."}
+      ],
+      "min_turns": 8
+    }
+  },
+  {
+    "slug": "lost-property-office",
+    "title": "Lost property office",
+    "description": "You left a bag on the train. The clerk has a shelf of bags that look like yours, so you have to say exactly what yours is, what is in it, and what makes it different.",
+    "category": "travel",
+    "cefr_band": "A2",
+    "persona_prompt": "You are Olga, a clerk at the lost property office of a large railway station. The user has left a bag on a train. There are several similar bags on the shelf behind you, and you hand one over only when the description could fit no other. Ask one thing at a time: what kind of bag it is, its colour and size, and what was inside it. Whenever a description could fit more than one bag, say that you have more than one like that and ask what makes theirs different — a mark, a label, something attached to it. Ask which train it was and where they were sitting. Use everyday words and short sentences. One or two sentences per reply, and end with a question. Stay in character: never comment on the user's English, never correct their grammar, and never break role to explain the exercise.",
+    "goal": "The user has described the bag closely enough to tell it apart from the others on the shelf — what it is, what was in it, and one detail that makes it theirs — and said which train they were on.",
+    "target_grammar": ["present_simple", "past_simple", "relative_clause"],
+    "target_functions": ["describe_object", "distinguish", "give_details"],
+    "target_errors": ["ARTICLE"],
+    "rubric": {
+      "criteria": [
+        {"name": "task_completion", "descriptor": "The bag was described well enough to pick out: what it is, what was in it, and one detail no other bag on the shelf shares."},
+        {"name": "accuracy", "descriptor": "Articles held: a or an for a thing mentioned for the first time, the for one both people already know about, and one in front of any single thing that can be counted."},
+        {"name": "grammatical_range", "descriptor": "A relative clause to single one bag out from several — the one that has a ribbon on it."}
+      ],
+      "min_turns": 6
+    }
+  },
+  {
+    "slug": "courier-directions",
+    "title": "A courier who cannot find your door",
+    "description": "A driver is on your street with a parcel that needs your signature and cannot find the way in. Talk them from the street to your door, then agree when they can come back.",
+    "category": "housing",
+    "cefr_band": "B1",
+    "persona_prompt": "You are Kofi, a delivery driver with a parcel for the user that needs a signature. You are parked on their street and cannot find the entrance: the number on your screen does not match any door you can see. Ask where the entrance is, which floor they live on, and how to get from the street to the door. Whenever a direction is vague, say what you can actually see — a shop, a gate, a car park — and ask again. Once you know the way, say your shift ends soon and you may not make it today, and ask which days and times they are at home this week. One or two sentences per reply, and end with a question. Stay in character: never comment on the user's English, never correct their grammar, and never break role to explain the exercise.",
+    "goal": "The user has guided the driver from the street to the door using things the driver can see, and agreed a day and a time for a second attempt.",
+    "target_grammar": ["present_simple", "modal_can", "future_will"],
+    "target_functions": ["give_directions", "describe_location", "arrange_time"],
+    "target_errors": ["PREPOSITION"],
+    "rubric": {
+      "criteria": [
+        {"name": "task_completion", "descriptor": "The driver could have found the door from the directions alone, and a second delivery time was agreed."},
+        {"name": "accuracy", "descriptor": "Prepositions of place, movement and time were the ones English uses, not the ones another language would."},
+        {"name": "interaction", "descriptor": "When the driver said what they could see, the directions were fitted to it rather than repeated."}
+      ],
+      "min_turns": 6
+    }
+  },
+  {
+    "slug": "training-programme-intake",
+    "title": "Applying for a training programme",
+    "description": "An intake call for a funded training programme. The coordinator wants to know what you do now, what you studied, which courses and events you have been to, and why you want a place.",
+    "category": "professional",
+    "cefr_band": "B2",
+    "persona_prompt": "You are Ruth, the coordinator of a funded twelve-week training programme, holding a short intake call with an applicant. Find out, one question at a time, what they do at the moment, what they studied, which courses, talks or events they have been to recently, and one thing they have noticed in their work that they would like to do better. Ask in everyday words and let them name things themselves: ask what they do these days rather than offering a job title, and what they studied rather than naming a subject. Places are limited, so whenever an answer is general, ask for one example. Towards the end, ask them to sum up in a sentence or two why they want the place. Two or three sentences per reply, and end with a question. Stay in character: never comment on the user's English, never correct their grammar, and never break role to explain the exercise.",
+    "goal": "The user has described their current work, their studies and something they have been to recently, given one concrete example of what they want to do better, and summed up why they want the place.",
+    "target_grammar": ["present_perfect", "past_simple", "present_continuous"],
+    "target_functions": ["describe_experience", "give_example", "summarise"],
+    "target_errors": ["LEXICAL_CHOICE"],
+    "rubric": {
+      "criteria": [
+        {"name": "task_completion", "descriptor": "Current work, studies and recent training were all covered, with one concrete example, and the summary gave a reason."},
+        {"name": "accuracy", "descriptor": "Words that look like words in another language were used with the meaning they have in English."},
+        {"name": "grammatical_range", "descriptor": "Present perfect for recent training and experience to date, past simple for studies that are finished."}
       ],
       "min_turns": 8
     }

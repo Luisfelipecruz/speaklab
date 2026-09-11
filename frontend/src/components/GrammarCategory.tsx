@@ -14,6 +14,8 @@
  *
  * A correction placed in its sentence can be said again: the link opens the drill, which
  * starts by showing the correction so that one the learner disagrees with can be skipped.
+ * And a kind of correction that a scenario is written to draw out links to it, so more of
+ * the same can be practised in a conversation.
  */
 
 import Link from "next/link";
@@ -125,6 +127,17 @@ export function GrammarCategory({ category }: { category: CategoryCorrections })
           <p className="text-xs text-muted-foreground">
             The newest {category.examples.length} of {total}. The rest are marked on the
             conversations they came from.
+          </p>
+        )}
+        {category.scenario_slug && (
+          <p className="text-sm">
+            <Link
+              href={`/scenarios/${category.scenario_slug}`}
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Practise these in {category.scenario_title}
+              <span className="sr-only"> — {category.label} corrections</span>
+            </Link>
           </p>
         )}
       </CardContent>

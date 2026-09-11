@@ -210,6 +210,37 @@ async def test_corrections_are_grouped_by_kind_most_counted_first(
     assert body["caveat"] and "none was checked by a person" in body["caveat"]
 
 
+async def test_each_kind_of_correction_points_at_a_scenario_that_draws_it_out(
+    client, account, db_session
+):
+    """At the learner's own band where a scenario there declares it; a kind no scenario
+    declares points nowhere."""
+    from db_models import User
+
+    user = await db_session.get(User, account["id"])
+    user.cefr_self_assessed = "B1"
+    await practise(
+        db_session,
+        account["id"],
+        SPOKEN,
+        [TENSE, AGREEMENT, PREPOSITION],
+        used={"present_simple": 3},
+    )
+
+    categories = {
+        c["category"]: c for c in (await client.get("/grammar")).json()["categories"]
+    }
+
+    assert categories["PREPOSITION"]["scenario_slug"] == "courier-directions"
+    assert categories["PREPOSITION"]["scenario_title"] == (
+        "A courier who cannot find your door"
+    )
+    # Eight scenarios declare verb tenses; the first at B1 by slug.
+    assert categories["VERB_TENSE"]["scenario_slug"] == "apartment-viewing"
+    assert categories["SUBJECT_VERB_AGREEMENT"]["scenario_slug"] is None
+    assert categories["SUBJECT_VERB_AGREEMENT"]["scenario_title"] is None
+
+
 async def test_each_correction_comes_in_the_sentence_it_was_made_in(
     client, account, db_session
 ):

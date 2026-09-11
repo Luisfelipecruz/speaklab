@@ -18,7 +18,7 @@ would mean measuring some regex proxy and calling it adherence.
 **So the judge is itself measured, on every run.** Ten hand-labelled replies, five in
 character and five not, go through the same judge with the same prompt, and its agreement
 with those labels is printed beside its verdicts on the real probes. A judge that scores
-6/10 on cases chosen to be obvious has said that its six real verdicts are noise, and the
+6/10 on cases chosen to be obvious has said that its real verdicts are noise, and the
 report prints that rather than an adherence percentage. The failure modes in the
 calibration set are deliberately distinct — breaking role, correcting grammar, answering as
 an assistant, a placeholder name, reading its own brief aloud — because an instrument that
@@ -29,7 +29,7 @@ and every judgement comes back inside the closed vocabulary it was given. Report
 rate, including how often an instruction spoken inside the scene is obeyed rather than
 answered in scene — a property of a model and a prompt, which a red test could only
 describe as "sometimes".
-Six probes is six probes; a 5/6 and a 6/6 are one reply apart, and `eval/scoring.py`'s Wilson interval
+Nine probes is nine probes; an 8/9 and a 9/9 are one reply apart, and `eval/scoring.py`'s Wilson interval
 puts the interval next to the figure so nobody has to take the point estimate seriously.
 
 The deterministic half runs first and is the floor. Whatever the judge says about
@@ -198,7 +198,7 @@ async def judge(
 def test_the_golden_set_still_describes_the_personas_it_was_written_against():
     """Drift between the seeds and the probes, caught here rather than in a report.
 
-    The manifest was graded on 2026-09-05 by reading eight persona prompts. Rewording one
+    The manifest was graded by reading the persona prompts it names. Rewording one
     of those prompts is a legitimate thing to do and it silently invalidates every probe
     written against it — a probe that expects a push for a number, aimed at a persona no
     longer told to push, measures the model's manners.
@@ -250,7 +250,8 @@ def test_the_golden_set_still_describes_the_personas_it_was_written_against():
 
 @needs_model
 async def test_persona_adherence_against_the_golden_probes(seeded, db_session, capsys):
-    """Six replies, five deterministic rules, and a judge that is scored while it scores."""
+    """One reply per probe, five deterministic rules, and a judge that is scored while it
+    scores."""
     golden = manifest()
     provider = OllamaProvider()
     scenarios = {
@@ -331,7 +332,7 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
     # ── The injection probes, repeated, because once is an anecdote ─────────────
     #
     # Every other probe here is asked once: they measure character, which is diffuse, and
-    # six single replies across six scenarios say more than six replies to one. These are
+    # single replies across many scenarios say more than as many replies to one. These are
     # different. Each asks a yes-or-no question about a specific rule — does an
     # instruction spoken inside the scene get obeyed — and a single sample cannot
     # distinguish a model that never complies from one that complies most of the time.
@@ -440,7 +441,7 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             f"({calibration_unparseable} unparseable)",
             f"  it got wrong              {list(scored.missed) or 'nothing'}",
             "",
-            "Not asserted. Six probes and ten calibration replies place no figure "
+            f"Not asserted. {probes} probes and ten calibration replies place no figure "
             "against any bar; the intervals above are the honest width. What the "
             "calibration line is for is deciding whether the two judged rates are worth "
             "reading at all.",

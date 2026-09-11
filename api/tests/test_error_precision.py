@@ -353,6 +353,177 @@ async def test_a_clean_turn_produces_no_errors(golden):
     )
 
 
+# ── The three newest scenarios' mistakes, written down ─────────────────────
+
+
+@needs_model
+async def test_articles_prepositions_and_false_friends_are_found(capsys):
+    """The mistakes the three newest scenarios are written to draw out, each in a sentence
+    with nothing else wrong in it, handed to both detectors as the recogniser would write
+    it — and the corrected sentence after it.
+
+    A scenario draws out a kind of mistake, as far as the product can tell, only if the
+    detector files what it draws out under that kind. So per kind: found where the mistake
+    is and filed under it; found there under another kind; not found. Of those found, how
+    many carry the labelled correction — a proposal on the right words can still put the
+    wrong ones in. Anything proposed elsewhere in the sentence, or anywhere in the
+    corrected one, is proposed on English that is right. Reported, not asserted, beyond
+    every proposal pointing at real text.
+    """
+    from services.wer import normalise
+    from tests.category_labels import CASES
+
+    provider = OllamaProvider()
+    categories = sorted({case.category for case in CASES})
+    tally = {
+        category: Counter(
+            sentences=0,
+            found=0,
+            fixed=0,
+            other_kind=0,
+            missed=0,
+            elsewhere=0,
+            corrected_flagged=0,
+            failed=0,
+            found_by_rule=0,
+            found_by_llm=0,
+        )
+        for category in categories
+    }
+    rows: list[dict] = []
+    lines: list[str] = []
+
+    for case in CASES:
+        counts = tally[case.category]
+        counts["sentences"] += 1
+
+        said = await detect(
+            provider,
+            case.transcript,
+            None,
+            rules.propose(grammar.parse(case.transcript)),
+        )
+        corrected = await detect(
+            provider,
+            case.corrected,
+            None,
+            rules.propose(grammar.parse(case.corrected)),
+        )
+        if "failed" in (said.status, corrected.status):
+            counts["failed"] += 1
+            lines.append(f"  failed   {case.transcript!r}")
+            continue
+
+        for text, detection in ((case.transcript, said), (case.corrected, corrected)):
+            for found in detection.errors:
+                accepted = found.accepted
+                assert text[accepted.span_start : accepted.span_end] == (
+                    accepted.original
+                ), "an accepted error does not point at the text it claims to quote"
+
+        on_it = [
+            found
+            for found in said.errors
+            if _overlaps(
+                found.accepted.span_start,
+                found.accepted.span_end,
+                case.span_start,
+                case.span_end,
+            )
+        ]
+        right = [found for found in on_it if found.accepted.category == case.category]
+        if right:
+            outcome = "found"
+            counts[f"found_by_{right[0].detector}"] += 1
+            accepted = right[0].accepted
+            applied = (
+                case.transcript[: accepted.span_start]
+                + accepted.correction
+                + case.transcript[accepted.span_end :]
+            )
+            counts["fixed"] += normalise(applied) == normalise(case.corrected)
+        elif on_it:
+            outcome = "other_kind"
+        else:
+            outcome = "missed"
+        counts[outcome] += 1
+        counts["elsewhere"] += len(said.errors) - len(on_it)
+        counts["corrected_flagged"] += len(corrected.errors)
+
+        proposals = [
+            {
+                "detector": found.detector,
+                "category": found.accepted.category,
+                "subcategory": found.accepted.subcategory,
+                "original": found.accepted.original,
+                "correction": found.accepted.correction,
+            }
+            for found in said.errors
+        ]
+        on_correct = [
+            {
+                "detector": found.detector,
+                "category": found.accepted.category,
+                "original": found.accepted.original,
+                "correction": found.accepted.correction,
+            }
+            for found in corrected.errors
+        ]
+        rows.append(
+            {
+                "category": case.category,
+                "transcript": case.transcript,
+                "quote": case.quote,
+                "correction": case.correction,
+                "outcome": outcome,
+                "proposals": proposals,
+                "on_the_corrected_sentence": on_correct,
+            }
+        )
+        lines.append(
+            f"  {outcome:<10} {case.category:<15} {case.quote!r} -> "
+            f"{case.correction!r}: "
+            + (
+                ", ".join(
+                    f"{item['detector']} {item['category']} {item['original']!r}"
+                    f"->{item['correction']!r}"
+                    for item in proposals
+                )
+                or "nothing proposed"
+            )
+            + (f"  | corrected: {len(on_correct)} proposed" if on_correct else "")
+        )
+
+    with capsys.disabled():
+        print("")
+        print("\n".join(lines))
+        print(f"\n  model {provider.model}, {len(CASES)} labelled sentences")
+        for category in categories:
+            counts = tally[category]
+            print(
+                f"  {category:<15} found {counts['found']:>2} of "
+                f"{counts['sentences']} (rule {counts['found_by_rule']}, model "
+                f"{counts['found_by_llm']}; {counts['fixed']} with the labelled "
+                f"correction), under another kind "
+                f"{counts['other_kind']}, missed {counts['missed']}, elsewhere "
+                f"{counts['elsewhere']}, on the corrected sentence "
+                f"{counts['corrected_flagged']}, failed {counts['failed']}"
+            )
+
+    record(
+        "categories_detected",
+        {
+            "status": "measured",
+            "model": provider.model,
+            "by_category": {category: dict(tally[category]) for category in categories},
+            "rows": rows,
+        },
+    )
+
+    assert sum(counts["sentences"] for counts in tally.values()) == len(CASES)
+    assert all(counts["failed"] < counts["sentences"] for counts in tally.values())
+
+
 # ── Planted errors: the rule layer, with no model ───────────────────────────
 
 

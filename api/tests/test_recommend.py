@@ -121,6 +121,25 @@ async def test_the_most_frequent_error_category_leads(learner, db_session):
     assert top.measured == 3.0
 
 
+async def test_a_kind_of_mistake_points_at_a_scenario_written_to_draw_it_out(
+    learner, db_session
+):
+    """Where a scenario declares the category, the suggestion links to it; where none
+    does, it links nowhere rather than to a scenario that happens to be first."""
+    db_session.add(
+        snapshot(learner.id, categories={"ARTICLE": 5, "PRONOUN": 5}, words=300)
+    )
+    await db_session.commit()
+
+    result = await build(db_session, learner.id)
+    by_title = {
+        item.title: item for item in result.items if item.kind == "error_category"
+    }
+
+    assert by_title["article"].scenario_slug == "lost-property-office"
+    assert by_title["pronoun"].scenario_slug is None
+
+
 async def test_every_suggestion_states_the_measurement_that_chose_it(
     learner, db_session
 ):

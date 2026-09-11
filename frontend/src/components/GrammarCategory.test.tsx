@@ -103,3 +103,18 @@ test("a correction placed in its sentence can be said again; one that is not, ca
   expect(links).toHaveLength(1);
   expect(links[0]).toHaveAttribute("href", "/grammar/drill/41");
 });
+
+test("a kind of correction a scenario draws out links to it; one no scenario does, to none", () => {
+  const { rerender } = render(<GrammarCategory category={makeCategory()} />);
+
+  expect(
+    screen.getByRole("link", {
+      name: "Practise these in Apartment viewing — verb tense corrections",
+    }),
+  ).toHaveAttribute("href", "/scenarios/apartment-viewing");
+
+  rerender(
+    <GrammarCategory category={makeCategory({ scenario_slug: null, scenario_title: null })} />,
+  );
+  expect(screen.queryByRole("link", { name: /^Practise/ })).not.toBeInTheDocument();
+});

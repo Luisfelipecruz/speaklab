@@ -250,6 +250,12 @@ def _agreement(doc) -> list[RuleError]:
         subject = subjects[0]
         if _interrupted(doc, subject, tensed):
             continue
+        if subject.i > tensed.i and tensed.i == head.i and head.lemma_ != "be":
+            # Only an auxiliary or `be` comes before its subject — "does she", "is it".
+            # A lexical verb with a subject after it is an imperative the parse gave one:
+            # in "say your shift end soon" it read `end` as a noun and the subject of
+            # `say`, and `says` would be a correction of a word nobody got wrong.
+            continue
         number = _subject_number(subject)
         if number is None:
             continue

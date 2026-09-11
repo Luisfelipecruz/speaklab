@@ -117,6 +117,23 @@ def test_an_inverted_question_is_corrected_on_the_auxiliary():
     assert found.accepted.correction == "does the train"
 
 
+def test_be_before_its_subject_still_agrees_with_it():
+    found = one("are she ready")
+    assert (found.accepted.original, found.accepted.correction) == ("are she", "is she")
+
+
+def test_an_imperative_is_not_corrected_to_agree_with_a_noun_after_it():
+    """The parse can read a noun after an imperative as its subject — here `end`, in a
+    clause that has lost its -s. Only an auxiliary or `be` comes before its subject, so
+    `say` is left alone rather than corrected to `says`."""
+    found = proposals(
+        "Once you know the way, say your shift end soon and you may not make it today."
+    )
+    assert not [f for f in found if f.accepted.original.startswith("say")], [
+        (f.accepted.original, f.accepted.correction) for f in found
+    ]
+
+
 @pytest.mark.parametrize(
     "sentence,original,correction",
     [
