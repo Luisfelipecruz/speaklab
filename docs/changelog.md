@@ -29,9 +29,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   correction is applied, the corrected text parsed, and the verb phrases compared before
   and after. Per form: used, wrong, needed-and-not-said, and right over used plus needed.
   In the session report (`form_accuracy`), in every snapshot (`accuracy.by_form`), and on
-  the progress page beside each tense and modal — *right 9 of 13 · 69 %*, the percentage
-  only from ten (`PROGRESS_MIN_FORM_CONTEXTS`), and *needed 2, never said* for a form the
-  learner avoided — with a caveat about the corrections underneath. `docs/decisions/0015`.
+  the progress page beside each tense and modal — *right 9 of 13*, and *needed 2, never
+  said* for a form the learner avoided — with a caveat about the corrections underneath.
+  A count and never a percentage on screen: the API sends the proportion from ten contexts
+  (`PROGRESS_MIN_FORM_CONTEXTS`), and the page leaves it out, because that floor is on the
+  sample and the corrections under the count are the larger error.
+  `docs/decisions/0015`, `0016`.
 - **The join, measured with no model.** Against hand-labelled corrections: **32 of 34**
   held out, 55 of 55 in the set it was built against, 2 of 4 on the golden set's real
   turns; **no correction on any set joined to a wrong form**, asserted.
@@ -39,6 +42,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   corrections from the stored transcript, with no model call. For after a change to the
   parser or the join; run `make rollup` after it.
 - **`past_perfect_continuous`**, a new name in the closed vocabulary of forms.
+- **The grammar page, `/grammar`**, a section of its own in the rail. Every correction of
+  the last 30 days, grouped by kind, in the sentence it was said in and marked on the
+  transcript's own words, with what was proposed instead, which detector proposed it, and
+  a link to the conversation; every tense and modal with its counts and the corrections
+  behind them; and one verb form named for practice — the one right least often, with a
+  scenario at the learner's level that asks for it — only once it has come up ten times
+  and been corrected five (`GRAMMAR_MIN_FORM_CORRECTIONS`). Below that it says how near
+  the nearest form is. One new operation, `GET /grammar`: 26 of the 30 forecast.
+  `docs/decisions/0016`.
 
 ### Changed
 
@@ -58,6 +70,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Ending a session straight after speaking wrote the report without the last turn.** The
+  job analysing each turn claims it the moment the reply goes back, and ending skipped a
+  claimed turn instead of waiting for it — so the last thing said, and its corrections,
+  were missing from the report and from the transcript's marks. Ending now waits for it,
+  within the same 60 s. Ended straight after a synthesised turn, three times each on the
+  same stack: before, **3 of 3** reports left the turn out and carried no corrections;
+  after, **3 of 3** were complete, with both corrections, in 4.15–4.80 s.
+- **The report's "open this session again to finish them" did nothing.** Opening a session
+  only read it back. The session page now finishes a report written short when it is
+  opened — once, then offers *Finish the report* — and the report says what it leaves out
+  rather than promising. A report written before the analysers existed is finished the
+  same way.
+- **An analysis interrupted by the server stopping stayed claimed for ever**, so nothing
+  analysed that turn again. A cancelled job now puts its turn back in the queue.
+- **End could be pressed while a turn was still being sent**, which ended the session
+  before the turn was stored and refused the turn. The button is disabled until the turn
+  is back.
 - **Every present passive was counted as a past simple.** The tense was read from the
   head, which in a passive is a past participle: `Is parking included?` was a past simple
   and `has been cancelled` a past perfect. The tense is now read from the first finite

@@ -6,6 +6,8 @@ are that running it twice does not double anything, and that a failure leaves a 
 later pass can pick up.
 """
 
+import asyncio
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -18,7 +20,9 @@ from db_models import (
     Turn,
     User,
 )
+from services import analysis
 from services.analysis import (
+    Analyser,
     analyse_turn,
     ensure_session_analysed,
     pending_turn_ids,
@@ -390,6 +394,110 @@ async def test_a_zero_budget_leaves_the_turn_for_later(turn, factory, db_session
         turn.session_id, factory, StubProvider([reply()]), budget_s=0
     )
     assert (analysed, outstanding) == (0, 1)
+
+
+class GatedProvider(StubProvider):
+    """A labelling model that answers only when the test says so."""
+
+    def __init__(self, replies) -> None:
+        super().__init__(replies)
+        self.asked = asyncio.Event()
+        self.answer = asyncio.Event()
+
+    async def complete(self, messages, max_tokens=None, temperature=None):
+        self.asked.set()
+        await self.answer.wait()
+        return await super().complete(messages, max_tokens, temperature)
+
+
+async def test_ending_waits_for_a_turn_already_being_analysed(
+    turn, factory, db_session
+):
+    """The live job claims a turn the moment the reply goes back, so ending straight
+    after speaking finds the last turn mid-analysis. Skipping it wrote the report
+    without it."""
+    live = GatedProvider([reply(AN_ERROR)])
+    Analyser(factory, live).launch(turn.id)
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    ending = asyncio.create_task(
+        ensure_session_analysed(
+            turn.session_id, factory, StubProvider([reply()]), budget_s=30
+        )
+    )
+    await asyncio.sleep(0.2)
+    assert not ending.done()
+
+    live.answer.set()
+    assert await asyncio.wait_for(ending, 30) == (1, 0)
+    summary = await summarise(db_session, turn.session_id, None)
+    assert summary["complete"] is True
+    assert summary["errors"]["total"] == 1
+
+
+async def test_at_the_deadline_the_live_job_is_left_to_finish(
+    turn, factory, db_session
+):
+    """It is doing the work. Cancelling it would throw away a turn nearly analysed; left
+    running, it writes what an incomplete report is later finished from."""
+    live = GatedProvider([reply(AN_ERROR)])
+    Analyser(factory, live).launch(turn.id)
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    assert await ensure_session_analysed(
+        turn.session_id, factory, StubProvider([reply()]), budget_s=0.2
+    ) == (0, 1)
+
+    job = analysis._jobs[turn.id]
+    live.answer.set()
+    outcome = await asyncio.wait_for(job, 30)
+    assert outcome.status == "analyzed"
+    assert turn.id not in analysis._jobs
+
+
+async def test_a_turn_claimed_by_another_process_is_waited_for(
+    turn, factory, db_session
+):
+    """A backfill run from the command line holds its claim in another process, where
+    there is no job to await. Its turn is looked at again until it is done."""
+    async with factory() as db:
+        (await db.get(Turn, turn.id)).analysis_status = "analyzing"
+        await db.commit()
+
+    async def finish_elsewhere():
+        await asyncio.sleep(0.3)
+        async with factory() as db:
+            (await db.get(Turn, turn.id)).analysis_status = "analyzed"
+            await db.commit()
+
+    elsewhere = asyncio.create_task(finish_elsewhere())
+    provider = StubProvider([reply()])
+    assert await ensure_session_analysed(
+        turn.session_id, factory, provider, budget_s=30
+    ) == (1, 0)
+    await elsewhere
+    assert provider.calls == []
+
+
+async def test_a_cancelled_job_puts_its_turn_back_in_the_queue(
+    turn, factory, db_session
+):
+    """A server that stops mid-analysis cancels the job. A turn left in `analyzing` has
+    nothing coming to finish it and nothing that will take it again."""
+    live = GatedProvider([reply(AN_ERROR)])
+    job = asyncio.create_task(analyse_turn(turn.id, factory, live))
+    await asyncio.wait_for(live.asked.wait(), 30)
+
+    job.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await job
+
+    async with factory() as db:
+        released = await db.get(Turn, turn.id)
+        assert released.analysis_status == "pending"
+        assert "interrupted" in released.analysis_error
+        assert turn.id in await pending_turn_ids(db)
+    assert await rows_for(db_session, LanguageError, turn.id) == []
 
 
 async def test_the_session_summary_reports_what_was_not_elicited(

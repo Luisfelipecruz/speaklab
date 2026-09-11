@@ -201,18 +201,19 @@ not been measured yet and is not claimed.
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | **First run, from nothing** | **7 min 12 s** for `make setup`, **8 min 58 s** until Whisper was loaded — against five minutes in PRD §9, **missed**, and the build is nearly all of it. One run, one connection; [Quick start](#quick-start) has what it did and did not include |
 | Memory, five containers, models loaded | **1.94 GiB**, excluding Ollama, against under 8 GB |
-| API test suite | **876** — 843 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **216** across 31 suites, Jest and React Testing Library, no services needed |
+| API test suite | **898** — 865 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **244** across 36 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
-| API operations implemented | 25 of the 30 forecast — m10 added three, and none of them takes a user id |
+| API operations implemented | 26 of the 30 forecast, counted from the running app — m10 added three and m14 one, and none of them takes a user id |
 | **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size**. The model's figure and the product's are the same, because the grammar rules propose nothing on this golden set: it holds no agreement error, and one article error in a shape they leave alone |
 | **Grammar rules, on planted errors** | **100 of 126** agreement errors caught — 0.794 [0.715, 0.855] — and **2 of 93** missing articles, with **no wrong fix and no stray proposal**; no proposal on 2 454 words of native English. No model involved. See [decision 0014](docs/decisions/0014-the-rule-layer.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 on the golden set's real turns, where the parse of unpunctuated speech loses the verb; **no correction on any set joined to a wrong form**. No model involved. See [decision 0015](docs/decisions/0015-accuracy-per-form.md) |
 | Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
 | Grammar forms detected in the stored corpus | **13 distinct**, over 106 counted instances in 11 turns, 48 of them verb phrases — recounted after the counter stopped missing every negative and question in the simple tenses and reading every present passive as a past |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
+| Ending straight after speaking | the report holds the last turn in **3 of 3** runs, the end taking 4.15–4.80 s; **0 of 3** before ending waited for it. One synthesised turn each, same stack |
 | **Progress trends rendered from real sessions** | **2**, against a bar of 20 — **not met.** Two conversations and two readings, all on one calendar day. Three of the four families draw a single point and the fourth is gated off |
 | The whole stored corpus, rolled up | 7 turns · 272 words · 2 readings · 450 phone instances · **2.57 errors per 100 words** · 11 distinct forms · one week |
 | Reading the progress page | **7 ms** — it reads snapshots and computes nothing. A rollup with nothing to do is also 7 ms; a forced rebuild of both snapshots is 17 ms |
@@ -355,18 +356,31 @@ went to London* corrected to *I have never been* was said in the past simple and
 present perfect. Both sides are kept, because either alone misleads — counting only what
 was said never shows a learner who avoids the present perfect that they avoid it. So each
 tense and modal on the progress page carries *right 9 of 13* — its uses, and the times it
-was needed and something else was said — with a percentage only from ten, and *needed 2,
-never said* for a form you should have reached for and did not. The join is right on 32 of
-34 held-out corrections and puts none under a wrong form; what it cannot be is more right
-than the corrections it is given, and the panel says so. See
+was needed and something else was said — and *needed 2, never said* for a form you should
+have reached for and did not. A count, and never a percentage: a floor on the sample does
+nothing about the corrections underneath, which are the larger error. The join is right on
+32 of 34 held-out corrections and puts none under a wrong form; what it cannot be is more
+right than the corrections it is given, and the panel says so. See
 [decision 0015](docs/decisions/0015-accuracy-per-form.md).
+
+**The grammar page puts your own sentences in front of you.** Every correction, grouped by
+kind, in the sentence you said it in, marked on your words, with what was proposed instead
+and a link to the conversation; every verb form with its counts and the corrections behind
+them. One form is named for practice — the one right least often, with a scenario at your
+level that asks for it — but only once it has come up ten times and been corrected five,
+because many of the model's corrections are wrong and fewer could be its mistakes rather
+than yours. Until then the page says how near the nearest form is. It leads with evidence
+because nothing on it was checked by a person, and a learner can disagree with a sentence
+but not with a percentage. See [decision 0016](docs/decisions/0016-the-grammar-page.md).
 
 **Once a session has been ended, the transcript marks each accepted correction on the
 words it quotes** — a superscript number on the words, a numbered row under the turn with
 the replacement, the category and the explanation. A correction on words the recogniser
 was unsure of is drawn dotted and says it may be a mishearing; one whose offsets do not
 hold its words is listed and never underlined. The marks come from the same report the
-totals do, so nothing is marked while the conversation is still going.
+totals do, so nothing is marked while the conversation is still going. Ending waits for the
+analysis of what you said last, and a report written short is finished when the session is
+next opened.
 
 **An error sitting on a word the recogniser was unsure of is shown and marked, and counts
 towards nothing.** The gate is per word, not per turn, and that was settled by real speech:
@@ -445,7 +459,7 @@ Named explicitly so nothing here reads as a claim.
 | m8 | **The golden pairs.** Criterion S4 — that deliberately broken readings score measurably worse than clean ones — is not met, and cannot be met by what exists: perturbing the reference proves the arithmetic, not that a *learner* error is detected. The test is written and skips. It needs five minutes of a person's voice ([`eval/golden/pron/`](eval/golden/pron/README.md)) |
 | m8 | **A calibrated GOP threshold.** m0 settled the method — a percentile of the correct-speech distribution, per phone — and not the numbers, so `PRON_GOP_THRESHOLDS` is empty and the heatmap says its bands are relative to the reading rather than a pass mark. See [decision 0005 §7](docs/decisions/0005-gop-pipeline.md) |
 | m9 | **Error detection is not accurate enough yet, and the number is published.** Detection precision measures **0.500** against a 0.70 bar. `gemma3:4b` finds roughly the right words and files them under the wrong category three times out of six; `mistral:7b` measured worse. The sample is six scored proposals, so the figure cannot yet decide the question either way. [Decision 0006 §6](docs/decisions/0006-error-taxonomy.md) has the table and the comparison arms |
-| m14 | **Accuracy per form is as right as the corrections under it, and no more.** The join is measured — 32 of 34 held out, no wrong form — but every tense correction is the model's, right half the time on the hand-checked set. On the live corpus the only two corrections that joined a form were both false positives, and a present simple the golden labels mark wrong reads as right because the model filed it under prepositions. The panel carries that caveat; the grammar section will have to decide more |
+| m14 | **Accuracy per form is as right as the corrections under it, and no more.** The join is measured — 32 of 34 held out, no wrong form — but every tense correction is the model's, right half the time on the hand-checked set. On the live corpus the only two corrections that joined a form were both false positives, and a present simple the golden labels mark wrong reads as right because the model filed it under prepositions. The grammar page shows counts and the sentences behind them and no percentage anywhere, and names a form for practice only at ten uses and five corrections — on the live corpus none qualifies |
 | m14 | **The grammar rules have never been measured on a learner's speech.** The stored corpus holds none of the two errors they cover, so their only figures come from errors planted in native English — an upper bound, because a learner's parse is worse. And the article rule covers two shapes, after *be* and after *as*: a bare noun after a preposition or as an object depends on whether it can be counted, which a parse cannot say, so it is left to the model |
 | m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
 | m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |

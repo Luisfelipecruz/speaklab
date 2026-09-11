@@ -22,7 +22,8 @@ Without it both would write a second copy of every error row.
 **A job never raises.** Nobody awaits it, so an escaping exception would be logged by
 asyncio as an unretrieved future and the turn would sit in `analyzing` for ever. Every
 failure becomes a status with a reason on it, which is what a retry needs to mean
-anything.
+anything. A cancelled job — a deadline, or the server shutting down — puts the turn it
+claimed back in the queue before the cancellation goes on.
 
 **Deterministic first, model second.** Fluency and grammar are arithmetic and a parse:
 they succeed whether or not Ollama is running, and they are written even when the
@@ -41,7 +42,11 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from config import ANALYSIS_SESSION_BUDGET_S, ERROR_CONFIDENCE_FLOOR
+from config import (
+    ANALYSIS_CLAIM_POLL_S,
+    ANALYSIS_SESSION_BUDGET_S,
+    ERROR_CONFIDENCE_FLOOR,
+)
 from db_models import FluencyMetrics, GrammarUsage, LanguageError, Scenario, Turn
 from services import errors as error_detector
 from services import fluency, forms, grammar, rules
@@ -49,10 +54,11 @@ from services.llm import LlmProvider, get_provider
 
 log = logging.getLogger("speaklab.analysis")
 
-# Tasks are held for their lifetime. `asyncio.create_task` returns a reference the event
-# loop does not own: drop it and the task can be collected mid-await, which presents as a
-# job that silently never finished.
-_running: set[asyncio.Task] = set()
+# The jobs this process is running, by turn. Held for their lifetime because
+# `asyncio.create_task` returns a reference the event loop does not own: drop it and the
+# task can be collected mid-await, which presents as a job that silently never finished.
+# Keyed by turn so that ending a session can wait on the job that has its last turn.
+_jobs: dict[int, asyncio.Task] = {}
 
 
 @dataclass
@@ -85,8 +91,13 @@ class Analyser:
         task = asyncio.create_task(
             analyse_turn(turn_id, self._session_factory, self._provider)
         )
-        _running.add(task)
-        task.add_done_callback(_running.discard)
+        _jobs[turn_id] = task
+
+        def forget(done: asyncio.Task) -> None:
+            if _jobs.get(turn_id) is done:
+                del _jobs[turn_id]
+
+        task.add_done_callback(forget)
 
     async def ensure_session(self, session_id: int) -> tuple[int, int]:
         """Analyse whatever this session still owes, and wait for it.
@@ -111,7 +122,10 @@ def get_analyser() -> Analyser:
 async def analyse_turn(
     turn_id: int, session_factory: async_sessionmaker, provider: LlmProvider
 ) -> Outcome:
-    """One turn, from `pending` to `analyzed` or `failed`. Never raises."""
+    """One turn, from `pending` to `analyzed` or `failed`.
+
+    Never raises. A cancellation is passed on, once the turn is back in the queue.
+    """
     try:
         return await _analyse(turn_id, session_factory, provider)
     except Exception as exc:  # noqa: BLE001 — see the module docstring
@@ -146,6 +160,22 @@ async def _analyse(
         turn.analysis_error = None
         await db.commit()
 
+    try:
+        return await _work(turn_id, transcript, words, session_factory, provider)
+    except asyncio.CancelledError:
+        # This job holds the claim, and nothing else will finish a turn left in
+        # `analyzing`. Shielded, so a second cancellation cannot interrupt the release.
+        await asyncio.shield(_release(turn_id, session_factory))
+        raise
+
+
+async def _work(
+    turn_id: int,
+    transcript: str,
+    words: list[dict] | None,
+    session_factory: async_sessionmaker,
+    provider: LlmProvider,
+) -> Outcome:
     # ── Phase B: the analysers, with no database connection held ────────────
     measures = fluency.analyse(words)
 
@@ -411,60 +441,107 @@ async def pending_turn_ids(db, session_id: int | None = None) -> list[int]:
     return list((await db.scalars(query)).all())
 
 
+async def claimed_turn_ids(db, session_id: int) -> list[int]:
+    """This session's user turns that a job is analysing right now."""
+    return list(
+        (
+            await db.scalars(
+                select(Turn.id)
+                .where(
+                    Turn.session_id == session_id,
+                    Turn.role == "user",
+                    Turn.analysis_status == "analyzing",
+                )
+                .order_by(Turn.id)
+            )
+        ).all()
+    )
+
+
 async def ensure_session_analysed(
     session_id: int,
     session_factory: async_sessionmaker,
     provider: LlmProvider,
     budget_s: float = ANALYSIS_SESSION_BUDGET_S,
 ) -> tuple[int, int]:
-    """Analyse whatever this session still owes, within a time budget.
+    """Analyse whatever this session still owes, and wait for what is already being
+    analysed, within one time budget.
 
-    Returns how many turns were analysed here and how many are still outstanding. It is
-    called when a session ends, because the report is stored once and a report written
-    before its last turn was analysed would be permanently missing it.
+    Returns how many turns were finished while it ran and how many are still outstanding.
+    It is called when a session ends, because the report is stored once and a report
+    written before its last turn was analysed would be missing it.
 
-    Turns are done one at a time rather than concurrently: they queue behind one Ollama
-    anyway, and a burst of parallel calls would make the wait less predictable rather
-    than shorter.
+    **A turn another job has claimed is waited for, not skipped.** The job behind each
+    turn claims it the moment the reply goes back, so the last thing a speaker says before
+    ending is usually mid-analysis when the end arrives. A job in this process is awaited;
+    a claim held elsewhere — a backfill run from the command line — is polled.
+
+    Turns owed are done one at a time rather than concurrently: they queue behind one
+    Ollama anyway, and a burst of parallel calls would make the wait less predictable
+    rather than shorter.
     """
-    async with session_factory() as db:
-        outstanding = await pending_turn_ids(db, session_id)
-
-    if not outstanding:
-        return 0, 0
-
     loop = asyncio.get_running_loop()
     deadline = loop.time() + budget_s
-    analysed = 0
+    finished = 0
 
-    for turn_id in outstanding:
-        if loop.time() >= deadline:
-            break
+    async with session_factory() as db:
+        owed = await pending_turn_ids(db, session_id)
+
+    for turn_id in owed:
         remaining = deadline - loop.time()
+        if remaining <= 0:
+            break
         try:
             await asyncio.wait_for(
                 analyse_turn(turn_id, session_factory, provider), timeout=remaining
             )
         except TimeoutError:
-            # The turn keeps whatever state the job left it in. `analyzing` would strand
-            # it, so it is put back where a later pass will find it.
-            await _release(turn_id, session_factory)
+            # Cancelled at the deadline; the job put its turn back in the queue.
             break
-        analysed += 1
+        finished += 1
+
+    finished += await _wait_for_claims(session_id, session_factory, deadline)
 
     async with session_factory() as db:
-        still_owed = len(await pending_turn_ids(db, session_id))
-    return analysed, still_owed
+        still_owed = len(await pending_turn_ids(db, session_id)) + len(
+            await claimed_turn_ids(db, session_id)
+        )
+    return finished, still_owed
+
+
+async def _wait_for_claims(
+    session_id: int, session_factory: async_sessionmaker, deadline: float
+) -> int:
+    """Wait until no turn of this session is being analysed, or the deadline passes.
+
+    Returns how many claimed turns finished in that time. At the deadline a job is left
+    running rather than cancelled: it is doing the work, and an incomplete report is
+    finished from what it writes.
+    """
+    loop = asyncio.get_running_loop()
+    seen: set[int] = set()
+    while True:
+        async with session_factory() as db:
+            claimed = await claimed_turn_ids(db, session_id)
+        seen.update(claimed)
+        remaining = deadline - loop.time()
+        if not claimed or remaining <= 0:
+            return len(seen - set(claimed))
+        here = [_jobs[turn_id] for turn_id in claimed if turn_id in _jobs]
+        if here:
+            await asyncio.wait(here, timeout=remaining)
+        else:
+            await asyncio.sleep(min(ANALYSIS_CLAIM_POLL_S, remaining))
 
 
 async def _release(turn_id: int, session_factory) -> None:
-    """Put a turn abandoned mid-flight back in the queue."""
+    """Put a turn abandoned mid-analysis back in the queue."""
     try:
         async with session_factory() as db:
             turn = await db.get(Turn, turn_id)
             if turn is not None and turn.analysis_status == "analyzing":
                 turn.analysis_status = "pending"
-                turn.analysis_error = "analysis ran out of time and will be retried"
+                turn.analysis_error = "analysis was interrupted and will be retried"
                 await db.commit()
     except Exception:  # noqa: BLE001
         log.exception("could not release turn %s", turn_id)

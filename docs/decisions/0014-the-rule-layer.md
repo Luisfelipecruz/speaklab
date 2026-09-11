@@ -242,6 +242,16 @@ corrections marked on the transcript, which are read from the report. Calling `P
 again rebuilt it correctly in the run above. It touches `services/analysis.py` and the
 session page, which this change is not about, so it is recorded rather than folded in.
 
+**Fixed since, on the same branch, as an item of its own.** Ending waits for a claimed turn
+— a job in the API's process is awaited, a claim held by a backfill in another process is
+polled — within the same budget, and a job cut off by the deadline is left running rather
+than cancelled. The session page finishes a short report when it is opened, once, and
+then offers a button. A job cancelled by the server stopping puts its turn back in the
+queue, which nothing did before. Measured on the stack, ended straight after one
+synthesised turn: the code before, **3 of 3** reports without the turn and no corrections;
+after, **3 of 3** complete with both, the end taking 4.15–4.80 s. A report left short by the
+old code was opened in a browser and finished by the page with one request.
+
 ## 8. What is not settled
 
 - **Precision on learner speech.** The rules have never proposed an error in a real

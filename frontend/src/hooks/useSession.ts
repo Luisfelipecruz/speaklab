@@ -20,6 +20,10 @@
  * here, so the honest recovery is a retry button that sends the same bytes rather than
  * an apology that makes somebody say it all again. `api/routers/turns.py` says this in
  * as many words; this is the half that makes it true.
+ *
+ * **An unfinished report is finished by ending the session again.** Ending is idempotent:
+ * on an ended session whose report was written before all its turns were analysed, it
+ * waits for them and rebuilds the counted sections, keeping the written summary.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,6 +34,7 @@ import {
   getSession,
   postTurn,
   type SessionDetail,
+  type SessionReportShape,
   type Speech,
   type Turn,
   type TurnTiming,
@@ -41,7 +46,17 @@ export type TranscriptItem =
   | { kind: "stored"; turn: Turn }
   | { kind: "pending"; localId: string; durationMs: number };
 
-export type SessionPhase = "loading" | "ready" | "sending" | "ending" | "gone";
+export type SessionPhase = "loading" | "ready" | "sending" | "ending" | "finishing" | "gone";
+
+/**
+ * Whether a stored report was written before its session's analysis had finished — the
+ * same test the server applies before it rebuilds one. A report with no analysis at all
+ * predates the analysers, and rebuilding it adds what they found.
+ */
+export function reportIsIncomplete(report: SessionReportShape | null | undefined): boolean {
+  if (!report) return false;
+  return !report.analysis || !report.analysis.complete;
+}
 
 export interface UseSession {
   session: SessionDetail | null;
@@ -66,6 +81,8 @@ export interface UseSession {
   send: (clip: RecordedClip) => Promise<void>;
   retry: () => Promise<void>;
   end: () => Promise<void>;
+  /** Rebuild an ended session's unfinished report with the turns it was written without. */
+  finish: () => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -177,6 +194,22 @@ export function useSession(
     }
   }, [sessionId]);
 
+  const finish = useCallback(async () => {
+    setError(null);
+    setPhase("finishing");
+    try {
+      setSession(await postEnd(sessionId));
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError
+          ? `Could not finish the report: ${cause.message}`
+          : "Could not finish the report.",
+      );
+    } finally {
+      setPhase((current) => (current === "finishing" ? "ready" : current));
+    }
+  }, [sessionId]);
+
   const stored: TranscriptItem[] = (session?.turns ?? []).map((turn) => ({
     kind: "stored" as const,
     turn,
@@ -195,6 +228,7 @@ export function useSession(
     send,
     retry,
     end,
+    finish,
     reload,
   };
 }

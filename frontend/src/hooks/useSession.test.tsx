@@ -14,9 +14,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { ApiError } from "@/lib/api";
-import { useSession } from "@/hooks/useSession";
+import { reportIsIncomplete, useSession } from "@/hooks/useSession";
 import type { RecordedClip } from "@/hooks/useRecorder";
-import { makeSession, makeTurn } from "@/test/fixtures";
+import { makeAnalysis, makeReport, makeSession, makeTurn } from "@/test/fixtures";
 
 jest.mock("@/lib/api", () => {
   const actual = jest.requireActual("@/lib/api");
@@ -202,4 +202,56 @@ test("ending a session stores the report it comes back with", async () => {
 
   expect(result.current.ended).toBe(true);
   expect(result.current.session?.status).toBe("completed");
+});
+
+test("finishing a report ends the session again and keeps what comes back", async () => {
+  const unfinished = makeSession({
+    status: "completed",
+    report: makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) }),
+  });
+  const finished = makeSession({ status: "completed", report: makeReport() });
+  let release: (value: typeof finished) => void = () => {};
+  api.endSession.mockReturnValue(new Promise((resolve) => (release = resolve)));
+
+  const { result } = renderHook(() => useSession(12, unfinished));
+  let finishing: Promise<void>;
+  act(() => {
+    finishing = result.current.finish();
+  });
+
+  await waitFor(() => expect(result.current.phase).toBe("finishing"));
+  await act(async () => {
+    release(finished);
+    await finishing!;
+  });
+
+  expect(api.endSession).toHaveBeenCalledWith(12);
+  expect(result.current.phase).toBe("ready");
+  expect(reportIsIncomplete(result.current.session?.report)).toBe(false);
+});
+
+test("a report that could not be finished says so and keeps the one it had", async () => {
+  const unfinished = makeSession({
+    status: "completed",
+    report: makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) }),
+  });
+  api.endSession.mockRejectedValue(new ApiError("Could not reach the API.", 0));
+
+  const { result } = renderHook(() => useSession(12, unfinished));
+  await act(async () => {
+    await result.current.finish();
+  });
+
+  expect(result.current.error).toMatch(/Could not finish the report/);
+  expect(reportIsIncomplete(result.current.session?.report)).toBe(true);
+});
+
+test("a report is unfinished when its analysis is, or when it has none", () => {
+  // The server rebuilds exactly these on a second end; the page must ask for exactly these.
+  expect(reportIsIncomplete(null)).toBe(false);
+  expect(reportIsIncomplete(makeReport())).toBe(false);
+  expect(reportIsIncomplete(makeReport({ analysis: makeAnalysis({ complete: false }) }))).toBe(
+    true,
+  );
+  expect(reportIsIncomplete(makeReport({ analysis: null }))).toBe(true);
 });

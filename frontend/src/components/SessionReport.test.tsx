@@ -12,9 +12,10 @@
  */
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { SessionReport } from "@/components/SessionReport";
-import { makeReport } from "@/test/fixtures";
+import { makeAnalysis, makeReport } from "@/test/fixtures";
 
 test("the counted figures are presented as counted", () => {
   render(<SessionReport report={makeReport()} />);
@@ -178,7 +179,37 @@ test("a report written before its turns were analysed says how many are missing"
     />,
   );
 
-  expect(screen.getByText(/2 of your turns have not been analysed yet/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/2 of your turns had not been analysed when this report was written/),
+  ).toBeInTheDocument();
+  // Nothing on this screen can finish it, so nothing offers to.
+  expect(screen.queryByRole("button", { name: "Finish the report" })).not.toBeInTheDocument();
+});
+
+test("an unfinished report offers to finish itself", async () => {
+  const onFinish = jest.fn();
+  render(
+    <SessionReport
+      report={makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) })}
+      onFinish={onFinish}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Finish the report" }));
+  expect(onFinish).toHaveBeenCalledTimes(1);
+});
+
+test("while the report is being finished it says so and offers nothing twice", () => {
+  render(
+    <SessionReport
+      report={makeReport({ analysis: makeAnalysis({ complete: false, turns_outstanding: 1 }) })}
+      finishing
+      onFinish={jest.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("status")).toHaveTextContent(/Finishing this report/);
+  expect(screen.queryByRole("button", { name: "Finish the report" })).not.toBeInTheDocument();
 });
 
 test("a report from before the analysers existed still renders", () => {
