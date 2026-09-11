@@ -347,6 +347,32 @@ def test_the_planted_errors_are_reported_when_no_model_ran():
     assert "| Missing article | 93 |" in errors_part
 
 
+def test_the_form_join_is_reported_set_by_set():
+    """Development, held out and golden are different kinds of evidence, and a single
+    pooled rate would let the set the join was built on speak for the others."""
+    forms_result = {
+        "measured_at": "2026-09-11T20:00:00+00:00",
+        "status": "measured",
+        "golden_set": "manifest.local.json",
+        "sets": {
+            "labelled": {"cases": 55, "exact": 55, "partial": 0, "wrong": 0},
+            "held_out": {"cases": 34, "exact": 32, "partial": 2, "wrong": 0},
+            "golden": {"cases": 4, "exact": 2, "partial": 2, "wrong": 0},
+        },
+    }
+    skips = {"errors": "gemma3:4b is not pulled"}
+    document = report.render(
+        {"forms": forms_result},
+        report.adjudicate({"forms": forms_result}, skips=skips, readme=""),
+        skips=skips,
+    )
+
+    errors_part = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "#### Which verb form a correction was made in" in errors_part
+    assert "| Held out — never changed the join | 34 |" in errors_part
+    assert "`manifest.local.json`" in errors_part
+
+
 def test_a_suite_that_produced_figures_and_then_failed_says_so():
     """The bug this test exists for was in the runner, and it hid a real finding.
 

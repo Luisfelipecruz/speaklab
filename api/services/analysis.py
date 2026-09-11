@@ -8,7 +8,8 @@ the reply. So the turn returns and this runs behind it.
 **The same three phases as scoring, for the same reason.**
 
     A  read      the turn, and claim it                      connection held
-    B  work      spaCy parse, then the labelling model       NO connection
+    B  work      spaCy parse, the labelling model, the       NO connection
+                 form each correction was made in
     C  write     fluency, grammar, errors, status            connection held
 
 A pooled connection held across a slow non-database step is how a pool of ten is
@@ -43,7 +44,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from config import ANALYSIS_SESSION_BUDGET_S, ERROR_CONFIDENCE_FLOOR
 from db_models import FluencyMetrics, GrammarUsage, LanguageError, Scenario, Turn
 from services import errors as error_detector
-from services import fluency, grammar, rules
+from services import fluency, forms, grammar, rules
 from services.llm import LlmProvider, get_provider
 
 log = logging.getLogger("speaklab.analysis")
@@ -174,6 +175,24 @@ async def _analyse(
 
     detection = await error_detector.detect(provider, transcript, words, ruled)
 
+    links = [forms.UNLINKED for _ in detection.errors]
+    try:
+        links = await asyncio.to_thread(
+            forms.link,
+            transcript,
+            [found.accepted for found in detection.errors],
+            doc,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # The corrections are real without their forms; they are stored unlinked and
+        # stay out of accuracy per form until the turn is parsed again.
+        log.exception("the form join failed on turn %s", turn_id)
+        grammar_detail = " · ".join(
+            part
+            for part in (grammar_detail, f"the form join failed: {type(exc).__name__}")
+            if part
+        )
+
     # ── Phase C: writes, one transaction ────────────────────────────────────
     async with session_factory() as db:
         turn = await db.get(Turn, turn_id)
@@ -207,11 +226,13 @@ async def _analyse(
                     original=found.accepted.original,
                     correction=found.accepted.correction,
                     explanation=found.accepted.explanation,
+                    form=link.form,
+                    corrected_form=link.corrected_form,
                     detector=found.detector,
                     confidence=found.accepted.confidence,
                     asr_suspect=found.asr_suspect,
                 )
-                for found in detection.errors
+                for found, link in zip(detection.errors, links, strict=True)
             ]
         )
 
@@ -276,6 +297,101 @@ async def _fail(turn_id: int, session_factory, reason: str) -> None:
                 await db.commit()
     except Exception:  # noqa: BLE001 — the last line of defence; nothing above it
         log.exception("could not record the failure of turn %s", turn_id)
+
+
+@dataclass
+class Reparsed:
+    """What re-deriving one turn from its transcript changed."""
+
+    turn_id: int
+    forms_before: dict[str, int]
+    forms_after: dict[str, int]
+    corrections: int
+    linked: int
+
+
+async def reparse_turn(
+    turn_id: int, session_factory: async_sessionmaker
+) -> Reparsed | None:
+    """Recount an analysed turn's forms and relink its corrections. No model is called.
+
+    Everything here is a function of the stored transcript and the stored corrections, so
+    a change to the parser or to the join reaches turns analysed before it without asking
+    the model anything again. The corrections themselves are left as they are, rule rows
+    included: which rule row and which model row a turn holds was decided together, and
+    re-running one side alone could store a correction the other already made.
+
+    None when the turn is not an analysed user turn.
+    """
+    async with session_factory() as db:
+        turn = await db.get(Turn, turn_id)
+        if turn is None or turn.role != "user" or turn.analysis_status != "analyzed":
+            return None
+        transcript = (turn.transcript or "").strip()
+        before = dict(
+            (
+                await db.execute(
+                    select(GrammarUsage.feature, GrammarUsage.count).where(
+                        GrammarUsage.turn_id == turn_id
+                    )
+                )
+            ).all()
+        )
+        rows = list(
+            (
+                await db.scalars(
+                    select(LanguageError)
+                    .where(LanguageError.turn_id == turn_id)
+                    .order_by(LanguageError.id)
+                )
+            ).all()
+        )
+
+    doc = await asyncio.to_thread(grammar.parse, transcript)
+    features = grammar.count(doc)
+    links = await asyncio.to_thread(forms.link, transcript, rows, doc)
+
+    async with session_factory() as db:
+        turn = await db.get(Turn, turn_id)
+        if turn is None:
+            return None
+        await db.execute(delete(GrammarUsage).where(GrammarUsage.turn_id == turn_id))
+        db.add_all(
+            [
+                GrammarUsage(turn_id=turn_id, feature=feature, count=count)
+                for feature, count in sorted(features.items())
+            ]
+        )
+        for row, link in zip(rows, links, strict=True):
+            stored = await db.get(LanguageError, row.id)
+            if stored is not None:
+                stored.form = link.form
+                stored.corrected_form = link.corrected_form
+        # The rows under this turn changed, so every snapshot computed from them is older
+        # than what it summarises and the next rollup rebuilds it.
+        turn.analyzed_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    return Reparsed(
+        turn_id=turn_id,
+        forms_before=before,
+        forms_after=features,
+        corrections=len(rows),
+        linked=sum(1 for link in links if link.linked),
+    )
+
+
+async def analysed_turn_ids(db) -> list[int]:
+    """Every analysed user turn, oldest first."""
+    return list(
+        (
+            await db.scalars(
+                select(Turn.id)
+                .where(Turn.role == "user", Turn.analysis_status == "analyzed")
+                .order_by(Turn.id)
+            )
+        ).all()
+    )
 
 
 async def pending_turn_ids(db, session_id: int | None = None) -> list[int]:
@@ -389,6 +505,7 @@ async def summarise(db, session_id: int, scenario: Scenario | None) -> dict:
             "fluency": None,
             "grammar_usage": {},
             "target_forms": _target_forms(scenario, {}),
+            "form_accuracy": {},
             "errors": _empty_errors(),
         }
 
@@ -432,7 +549,25 @@ async def summarise(db, session_id: int, scenario: Scenario | None) -> dict:
         "fluency": weighted_fluency(measures),
         "grammar_usage": {feature: int(count) for feature, count in features.items()},
         "target_forms": _target_forms(scenario, features),
+        "form_accuracy": form_accuracy(features, found),
         "errors": _errors(found, measures, rejects),
+    }
+
+
+def form_accuracy(features: dict, found: list[LanguageError]) -> dict:
+    """How correctly each verb form was used, from the forms counted and the corrections.
+
+    Only the corrections that may reach a rate, for the reason `is_counted` gives. Shared
+    with the rollups, so a session and the month it belongs to divide the same way.
+    """
+    links = [
+        forms.Link(row.form, row.corrected_form) for row in found if is_counted(row)
+    ]
+    return {
+        form: tally.as_dict()
+        for form, tally in forms.tally(
+            {feature: int(count) for feature, count in features.items()}, links
+        ).items()
     }
 
 
@@ -594,6 +729,8 @@ def _errors(found: list[LanguageError], measures, rejects) -> dict:
                 "asr_suspect": row.asr_suspect,
                 "counted": row in counted,
                 "detector": row.detector,
+                "form": row.form,
+                "corrected_form": row.corrected_form,
             }
             for row in found
         ],

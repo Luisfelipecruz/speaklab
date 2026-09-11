@@ -23,6 +23,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   error at a time in the repository's native English, 2 454 words: the rules catch **100 of
   126** agreement errors and **2 of 93** missing articles, with **no wrong fix and no stray
   proposal**. No proposal on any unplanted native text, asserted.
+- **Accuracy per verb form.** Each correction to a verb's form — its tense, its agreement,
+  a missing auxiliary or copula — now carries the form its words were said in and the form
+  the correction needs (`language_errors.form`, `corrected_form`, migration `0005`). The
+  correction is applied, the corrected text parsed, and the verb phrases compared before
+  and after. Per form: used, wrong, needed-and-not-said, and right over used plus needed.
+  In the session report (`form_accuracy`), in every snapshot (`accuracy.by_form`), and on
+  the progress page beside each tense and modal — *right 9 of 13 · 69 %*, the percentage
+  only from ten (`PROGRESS_MIN_FORM_CONTEXTS`), and *needed 2, never said* for a form the
+  learner avoided — with a caveat about the corrections underneath. `docs/decisions/0015`.
+- **The join, measured with no model.** Against hand-labelled corrections: **32 of 34**
+  held out, 55 of 55 in the set it was built against, 2 of 4 on the golden set's real
+  turns; **no correction on any set joined to a wrong form**, asserted.
+- **`make reparse`** — recounts the forms of every analysed turn and relinks its
+  corrections from the stored transcript, with no model call. For after a change to the
+  parser or the join; run `make rollup` after it.
+- **`past_perfect_continuous`**, a new name in the closed vocabulary of forms.
 
 ### Changed
 
@@ -42,6 +58,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Every present passive was counted as a past simple.** The tense was read from the
+  head, which in a passive is a past participle: `Is parking included?` was a past simple
+  and `has been cancelled` a past perfect. The tense is now read from the first finite
+  auxiliary.
+- **No negative or question in the simple tenses was counted.** `I didn't go` and `Do you
+  have…?` have their tense on `do` and a bare verb for a head, so neither produced a form.
+  They are now past and present simple; an imperative — `Don't worry`, no subject — is
+  still not.
+- **`had been waiting` was counted as a present perfect continuous.** Now
+  `past_perfect_continuous`. And a perfect or continuous with no tense (`having
+  finished`), `been` with its auxiliary missing, and a lexical verb the tagger labels an
+  auxiliary (`enjoy` in `I enjoy swimming`) are no longer miscounted.
+  Old counter against new over every stored learner turn, the repository's native English
+  and 2 791 words of package descriptions: **55 phrases changed, every one a correction.**
+  On the stored corpus, 3 turns gained 4 present simples; `make reparse` applies it.
 - **The accuracy caveat said the model's labelling measured 0.50 precision.** 0.50 was its
   detection precision — half its proposals landed on a real mistake; its labelling
   precision, the right category, measured 0.00. The caveat now says so, and says which

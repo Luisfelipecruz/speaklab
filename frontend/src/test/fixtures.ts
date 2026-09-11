@@ -277,6 +277,9 @@ export function makeRepertoire(overrides: Partial<Repertoire> = {}): Repertoire 
     forms: { present_simple: 9, past_simple: 4, going_to_future: 1 },
     distinct_forms: 3,
     previous_distinct_forms: 3,
+    accuracy: {},
+    accuracy_floor: 10,
+    caveat: null,
     warning: null,
     ...overrides,
   };

@@ -369,6 +369,12 @@ PROGRESS_MIN_ATTEMPTS = int(os.environ.get("PROGRESS_MIN_ATTEMPTS", "5"))
 # sample of two, whatever the surrounding reading was worth.
 PROGRESS_MIN_PHONE_SAMPLES = int(os.environ.get("PROGRESS_MIN_PHONE_SAMPLES", "5"))
 
+# Times a verb form was said or needed in one period before its accuracy is given as a
+# proportion. The counts are shown from the first one; "right 2 of 3" is a count, and
+# 67 % would claim a precision three observations do not have. At ten the 95 % interval
+# around 0.8 is still 0.49 to 0.94, which is as wide as a figure worth reading gets.
+PROGRESS_MIN_FORM_CONTEXTS = int(os.environ.get("PROGRESS_MIN_FORM_CONTEXTS", "10"))
+
 # Points on a series before a *direction* is claimed. The points themselves are drawn as
 # soon as they exist — hiding a measurement is its own dishonesty — but "improving" over
 # two of them is a line through noise, and it is the sentence a learner would act on.

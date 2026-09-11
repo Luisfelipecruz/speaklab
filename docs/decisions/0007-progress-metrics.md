@@ -163,6 +163,12 @@ previous period.**
 Every other combination is left to the numbers. A narrowing repertoire with a *rising*
 error rate is a bad week and already looks like one; a warning there would be noise.
 
+> **Superseded by [0015](0015-accuracy-per-form.md).** The join exists: a correction is
+> applied, the corrected text is parsed, and the verb phrases before and after are
+> compared, so each correction carries the form it was said in and the form it needs. It
+> is neither of the two routes named below — the model names no form, and the rule layer
+> attributes nothing — and it is as right as the corrections it is given.
+
 **There is no accuracy per form, and that is a limit rather than an omission.** Errors are
 filed under a taxonomy category — verb tense, article, preposition — and forms are counted
 by a dependency parse. Nothing in the schema links an error to the form it occurred in, so

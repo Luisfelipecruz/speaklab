@@ -22,6 +22,7 @@ from services.analysis import (
     analyse_turn,
     ensure_session_analysed,
     pending_turn_ids,
+    reparse_turn,
     summarise,
 )
 from services.security import hash_password
@@ -268,6 +269,96 @@ async def test_the_summary_says_which_detector_found_what(turn, factory, db_sess
     assert errors["rejection_rate"] == 0.0
 
 
+async def test_a_correction_is_stored_with_the_forms_it_was_made_in(
+    turn, factory, db_session
+):
+    """`I go` corrected to `I went`: said in the present simple, needing the past."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+
+    (found,) = await rows_for(db_session, LanguageError, turn.id)
+    assert (found.form, found.corrected_form) == ("present_simple", "past_simple")
+
+
+async def test_the_summary_gives_accuracy_per_form(turn, factory, db_session):
+    """Two present simples, one of them corrected to a past: the present simple is right
+    once in two, and the past simple was needed once and never said."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+    summary = await summarise(db_session, turn.session_id, None)
+
+    assert summary["form_accuracy"] == {
+        "present_simple": {
+            "used": 2,
+            "right": 1,
+            "wrong": 1,
+            "missed": 0,
+            "accuracy": 0.5,
+        },
+        "past_simple": {
+            "used": 0,
+            "right": 0,
+            "wrong": 0,
+            "missed": 1,
+            "accuracy": 0.0,
+        },
+    }
+    (item,) = summary["errors"]["items"]
+    assert (item["form"], item["corrected_form"]) == ("present_simple", "past_simple")
+
+
+async def test_a_failed_join_still_stores_the_correction(
+    turn, factory, db_session, monkeypatch
+):
+    """The correction is real without its forms. It is stored unlinked, and says why."""
+    from services import analysis
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("the join exploded")
+
+    monkeypatch.setattr(analysis.forms, "link", boom)
+    outcome = await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+
+    assert outcome.status == "analyzed"
+    (found,) = await rows_for(db_session, LanguageError, turn.id)
+    assert (found.form, found.corrected_form) == (None, None)
+    await db_session.refresh(turn)
+    assert "the form join failed" in turn.analysis_error
+
+
+async def test_reparse_recounts_and_relinks_without_the_model(
+    turn, factory, db_session
+):
+    """For a change to the parser or the join: the stored transcript and correction are
+    all it needs, and the correction itself is not touched."""
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR)]))
+    async with factory() as db:
+        (row,) = await rows_for(db, LanguageError, turn.id)
+        row.form = row.corrected_form = None
+        usage = await db.scalar(
+            select(GrammarUsage).where(
+                GrammarUsage.turn_id == turn.id,
+                GrammarUsage.feature == "present_simple",
+            )
+        )
+        usage.count = 9
+        analysed_at = (await db.get(Turn, turn.id)).analyzed_at
+        await db.commit()
+
+    done = await reparse_turn(turn.id, factory)
+
+    assert done.forms_before["present_simple"] == 9
+    assert done.forms_after["present_simple"] == 2
+    assert (done.corrections, done.linked) == (1, 1)
+    async with factory() as db:
+        (row,) = await rows_for(db, LanguageError, turn.id)
+        assert (row.form, row.corrected_form) == ("present_simple", "past_simple")
+        assert row.correction == AN_ERROR["correction"]
+        assert (await db.get(Turn, turn.id)).analyzed_at > analysed_at
+
+
+async def test_reparse_leaves_a_turn_that_was_never_analysed(turn, factory):
+    assert await reparse_turn(turn.id, factory) is None
+
+
 async def test_rejections_are_stored_on_the_turn(turn, factory, db_session):
     """The rate is the measurement that says whether the labelling model is strong
     enough, and it is not recoverable later from the proposals that passed."""
@@ -350,6 +441,8 @@ async def test_a_suspect_error_is_shown_but_not_counted(turn, factory, db_sessio
     assert summary["errors"]["counted"] == 0
     assert summary["errors"]["asr_suspect"] == 1
     assert summary["errors"]["items"][0]["counted"] is False
+    assert summary["form_accuracy"]["present_simple"]["wrong"] == 0
+    assert "past_simple" not in summary["form_accuracy"]
 
 
 async def test_a_session_with_no_user_turns_is_complete_rather_than_empty(

@@ -368,6 +368,7 @@ def _errors_section(results: dict, skips: dict) -> list[str]:
     if errors is not None:
         lines += _golden_errors(errors)
     lines += _planted_errors(results.get("rules"))
+    lines += _form_join(results.get("forms"))
     return lines
 
 
@@ -483,6 +484,42 @@ def _planted_errors(rules: dict | None) -> list[str]:
         "with a pronoun subject, and a role after `as`: everywhere else, whether a bare "
         "noun is missing its article depends on whether it can be counted, which a parse "
         "cannot say.",
+        "",
+    ]
+    return lines
+
+
+def _form_join(forms: dict | None) -> list[str]:
+    """How often a correction is filed under the verb forms a teacher would name. No model."""
+    if forms is None:
+        return []
+    names = {
+        "labelled": "Development set — the join was built against it",
+        "held_out": "Held out — never changed the join",
+        "golden": f"Golden set, `{forms.get('golden_set')}` — real learner turns",
+    }
+    lines = [
+        "#### Which verb form a correction was made in",
+        "",
+        f"Measured {forms['measured_at']}, with no model: hand-labelled corrections, each "
+        "with the form its words were said in and the form it needs, given to the join "
+        "that accuracy per form is computed from.",
+        "",
+        "| | Corrections | Both forms right | One side found | Wrong form |",
+        "|---|---:|---|---:|---:|",
+    ]
+    for name, counts in forms["sets"].items():
+        exact = scoring.proportion(counts.get("exact", 0), counts.get("cases", 0))
+        lines.append(
+            f"| {names.get(name, name)} | {counts.get('cases', 0)} | {exact.format()} | "
+            f"{counts.get('partial', 0)} | {counts.get('wrong', 0)} |"
+        )
+    lines += [
+        "",
+        "A side the join cannot find is a verb the parser lost, commonest in an "
+        "unpunctuated transcript; that side is left out of accuracy per form rather "
+        "than guessed. A wrong form would count a mistake against a form the learner "
+        "did not get wrong, and the suite fails on one.",
         "",
     ]
     return lines

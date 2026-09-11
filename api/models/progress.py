@@ -16,6 +16,8 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
+from config import PROGRESS_MIN_FORM_CONTEXTS
+
 # Which end of a scale is better, where that is defensible at all. `None` is the honest
 # answer for most fluency measures and it is the default: a metric with no stated
 # direction is drawn and not judged.
@@ -89,23 +91,45 @@ class PhoneTrend(BaseModel):
     samples: int = 0
 
 
+class FormAccuracy(BaseModel):
+    """How one verb form was used in a period: said, said wrongly, needed and not said.
+
+    `accuracy` is right over used plus missed, and it is withheld below the sample floor —
+    the counts are the measurement there, and a percentage of three would overstate it.
+    """
+
+    used: int = 0
+    right: int = 0
+    wrong: int = 0
+    missed: int = 0
+    accuracy: float | None = None
+
+
 class Repertoire(BaseModel):
-    """Which forms were used, and whether the range of them is shrinking.
+    """Which forms were used, how correctly, and whether the range of them is shrinking.
 
     Breadth is reported next to accuracy because either alone is misleading: a learner who
     retreats to the present simple makes fewer mistakes, and an error rate on its own
     calls that improvement.
 
-    **Accuracy is not broken down per form, and that is a limit rather than an omission.**
-    Errors are filed under a taxonomy category — verb tense, article, preposition — and
-    the forms are counted by a parser. Nothing links one error to the form it happened in,
-    so a per-form accuracy figure would be an invented join.
+    **Accuracy per form is for verb forms only.** A correction is joined to the verb
+    phrase it changes, so the tenses, aspects and modals have one; a relative clause or a
+    comparative does not, and is counted for breadth alone. Every correction that joins
+    was proposed by the rule layer or the language model, so the panel carries a caveat
+    of its own whenever it carries accuracy.
     """
 
     latest_period: date | None = None
     forms: dict[str, int] = Field(default_factory=dict)
     distinct_forms: int = 0
     previous_distinct_forms: int | None = None
+    accuracy: dict[str, FormAccuracy] = Field(default_factory=dict)
+    # Times a form was said or needed before its accuracy is given as a proportion. Sent
+    # with an empty panel too, because the page explains the floor before anything is in it.
+    accuracy_floor: int = PROGRESS_MIN_FORM_CONTEXTS
+    # What the accuracy is counted from, and how far to trust it. Set whenever there is
+    # accuracy to qualify, because this panel is read away from the error-rate chart.
+    caveat: str | None = None
     # Set when the range of forms narrowed while the error rate also fell. It is the one
     # combination that reads as progress and is not.
     warning: str | None = None

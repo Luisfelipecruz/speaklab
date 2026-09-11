@@ -45,13 +45,16 @@ Excluding rather than penalising is the same rule the product applies to its own
 applied to its own evaluation. Scoring those proposals either way would be inventing an
 answer to a question the transcript cannot settle.
 
-**And one measurement that needs no model.** The golden set holds almost nothing the rule
+**And two measurements that need no model.** The golden set holds almost nothing the rule
 layer covers, so on its own it cannot say what the layer is worth. Planted errors can: the
 native English in `tests/native_text.py`, with one verb put out of agreement or one
 indefinite article taken away at a time, each copy handed to the rules. What comes back
 says how many of the two errors the layer catches when a learner makes them and whether
-its correction restores the words that were there. It runs everywhere, CI included,
-because nothing in it is a model.
+its correction restores the words that were there.
+
+The second is the join that files a correction under the verb form it corrects, against
+the hand labels in `tests/form_labels.py` and the golden set's own. Both run everywhere,
+CI included, because nothing in them is a model.
 """
 
 import json
@@ -69,6 +72,7 @@ from services.errors import detect, low_confidence_spans
 from services.llm import OllamaProvider
 from services.taxonomy import CATEGORIES, RejectionReason
 from tests.eval_out import record
+from tests.form_labels import HELD_OUT, LABELLED, golden_cases, link_one, verdict
 from tests.native_text import native_texts
 
 _HERE = Path(__file__).resolve().parent
@@ -464,3 +468,46 @@ def test_the_rule_layer_on_planted_errors(capsys):
         counts["planted"] for counts in tally.values()
     ), "nothing was planted in one family, so this measured nothing about it"
     assert not wrong_fixes, f"a caught error was given the wrong fix: {wrong_fixes}"
+
+
+def test_the_form_join_on_hand_labels(capsys):
+    """How often a correction is linked to the forms a teacher would name, on three sets.
+
+    A missing side is printed and not asserted: the parse of an unpunctuated transcript
+    loses verbs, and a correction it cannot place is left out of every accuracy figure. A
+    wrong form is asserted against, on every set, because it would count a mistake
+    against a form the learner did not get wrong.
+    """
+    source, golden = golden_cases()
+    sets = {"labelled": LABELLED, "held_out": HELD_OUT}
+    if source is not None:
+        sets["golden"] = golden
+
+    results: dict[str, dict] = {}
+    wrong: list[str] = []
+    lines = [""]
+    for name, cases in sets.items():
+        counts = Counter({"exact": 0, "partial": 0, "wrong": 0})
+        for case in cases:
+            found = link_one(case)
+            said = verdict(case, found)
+            counts[said] += 1
+            if said != "exact":
+                lines.append(
+                    f"    {said:<8}{case.quote!r} labelled ({case.form}, "
+                    f"{case.corrected_form}), linked ({found.form}, {found.corrected_form})"
+                )
+            if said == "wrong":
+                wrong.append(f"{name}: {case.quote!r}")
+        results[name] = {"cases": len(cases), **counts}
+        lines.append(
+            f"  {name:<9} {len(cases):>3} cases  exact {counts['exact']:>3}  "
+            f"partial {counts['partial']}  wrong {counts['wrong']}"
+        )
+    print("\n".join(lines))
+
+    record(
+        "forms",
+        {"status": "measured", "golden_set": source, "sets": results},
+    )
+    assert not wrong, f"a correction was linked to a form it was not in: {wrong}"

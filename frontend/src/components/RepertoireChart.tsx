@@ -12,15 +12,19 @@
  * narrowing repertoire with a rising error rate, which is just a bad week and already
  * looks like one.
  *
- * **There is no accuracy per form here, and that is a limit worth naming.** Corrections are
- * filed under a taxonomy category and forms are counted by a parser; nothing links one to
- * the other, so a per-form accuracy bar would be an invented join with decimal places.
+ * **Each verb form carries how often it was right**, counted over the times it was used and
+ * the times it was needed and something else was said. The second half is why a form the
+ * learner never said can still be listed: "needed 3, never said" is the avoidance this
+ * panel exists to show. The count is always given; the percentage only from the floor the
+ * API sends, because two of three is a count and 67 % would claim more than it knows. The
+ * corrections behind it are the language model's for every tense, so the API's caveat is
+ * rendered here too: this panel is read away from the error-rate chart that carries one.
  */
 
-import { TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Repertoire } from "@/lib/api";
+import type { FormAccuracy, Repertoire } from "@/lib/api";
 
 export interface RepertoireChartProps {
   repertoire: Repertoire;
@@ -31,8 +35,37 @@ function readable(form: string): string {
   return form.replace(/_/g, " ");
 }
 
+/** "right 9 of 13 · 69 %", or "needed 2, never said". */
+function accuracyText(tally: FormAccuracy): string {
+  if (tally.used === 0) {
+    return `needed ${tally.missed}, never said`;
+  }
+  const counted = `right ${tally.right} of ${tally.used + tally.missed}`;
+  return tally.accuracy === null
+    ? counted
+    : `${counted} · ${Math.round(tally.accuracy * 100)} %`;
+}
+
+function times(count: number): string {
+  return count === 1 ? "1 time" : `${count} times`;
+}
+
+/** The same figures in words, for the tooltip. */
+function accuracyDetail(tally: FormAccuracy): string {
+  const said = `said ${times(tally.used)}, ${tally.wrong} of them corrected`;
+  return tally.missed > 0
+    ? `${said}; needed ${times(tally.missed)} more where another form was said`
+    : said;
+}
+
 export function RepertoireChart({ repertoire }: RepertoireChartProps) {
-  const forms = Object.entries(repertoire.forms).sort(
+  const counts: Record<string, number> = { ...repertoire.forms };
+  for (const [form, tally] of Object.entries(repertoire.accuracy)) {
+    if (!(form in counts) && tally.missed > 0) {
+      counts[form] = 0;
+    }
+  }
+  const forms = Object.entries(counts).sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
   const most = forms.length > 0 ? forms[0][1] : 0;
@@ -44,6 +77,9 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
         <CardDescription>
           Counted from a parse of what you said, not judged. Breadth is here because a
           narrower range of forms lowers an error rate without anybody getting better.
+          Beside each tense and modal: how often it was right, out of the times you used it
+          and the times it was needed and you said something else. The percentage appears
+          once a form has come up {repertoire.accuracy_floor} times.
         </CardDescription>
       </CardHeader>
 
@@ -55,6 +91,16 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
           >
             <TriangleAlert className="mt-1 size-4 shrink-0 text-chart-2" aria-hidden="true" />
             <span>{repertoire.warning}</span>
+          </p>
+        )}
+
+        {repertoire.caveat && (
+          <p
+            className="flex max-w-3xl gap-2 rounded-lg border border-chart-2/40 bg-chart-2/10 p-3 text-sm leading-relaxed text-foreground"
+            data-testid="form-accuracy-caveat"
+          >
+            <Info className="mt-1 size-4 shrink-0 text-chart-2" aria-hidden="true" />
+            <span>{repertoire.caveat}</span>
           </p>
         )}
 
@@ -81,21 +127,37 @@ export function RepertoireChart({ repertoire }: RepertoireChartProps) {
                 whole and the others are visibly fractions of it. A bar on its own has
                 nothing to be a fraction of. */}
             <ul className="flex flex-col gap-2">
-              {forms.map(([form, count]) => (
-                <li key={form} className="flex items-center gap-3 text-sm">
-                  <span className="w-44 shrink-0 truncate" title={readable(form)}>
-                    {readable(form)}
-                  </span>
-                  <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <span
-                      className="block h-full rounded-full bg-chart-1"
-                      style={{ width: `${Math.max(4, (count / most) * 100)}%` }}
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span className="w-8 text-right font-medium tabular-nums">{count}</span>
-                </li>
-              ))}
+              {forms.map(([form, count]) => {
+                const tally = repertoire.accuracy[form];
+                return (
+                  <li key={form} className="flex flex-col gap-0.5 text-sm">
+                    <span className="flex items-center gap-3">
+                      <span className="w-44 shrink-0 truncate" title={readable(form)}>
+                        {readable(form)}
+                      </span>
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        {count > 0 && (
+                          <span
+                            className="block h-full rounded-full bg-chart-1"
+                            style={{ width: `${Math.max(4, (count / most) * 100)}%` }}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </span>
+                      <span className="w-8 text-right font-medium tabular-nums">{count}</span>
+                    </span>
+                    {tally && (
+                      <span
+                        className="pl-47 text-xs text-muted-foreground tabular-nums"
+                        title={accuracyDetail(tally)}
+                        data-testid={`form-accuracy-${form}`}
+                      >
+                        {accuracyText(tally)}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}

@@ -306,6 +306,23 @@ export interface LanguageErrorItem {
    * Absent on a report written before the rules existed, when every row was the model's.
    */
   detector?: "llm" | "rule";
+  /**
+   * The verb form the corrected words were said in, and the one the correction needs.
+   * Null on a side with no finite form, and on both for a correction that is not of a
+   * verb's form. Absent on a report written before corrections were joined to forms.
+   */
+  form?: string | null;
+  corrected_form?: string | null;
+}
+
+/** How one verb form was used: said, said wrongly, and needed where it was not said. */
+export interface FormAccuracy {
+  used: number;
+  right: number;
+  wrong: number;
+  missed: number;
+  /** Right over used plus missed. Null where too few to give as a proportion. */
+  accuracy: number | null;
 }
 
 export interface SessionAnalysis {
@@ -325,6 +342,8 @@ export interface SessionAnalysis {
   } | null;
   grammar_usage: Record<string, number>;
   target_forms: { declared: string[]; elicited: string[]; not_elicited: string[] };
+  /** Per verb form. Absent on a report written before corrections were joined to forms. */
+  form_accuracy?: Record<string, FormAccuracy>;
   errors: {
     total: number;
     counted: number;
@@ -702,6 +721,12 @@ export interface Repertoire {
   forms: Record<string, number>;
   distinct_forms: number;
   previous_distinct_forms: number | null;
+  /** Per verb form, in the same period as `forms`. */
+  accuracy: Record<string, FormAccuracy>;
+  /** Times a form was said or needed before `accuracy` is given as a proportion. */
+  accuracy_floor: number;
+  /** What the accuracy is counted from and how far to trust it. Set when there is any. */
+  caveat: string | null;
   /** Set when the range of forms narrowed while the error rate also fell. */
   warning: string | null;
 }

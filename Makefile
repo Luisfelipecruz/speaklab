@@ -7,8 +7,8 @@
 .PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
-        persona-adherence corpus analyze analyze-dry error-precision rollup rollup-dry \
-        rollup-force
+        persona-adherence corpus analyze analyze-dry reparse error-precision rollup \
+        rollup-dry rollup-force
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -186,6 +186,10 @@ analyze:                           ## Analyse the user turns nothing has analyse
 
 analyze-dry:                       ## List what analysis is outstanding, and stop
 	docker compose exec api python -m scripts.analyze_backfill --dry-run
+
+reparse:                           ## Recount forms and relink corrections, no model call
+	@echo "After a change to the parser or the form join. Run \`make rollup\` after it."
+	docker compose exec api python -m scripts.reparse
 
 error-precision:                   ## Score error detection against the hand-labelled set
 	@echo "Needs Ollama on the host. Prints precision and recall; asserts only that the"

@@ -84,6 +84,15 @@ the model's precision and the rule layer's separately instead of asserting eithe
 proposal a rule had already made is not stored twice: it goes onto `turns.analysis_rejects`
 with the reason `superseded_by_rule`, and is not counted as a refusal.
 
+`language_errors.form` and `corrected_form` (revision `0005`) join a correction to the
+grammar the parser counts: the verb form the corrected words were said in, and the one
+the correction puts there, both in `grammar_usage`'s vocabulary. They are what accuracy
+per form is computed from — right is a form's `grammar_usage` count less the corrections
+said in it, over that count plus the corrections that needed it. Either can be NULL, and
+NULL is a finding: `She going` said no finite form, and a preposition error is not a
+correction of a verb. They are derived from the transcript and the correction, so `make
+reparse` recomputes them — and `grammar_usage` — without asking the model anything again.
+
 `progress_snapshots` is the only table nothing writes per turn: one row per user per
 period, at day and week granularity, rewritten from the rows underneath whenever they
 change. `updated_at` (revision `0004`) is what makes "is this row still current?" a

@@ -70,3 +70,92 @@ test("an account with nothing counted is told what would fill it in", () => {
   render(<RepertoireChart repertoire={makeRepertoire({ forms: {}, distinct_forms: 0 })} />);
   expect(screen.getByText(/a conversation of any length fills this in/i)).toBeInTheDocument();
 });
+
+test("a verb form's accuracy is a count below the floor and a percentage above it", () => {
+  render(
+    <RepertoireChart
+      repertoire={makeRepertoire({
+        forms: { present_simple: 12, past_simple: 2 },
+        accuracy: {
+          present_simple: { used: 12, right: 9, wrong: 3, missed: 1, accuracy: 0.6923 },
+          past_simple: { used: 2, right: 1, wrong: 1, missed: 0, accuracy: null },
+        },
+      })}
+    />,
+  );
+
+  expect(screen.getByTestId("form-accuracy-present_simple")).toHaveTextContent(
+    "right 9 of 13 · 69 %",
+  );
+  expect(screen.getByTestId("form-accuracy-past_simple")).toHaveTextContent("right 1 of 2");
+  expect(screen.getByTestId("form-accuracy-past_simple")).not.toHaveTextContent("%");
+});
+
+test("a form that was needed and never said is listed, because avoiding it is the finding", () => {
+  render(
+    <RepertoireChart
+      repertoire={makeRepertoire({
+        forms: { present_simple: 5, past_simple: 3 },
+        accuracy: {
+          present_perfect: { used: 0, right: 0, wrong: 0, missed: 2, accuracy: null },
+        },
+      })}
+    />,
+  );
+
+  const listed = screen.getAllByRole("listitem").map((node) => node.textContent);
+  expect(listed[listed.length - 1]).toContain("present perfect");
+  expect(screen.getByTestId("form-accuracy-present_perfect")).toHaveTextContent(
+    "needed 2, never said",
+  );
+});
+
+test("a form with no accuracy, such as a clause count, shows only its count", () => {
+  render(
+    <RepertoireChart
+      repertoire={makeRepertoire({ forms: { main_clause: 4 }, accuracy: {} })}
+    />,
+  );
+
+  expect(screen.queryByTestId("form-accuracy-main_clause")).not.toBeInTheDocument();
+});
+
+test("the detail behind a verb form's accuracy is in its tooltip", () => {
+  render(
+    <RepertoireChart
+      repertoire={makeRepertoire({
+        forms: { present_simple: 12 },
+        accuracy: {
+          present_simple: { used: 12, right: 9, wrong: 3, missed: 1, accuracy: 0.6923 },
+        },
+      })}
+    />,
+  );
+
+  expect(screen.getByTestId("form-accuracy-present_simple")).toHaveAttribute(
+    "title",
+    "said 12 times, 3 of them corrected; needed 1 time more where another form was said",
+  );
+});
+
+test("the caveat the API sends with accuracy per form is shown beside it", () => {
+  render(
+    <RepertoireChart
+      repertoire={makeRepertoire({
+        accuracy: {
+          present_simple: { used: 9, right: 8, wrong: 1, missed: 0, accuracy: null },
+        },
+        caveat: "A wrong correction counts against a form you used correctly.",
+      })}
+    />,
+  );
+
+  expect(screen.getByTestId("form-accuracy-caveat")).toHaveTextContent(
+    "a form you used correctly",
+  );
+});
+
+test("no caveat is shown when there is no accuracy to qualify", () => {
+  render(<RepertoireChart repertoire={makeRepertoire({ caveat: null })} />);
+  expect(screen.queryByTestId("form-accuracy-caveat")).not.toBeInTheDocument();
+});
