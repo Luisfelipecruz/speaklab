@@ -78,7 +78,7 @@ SUITES = (
         "asr",
         "tests/test_asr_golden.py",
         "Speech recognition",
-        {"ASR_URL": "http://asr:8101"},
+        {"ASR_URL": "http://asr:8101", "TTS_URL": "http://tts:8102"},
         "make asr-wer",
     ),
     Suite(

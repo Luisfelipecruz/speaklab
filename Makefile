@@ -142,10 +142,10 @@ migrate-status:                    ## Which revision the database is on, and wha
 seed:                              ## Load the scenarios and passages. Idempotent.
 	docker compose exec api python -m scripts.seed
 
-asr-wer:                           ## Measure WER on the golden set against the live asr
+asr-wer:                           ## Measure WER, and mistakes said aloud, against the live asr
 	@echo "Needs \`make up\`."
 	docker compose --profile tools run --rm \
-		-e ASR_URL=http://asr:8101 test \
+		-e ASR_URL=http://asr:8101 -e TTS_URL=http://tts:8102 test \
 		python -m pytest /app/tests/test_asr_golden.py -v -s
 
 tts-latency:                       ## Measure synthesis latency against the live tts

@@ -245,36 +245,63 @@ def _bare(text: str) -> str:
     return "".join(ch for ch in text if ch.isalnum()).lower()
 
 
+def placed(transcript: str, start: int | None, end: int | None, original: str) -> bool:
+    """Whether the stored offsets hold the words the correction quotes.
+
+    Compared the way the offsets were found — letters and digits only — so a difference in
+    capitals or spacing still places it and a different word does not.
+    """
+    return (
+        start is not None
+        and end is not None
+        and 0 <= start < end <= len(transcript)
+        and _bare(transcript[start:end]) == _bare(original)
+    )
+
+
+def sentence_bounds(
+    transcript: str, start: int, end: int
+) -> tuple[int, int, bool, bool]:
+    """Where the sentence around `[start, end)` begins and ends, and whether each side was cut.
+
+    The sentence runs to the nearest `.`, `?` or `!` either side, and no further than
+    `GRAMMAR_CONTEXT_CHARS` from the words — the recogniser often writes a turn as one
+    sentence — cut back to a whole word where there is a space to cut at.
+    """
+    opens = max(transcript.rfind(mark, 0, start) for mark in ".?!") + 1
+    closes = [i for mark in ".?!" if (i := transcript.find(mark, end)) != -1]
+    stops = min(closes) + 1 if closes else len(transcript)
+    while opens < start and transcript[opens].isspace():
+        opens += 1
+    while stops > end and transcript[stops - 1].isspace():
+        stops -= 1
+
+    cut_before = start - opens > GRAMMAR_CONTEXT_CHARS
+    if cut_before:
+        cut = start - GRAMMAR_CONTEXT_CHARS
+        space = transcript.find(" ", cut, start)
+        opens = space + 1 if space != -1 else cut
+    cut_after = stops - end > GRAMMAR_CONTEXT_CHARS
+    if cut_after:
+        cut = transcript[end : end + GRAMMAR_CONTEXT_CHARS]
+        stops = end + (cut.rfind(" ") if " " in cut.strip() else len(cut))
+    return opens, stops, cut_before, cut_after
+
+
 def excerpt(
     transcript: str, start: int | None, end: int | None, original: str
 ) -> tuple[str, str | None, str]:
     """The sentence a correction sits in, cut around it: before, the words, after.
 
-    The words are the transcript's, checked against the correction's quote the way the
-    offsets were found — letters and digits only — so a difference in capitals or spacing
-    still places it and a different word does not. Unplaced, all three are empty but the
-    quote is None, and the correction is shown on its own.
+    The words are the transcript's. Unplaced, all three are empty but the quote is None,
+    and the correction is shown on its own.
     """
-    if (
-        start is None
-        or end is None
-        or not 0 <= start < end <= len(transcript)
-        or _bare(transcript[start:end]) != _bare(original)
-    ):
+    if not placed(transcript, start, end, original):
         return "", None, ""
 
-    opens = max(transcript.rfind(mark, 0, start) for mark in ".?!") + 1
-    closes = [i for mark in ".?!" if (i := transcript.find(mark, end)) != -1]
-    stops = min(closes) + 1 if closes else len(transcript)
-
-    before = transcript[opens:start].lstrip()
-    after = transcript[end:stops].rstrip()
-    if len(before) > GRAMMAR_CONTEXT_CHARS:
-        cut = before[-GRAMMAR_CONTEXT_CHARS:]
-        before = "…" + cut[cut.find(" ") + 1 :] if " " in cut else "…" + cut
-    if len(after) > GRAMMAR_CONTEXT_CHARS:
-        cut = after[:GRAMMAR_CONTEXT_CHARS]
-        after = (cut[: cut.rfind(" ")] if " " in cut.strip() else cut) + "…"
+    opens, stops, cut_before, cut_after = sentence_bounds(transcript, start, end)
+    before = ("…" if cut_before else "") + transcript[opens:start]
+    after = transcript[end:stops] + ("…" if cut_after else "")
     return before, transcript[start:end], after
 
 

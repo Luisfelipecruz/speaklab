@@ -129,3 +129,16 @@ test("losing focus mid-recording stops it", async () => {
 
   expect(onStop).toHaveBeenCalled();
 });
+
+test("what is being sent can be named for something that is not a turn", () => {
+  render(
+    <RecordButton
+      phase="uploading"
+      onStart={() => {}}
+      onStop={() => {}}
+      labels={{ uploading: "Sending what you said" }}
+    />,
+  );
+
+  expect(screen.getByRole("button", { name: "Sending what you said" })).toBeInTheDocument();
+});

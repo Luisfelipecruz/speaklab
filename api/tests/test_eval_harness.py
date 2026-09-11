@@ -373,6 +373,63 @@ def test_the_form_join_is_reported_set_by_set():
     assert "`manifest.local.json`" in errors_part
 
 
+def test_a_mistake_said_aloud_is_reported_both_ways_round_with_what_was_repaired():
+    """The drill's blind spot is a rate over the sentences spoken with the mistake, and it
+    means nothing without the same sentences spoken corrected beside it."""
+    asr = {
+        "measured_at": "2026-09-11T23:00:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "wer": 0.0172,
+        "errors": 4,
+        "reference_words": 232,
+        "utterances": 10,
+        "substitutions": 3,
+        "deletions": 1,
+        "insertions": 0,
+        "ceiling": 0.05,
+    }
+    drill = {
+        "measured_at": "2026-09-11T23:05:00+00:00",
+        "status": "measured",
+        "model": "small.en",
+        "voice": "en_US-lessac-medium",
+        "sentences": 89,
+        "spoken_as_said": {"corrected": 3, "original": 78, "other": 8, "unheard": 0},
+        "spoken_as_corrected": {
+            "corrected": 87,
+            "original": 0,
+            "other": 2,
+            "unheard": 0,
+        },
+        "unexpected": [
+            {
+                "spoken_as": "said",
+                "verdict": "corrected",
+                "spoken": "He can speaks three languages.",
+                "heard": "He can speak three languages.",
+            },
+            {
+                "spoken_as": "corrected",
+                "verdict": "other",
+                "spoken": "We arrived in Madrid at night.",
+                "heard": "We arrive in Madrid at night.",
+            },
+        ],
+    }
+    results = {"asr": asr, "drill": drill}
+    document = report.render(results, report.adjudicate(results, skips={}, readme=""))
+
+    part = document.split("\n### Speech recognition")[1].split("\n### ")[0]
+    assert "#### A mistake said aloud: heard, or repaired" in part
+    assert "| With the mistake | 0.034 [" in part and "over 89 | 0.876 [" in part
+    assert "| Corrected | 0.978 [" in part
+    assert (
+        "- `He can speaks three languages.` → `He can speak three languages.`" in part
+    )
+    assert "We arrived in Madrid" not in part
+
+
 def test_a_suite_that_produced_figures_and_then_failed_says_so():
     """The bug this test exists for was in the runner, and it hid a real finding.
 

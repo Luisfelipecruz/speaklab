@@ -11,13 +11,18 @@
  * solid when the correction counts, grey and dotted when it sits on words the recogniser
  * was unsure of or the model hedged. A correction whose words could not be placed is shown
  * on its own, without a sentence around it, rather than marked on the wrong words.
+ *
+ * A correction placed in its sentence can be said again: the link opens the drill, which
+ * starts by showing the correction so that one the learner disagrees with can be skipped.
  */
 
 import Link from "next/link";
+import { Mic } from "lucide-react";
 
 import { RuleBadge } from "@/components/Corrections";
 import { humanise } from "@/components/ScenarioCard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CategoryCorrections, CorrectionExample } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -56,6 +61,14 @@ function Example({ example }: { example: CorrectionExample }) {
         <span aria-hidden="true">→</span>
         <span className="sr-only">Proposed instead:</span>
         <span className="font-medium">{example.correction}</span>
+        {example.quote !== null && (
+          <Button asChild variant="outline" size="sm" className="ml-auto h-7 gap-1.5 px-2.5 text-xs">
+            <Link href={`/grammar/drill/${example.id}`}>
+              <Mic aria-hidden="true" />
+              Say it again
+            </Link>
+          </Button>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {example.subcategory && (

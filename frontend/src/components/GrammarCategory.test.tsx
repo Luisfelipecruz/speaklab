@@ -85,3 +85,21 @@ test("when only the newest are quoted, it says how many there are and where the 
 
   expect(screen.getByText(/The newest 1 of 7/)).toBeInTheDocument();
 });
+
+test("a correction placed in its sentence can be said again; one that is not, cannot", () => {
+  render(
+    <GrammarCategory
+      category={makeCategory({
+        counted: 2,
+        examples: [
+          makeCorrectionExample(),
+          makeCorrectionExample({ id: 42, quote: null, before: "", after: "" }),
+        ],
+      })}
+    />,
+  );
+
+  const links = screen.getAllByRole("link", { name: "Say it again" });
+  expect(links).toHaveLength(1);
+  expect(links[0]).toHaveAttribute("href", "/grammar/drill/41");
+});

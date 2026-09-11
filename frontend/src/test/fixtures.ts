@@ -11,6 +11,8 @@ import type {
   AttemptDetail,
   CategoryCorrections,
   CorrectionExample,
+  Drill,
+  DrillResult,
   FormPractice,
   GrammarPage,
   MetricFamily,
@@ -449,6 +451,60 @@ export function makeGrammarPage(overrides: Partial<GrammarPage> = {}): GrammarPa
       need: 5,
     },
     caveat: "Every correction here was proposed by grammar rules or by a language model.",
+    ...overrides,
+  };
+}
+
+export function makeDrill(overrides: Partial<Drill> = {}): Drill {
+  return {
+    id: 41,
+    session_id: 12,
+    turn_id: 6,
+    said_at: "2026-08-30T10:04:00Z",
+    scenario_title: "Daily standup",
+    corrections: [
+      {
+        id: 41,
+        category: "VERB_TENSE",
+        label: "verb tense",
+        subcategory: "missing_past_marker",
+        original: "I complete",
+        correction: "I completed",
+        explanation: "Yesterday needs the past simple.",
+        detector: "llm",
+        counted: true,
+        asr_suspect: false,
+      },
+    ],
+    pieces: [
+      { said: "Yesterday ", say: "Yesterday ", correction_id: null },
+      { said: "I complete", say: "I completed", correction_id: 41 },
+      { said: " the user story.", say: " the user story.", correction_id: null },
+    ],
+    unavailable: null,
+    cut_before: false,
+    cut_after: false,
+    next_id: 44,
+    caveat: "The recogniser was trained on fluent English, and it can hear the correct form.",
+    ...overrides,
+  };
+}
+
+export function makeDrillResult(overrides: Partial<DrillResult> = {}): DrillResult {
+  return {
+    heard: "Yesterday I completed the user story.",
+    words: ["yesterday", "i", "completed", "the", "user", "story"].map((word) => ({
+      expected: word,
+      heard: word,
+    })),
+    verdicts: [
+      { id: 41, verdict: "corrected", expected: "i completed", heard: "i completed", unsure: false },
+    ],
+    expected_words: 6,
+    matched: 6,
+    substituted: 0,
+    missed: 0,
+    added: 0,
     ...overrides,
   };
 }

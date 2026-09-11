@@ -149,6 +149,9 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         ("POST", "/progress/refresh"),
         # The grammar page, scoped the same way.
         ("GET", "/grammar"),
+        # A correction said again. Scoped through its turn's session, not a column.
+        ("GET", "/corrections/{error_id}/drill"),
+        ("POST", "/corrections/{error_id}/drill"),
     }
 
 

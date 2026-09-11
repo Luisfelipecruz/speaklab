@@ -51,6 +51,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and been corrected five (`GRAMMAR_MIN_FORM_CORRECTIONS`). Below that it says how near
   the nearest form is. One new operation, `GET /grammar`: 26 of the 30 forecast.
   `docs/decisions/0016`.
+- **Say it again: a spoken drill on any correction.** *Say it again* beside each correction
+  on the grammar page opens `/grammar/drill/{id}`: the sentence as it was said, with the
+  correction in it — and every other correction the sentence held — shown first, with a
+  way to skip to the next of the same kind. Hold the button and say it; the page shows what
+  the recogniser heard where each correction belongs — the correction, the words as first
+  said, something else, or nothing — and the sentence word by word, with the words the
+  recogniser was unsure of marked. No pass mark, no percentage, no model call, and nothing
+  stored — not the recording and not the result. Two new operations, `GET` and
+  `POST /corrections/{id}/drill`: 28 of the 30 forecast. `docs/decisions/0017`.
+- **A mistake said aloud, measured.** The speech recognition suite (`make asr-wer`, and
+  `make eval`) now speaks 89 hand-labelled learner sentences with the `tts` voice, with
+  their mistake and corrected, and compares what `small.en` heard as the drill does: a
+  mistake heard as its correction **2, 3 and 2 of 89** in three runs, a correct sentence
+  heard as the mistake **0 of 89** in each. `docs/evaluation.md` gains the table when it is next generated.
 
 ### Changed
 
@@ -67,6 +81,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   unchanged.
 - **The analysis job parses each turn once** and gives the parse to both the form counter
   and the rules.
+- **The word error rate's alignment is its own function**, `wer.align`, and the rate is
+  counted from it — the figures are unchanged, and the drill reads which heard word stood
+  for which.
 
 ### Fixed
 

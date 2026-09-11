@@ -167,5 +167,5 @@ eleven learner turns, as before.
   precision measured on six proposals.
 - **The rule layer's past context is one sentence wide** (§6). Widening it spends the
   planted-error measurement's credibility unless a new held-out set is written first.
-- **The drill.** Item 4 practises one of these sentences aloud; whether it starts from this
-  page or the session page is still open.
+- ~~**The drill.**~~ *Settled by 0017: it starts from this page, on a page of its own, with
+  no pass mark.*

@@ -330,6 +330,49 @@ def _asr_section(results: dict, skips: dict) -> list[str]:
         "rank two configurations a few errors apart.",
         "",
     ]
+    return lines + _drill(results.get("drill"))
+
+
+def _drill(drill: dict | None) -> list[str]:
+    """Whether a mistake said aloud reaches the transcript, as the spoken drill reads it."""
+    if drill is None:
+        return []
+    sentences = drill["sentences"]
+    said, corrected = drill["spoken_as_said"], drill["spoken_as_corrected"]
+    lines = [
+        "#### A mistake said aloud: heard, or repaired",
+        "",
+        f"Measured {drill['measured_at']}, `{drill['model']}` hearing the voice "
+        f"`{drill['voice']}`: {sentences} hand-labelled learner sentences, each spoken as "
+        "the learner said it and as corrected, and compared the way the spoken drill "
+        "compares a learner saying it again — what was heard where the correction belongs.",
+        "",
+        "| Spoken | Heard as the correction | Heard as said | Something else | Nothing |",
+        "|---|---|---|---:|---:|",
+    ]
+    for name, counts in (("With the mistake", said), ("Corrected", corrected)):
+        lines.append(
+            f"| {name} | {scoring.proportion(counts['corrected'], sentences).format()} | "
+            f"{scoring.proportion(counts['original'], sentences).format()} | "
+            f"{counts['other']} | {counts['unheard']} |"
+        )
+    repaired = [
+        item
+        for item in drill.get("unexpected", [])
+        if item["spoken_as"] == "said" and item["verdict"] == "corrected"
+    ]
+    lines += [
+        "",
+        "A mistake heard as the correction is the drill's blind spot: the learner said it "
+        "wrong and the drill would show it right. One clear synthetic voice gives the "
+        "recogniser the most to go on, so this is the rate for the clearest speech there "
+        "is, not for a learner's.",
+        "",
+    ]
+    if repaired:
+        lines += ["Heard as the correction:", ""]
+        lines += [f"- `{item['spoken']}` → `{item['heard']}`" for item in repaired]
+        lines.append("")
     return lines
 
 

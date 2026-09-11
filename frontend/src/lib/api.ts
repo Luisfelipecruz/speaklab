@@ -855,6 +855,75 @@ export interface GrammarPage {
   caveat: string | null;
 }
 
+// ── Saying a correction again ───────────────────────────────────────────────
+
+/** A stretch of the sentence, as it was said and as it is to be said. */
+export interface DrillPiece {
+  said: string;
+  say: string;
+  /** Set on the words a correction put in. */
+  correction_id: number | null;
+}
+
+export interface DrillCorrection {
+  id: number;
+  category: string;
+  label: string;
+  subcategory: string | null;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  detector: "llm" | "rule";
+  counted: boolean;
+  asr_suspect: boolean;
+}
+
+/** One correction to practise, in the sentence it was made in. */
+export interface Drill {
+  id: number;
+  session_id: number;
+  turn_id: number;
+  said_at: string;
+  scenario_title: string | null;
+  /** Every correction applied to the sentence, in text order; the one practised among them. */
+  corrections: DrillCorrection[];
+  /** Empty when the correction cannot be practised aloud; `unavailable` says why. */
+  pieces: DrillPiece[];
+  unavailable: string | null;
+  cut_before: boolean;
+  cut_after: boolean;
+  next_id: number | null;
+  caveat: string;
+}
+
+export type DrillVerdictKind = "corrected" | "original" | "other" | "unheard";
+
+export interface DrillVerdict {
+  id: number;
+  verdict: DrillVerdictKind;
+  expected: string;
+  heard: string;
+  unsure: boolean;
+}
+
+/** What the recogniser heard, compared with the sentence. Nothing is stored. */
+export interface DrillResult {
+  heard: string;
+  words: { expected: string | null; heard: string | null }[];
+  verdicts: DrillVerdict[];
+  expected_words: number;
+  matched: number;
+  substituted: number;
+  missed: number;
+  added: number;
+}
+
+export function postDrill(id: number, audio: Blob, filename = "drill.webm"): Promise<DrillResult> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  return request<DrillResult>(`/corrections/${id}/drill`, { method: "POST", body: form });
+}
+
 export function getProgress(
   params: { period?: string; days?: number } = {},
 ): Promise<Progress> {

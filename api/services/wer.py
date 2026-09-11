@@ -67,17 +67,50 @@ class WerResult:
         return self.errors / self.reference_words
 
 
-def wer(reference: str, hypothesis: str) -> WerResult:
-    """Levenshtein alignment over words, with the three edit types counted separately.
+@dataclass(frozen=True)
+class Step:
+    """One step of an alignment: a reference word, a heard word, or one of each.
 
-    The standard dynamic program, with the back-pointer walk that recovers *which* edits
-    were used rather than only how many. Two rows of the matrix at a time would be
-    enough for the total, but not for the breakdown, and the breakdown is why this
-    function is not a one-liner.
+    Indices into the two word lists. Both set is a match or a substitution — the words
+    say which; only `ref` is a word not heard; only `hyp` is a word heard that is not in
+    the reference.
     """
+
+    ref: int | None
+    hyp: int | None
+
+
+def wer(reference: str, hypothesis: str) -> WerResult:
+    """Levenshtein alignment over words, with the three edit types counted separately."""
     ref = normalise(reference)
     hyp = normalise(hypothesis)
 
+    substitutions = deletions = insertions = 0
+    for step in align(ref, hyp):
+        if step.hyp is None:
+            deletions += 1
+        elif step.ref is None:
+            insertions += 1
+        elif ref[step.ref] != hyp[step.hyp]:
+            substitutions += 1
+
+    return WerResult(
+        substitutions=substitutions,
+        deletions=deletions,
+        insertions=insertions,
+        reference_words=len(ref),
+    )
+
+
+def align(ref: list[str], hyp: list[str]) -> list[Step]:
+    """Which heard word stands for which reference word, in order.
+
+    The standard dynamic program, with the back-pointer walk that recovers *which* edits
+    were used rather than only how many. Two rows of the matrix at a time would be
+    enough for the total, but not for the breakdown or for the pairing, and those are
+    why this function is not a one-liner. Where two alignments cost the same, the walk
+    prefers a match, then a substitution, then a word not heard.
+    """
     rows, cols = len(ref) + 1, len(hyp) + 1
     cost = [[0] * cols for _ in range(rows)]
     for i in range(rows):
@@ -96,7 +129,7 @@ def wer(reference: str, hypothesis: str) -> WerResult:
                     cost[i][j - 1],  # insertion
                 )
 
-    substitutions = deletions = insertions = 0
+    steps: list[Step] = []
     i, j = len(ref), len(hyp)
     while i > 0 or j > 0:
         if (
@@ -105,20 +138,17 @@ def wer(reference: str, hypothesis: str) -> WerResult:
             and ref[i - 1] == hyp[j - 1]
             and cost[i][j] == cost[i - 1][j - 1]
         ):
+            steps.append(Step(i - 1, j - 1))
             i, j = i - 1, j - 1
         elif i > 0 and j > 0 and cost[i][j] == cost[i - 1][j - 1] + 1:
-            substitutions += 1
+            steps.append(Step(i - 1, j - 1))
             i, j = i - 1, j - 1
         elif i > 0 and cost[i][j] == cost[i - 1][j] + 1:
-            deletions += 1
+            steps.append(Step(i - 1, None))
             i -= 1
         else:
-            insertions += 1
+            steps.append(Step(None, j - 1))
             j -= 1
 
-    return WerResult(
-        substitutions=substitutions,
-        deletions=deletions,
-        insertions=insertions,
-        reference_words=len(ref),
-    )
+    steps.reverse()
+    return steps
