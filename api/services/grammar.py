@@ -115,19 +115,33 @@ def load():
     return _nlp
 
 
+def parse(transcript: str):
+    """The parse of one transcript, or None when there is nothing to parse.
+
+    Separate from `analyse` because the rule layer in `services/rules.py` reads the same
+    parse, and a turn is parsed once rather than once per reader.
+    """
+    text = (transcript or "").strip()
+    if not text:
+        return None
+    nlp = load()
+    with _lock:
+        return nlp(text)
+
+
 def analyse(transcript: str) -> dict[str, int]:
     """Feature counts for one transcript. Only features that occurred appear.
 
     Absent means zero, and the caller writes one row per entry — a turn with no
     conditionals should not carry twenty-seven rows of zero to say so.
     """
-    text = (transcript or "").strip()
-    if not text:
-        return {}
+    return count(parse(transcript))
 
-    nlp = load()
-    with _lock:
-        doc = nlp(text)
+
+def count(doc) -> dict[str, int]:
+    """Feature counts from a parse `parse` returned."""
+    if doc is None:
+        return {}
 
     counts: Counter[str] = Counter()
     for token in doc:

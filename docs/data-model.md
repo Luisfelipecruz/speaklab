@@ -79,8 +79,10 @@ using the present simple; measuring errors alone rewards avoidance. Counting whi
 were *used* is what makes a narrowing repertoire visible as the regression it is.
 
 `language_errors.detector` (`'llm'` or `'rule'`) is the one place an LLM's output is
-recorded, and it is labelled as such. That is what lets m11 report LLM precision against
-the rule layer instead of asserting it.
+recorded, and it is labelled as such. That is what lets the error-precision suite report
+the model's precision and the rule layer's separately instead of asserting either. A model
+proposal a rule had already made is not stored twice: it goes onto `turns.analysis_rejects`
+with the reason `superseded_by_rule`, and is not counted as a refusal.
 
 `progress_snapshots` is the only table nothing writes per turn: one row per user per
 period, at day and week granularity, rewritten from the rows underneath whenever they

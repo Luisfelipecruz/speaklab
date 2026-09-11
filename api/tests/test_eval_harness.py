@@ -290,6 +290,63 @@ def test_a_suite_that_did_not_run_gets_no_figure_and_no_stale_number():
     assert "none is carried forward" in document
 
 
+def test_each_detector_is_reported_on_its_own():
+    """A rule layer that raised the product's precision while the model's own figure
+    went unreported would read as the model getting better. Both rows, always."""
+    result = errors_result(2, 1, 1)
+    result["superseded"] = 1
+    result["by_detector"] = {
+        "llm": {
+            "scored": 4,
+            "excluded": 0,
+            "true_positives": 1,
+            "mislabelled": 2,
+            "false_positives": 1,
+        },
+        "rule": {
+            "scored": 1,
+            "excluded": 0,
+            "true_positives": 1,
+            "mislabelled": 0,
+            "false_positives": 0,
+        },
+    }
+    document = report.render(
+        {"errors": result}, report.adjudicate({"errors": result}, readme="")
+    )
+
+    assert "gemma3:4b and the rule layer" in document
+    assert "| `gemma3:4b` alone | 4 |" in document
+    assert "| Rules alone | 1 |" in document
+    assert "superseded by a rule making the same correction: 1" in document
+
+
+def test_the_planted_errors_are_reported_when_no_model_ran():
+    """The planted measurement needs no model, so CI produces it on every run while the
+    golden-set half is not run. One must not wait for the other."""
+    rules_result = {
+        "measured_at": "2026-09-11T18:00:00+00:00",
+        "status": "measured",
+        "texts": 56,
+        "words": 2454,
+        "planted": {
+            "agreement": {"planted": 126, "caught": 100, "missed": 26},
+            "article": {"planted": 93, "caught": 2, "missed": 91},
+        },
+    }
+    skips = {"errors": "gemma3:4b is not pulled"}
+    document = report.render(
+        {"rules": rules_result},
+        report.adjudicate({"rules": rules_result}, skips=skips, readme=""),
+        skips=skips,
+    )
+
+    errors_part = document.split("\n### Error detection")[1].split("\n### ")[0]
+    assert "Not run." in errors_part
+    assert "| Subject–verb agreement | 126 |" in errors_part
+    assert "| Missing article | 93 |" in errors_part
+
+
 def test_a_suite_that_produced_figures_and_then_failed_says_so():
     """The bug this test exists for was in the runner, and it hid a real finding.
 

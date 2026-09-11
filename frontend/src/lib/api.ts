@@ -301,6 +301,11 @@ export interface LanguageErrorItem {
   confidence: number;
   asr_suspect: boolean;
   counted: boolean;
+  /**
+   * Which detector proposed it: grammar rules read from the parse, or the language model.
+   * Absent on a report written before the rules existed, when every row was the model's.
+   */
+  detector?: "llm" | "rule";
 }
 
 export interface SessionAnalysis {
@@ -328,7 +333,11 @@ export interface SessionAnalysis {
     per_100_words: number | null;
     by_category: Record<string, number>;
     items: LanguageErrorItem[];
+    /** Rows per detector. Absent on a report written before the rules existed. */
+    by_detector?: Record<string, number>;
     rejected: number;
+    /** The model's proposals a rule had already made, which are not stored twice. */
+    superseded?: number;
     rejection_rate: number | null;
     rejected_reasons: Record<string, number>;
   };

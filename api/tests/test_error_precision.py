@@ -1,8 +1,8 @@
 """Error detection against the hand-labelled golden set: real transcripts, a real model.
 
-**Skipped unless a live model is reachable**, like the other measurement suites here.
-`make test` and CI point `OLLAMA_BASE_URL` at a host that does not resolve, because the
-unit suites need a provider that is down. To run this one:
+**The golden-set test is skipped unless a live model is reachable**, like the other
+measurement suites here. `make test` and CI point `OLLAMA_BASE_URL` at a host that does
+not resolve, because the unit suites need a provider that is down. To run it:
 
     make error-precision
 
@@ -11,6 +11,14 @@ of it is a person talking about their actual job. What ships is the role-play ha
 `manifest.local.json` is the union and is used instead when it is there. The report names
 which file it read, because the two are different sample sizes and a figure without its n
 is not a figure.
+
+**Three readings of one run.** There are two detectors — the language model, and the rule
+layer in `services/rules.py` — and one product, which stores what the rules proposed and
+what the model proposed that a rule had not already. Each is scored on its own. The model
+is scored on everything it proposed that passed the gate, including what a rule
+superseded, so its figure is the model's and not the model's plus a rule's. A layer that
+improved the product while hiding the model's own rate would read as the model getting
+better, and it did not.
 
 **What is asserted and what is only reported.** Nothing here asserts a precision figure,
 and that is not caution — it is arithmetic. The published set is four real turns carrying
@@ -36,9 +44,19 @@ grows by somebody holding a conversation with the product. Re-run it then.
 Excluding rather than penalising is the same rule the product applies to its own trends,
 applied to its own evaluation. Scoring those proposals either way would be inventing an
 answer to a question the transcript cannot settle.
+
+**And one measurement that needs no model.** The golden set holds almost nothing the rule
+layer covers, so on its own it cannot say what the layer is worth. Planted errors can: the
+native English in `tests/native_text.py`, with one verb put out of agreement or one
+indefinite article taken away at a time, each copy handed to the rules. What comes back
+says how many of the two errors the layer catches when a learner makes them and whether
+its correction restores the words that were there. It runs everywhere, CI included,
+because nothing in it is a model.
 """
 
 import json
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import get_args
 
@@ -46,10 +64,12 @@ import httpx
 import pytest
 
 from config import ASR_CONFIDENCE_FLOOR, OLLAMA_BASE_URL, OLLAMA_MODEL
+from services import grammar, rules
 from services.errors import detect, low_confidence_spans
 from services.llm import OllamaProvider
 from services.taxonomy import CATEGORIES, RejectionReason
 from tests.eval_out import record
+from tests.native_text import native_texts
 
 _HERE = Path(__file__).resolve().parent
 GOLDEN = next(
@@ -77,7 +97,7 @@ def _model_ready() -> tuple[bool, str]:
 
 
 READY, WHY_NOT = _model_ready()
-pytestmark = pytest.mark.skipif(not READY, reason=WHY_NOT or "no model")
+needs_model = pytest.mark.skipif(not READY, reason=WHY_NOT or "no model")
 
 
 @pytest.fixture(scope="module")
@@ -119,18 +139,79 @@ def _best_label(accepted, labels: list[dict]) -> dict | None:
     return next((hit for hit in hits if hit["kind"] == "error"), hits[0])
 
 
+@dataclass
+class Tally:
+    """One detector's proposals, scored the three ways the module docstring gives."""
+
+    true_positives: int = 0
+    mislabelled: int = 0
+    false_positives: int = 0
+    excluded: int = 0
+
+    @property
+    def scored(self) -> int:
+        return self.true_positives + self.mislabelled + self.false_positives
+
+    def score(self, found, labels: list[dict]) -> str:
+        accepted = found.accepted
+        label = _best_label(accepted, labels)
+        if found.asr_suspect or (label and label["kind"] != "error"):
+            self.excluded += 1
+            return "excluded"
+        if label and label["category"] == accepted.category:
+            self.true_positives += 1
+            return "true positive"
+        if label:
+            self.mislabelled += 1
+            return f"mislabelled {accepted.category} for {label['category']}"
+        self.false_positives += 1
+        return "false positive"
+
+    def as_record(self) -> dict:
+        return {
+            "scored": self.scored,
+            "excluded": self.excluded,
+            "true_positives": self.true_positives,
+            "mislabelled": self.mislabelled,
+            "false_positives": self.false_positives,
+        }
+
+    def lines(self, name: str, reachable: int) -> list[str]:
+        hits = self.true_positives + self.mislabelled
+
+        def ratio(top: int, bottom: int) -> str:
+            # "n/a" only for nothing scored: a precision of zero is a measurement, and
+            # printing it as "n/a" would hide the worst result there is.
+            return f"{top / bottom:.3f}" if bottom else "n/a"
+
+        return [
+            f"{name}",
+            f"  scored                  {self.scored} "
+            f"(excluded as unknowable: {self.excluded})",
+            f"  true positives          {self.true_positives}",
+            f"  right span, wrong label {self.mislabelled}",
+            f"  false positives         {self.false_positives}",
+            f"  detection precision     {ratio(hits, self.scored)}",
+            f"  labelling precision     {ratio(self.true_positives, self.scored)}",
+            f"  detection recall        {ratio(hits, reachable)}",
+        ]
+
+
+@needs_model
 async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
     provider = OllamaProvider()
 
-    true_positives = mislabelled = false_positives = excluded = 0
-    proposed = rejected = 0
+    product, model, rule = Tally(), Tally(), Tally()
+    proposed = rejected = superseded = 0
     reasons: dict[str, int] = {}
     lines: list[str] = []
 
     for item in golden["items"]:
-        detection = await detect(provider, item["transcript"], item["words"])
+        ruled = rules.propose(grammar.parse(item["transcript"]))
+        detection = await detect(provider, item["transcript"], item["words"], ruled)
         proposed += detection.proposed
         rejected += len(detection.rejected)
+        superseded += len(detection.superseded)
         for rejection in detection.rejected:
             assert rejection.reason in get_args(RejectionReason), (
                 f"{rejection.reason} is not one of the reasons this system can give; "
@@ -140,7 +221,8 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
 
         lines.append(
             f"turn {item['turn_id']:>3}  {detection.status:<12} "
-            f"accepted {len(detection.errors)}  rejected {len(detection.rejected)}"
+            f"stored {len(detection.errors)}  rejected {len(detection.rejected)}  "
+            f"superseded {len(detection.superseded)}"
         )
 
         for found in detection.errors:
@@ -154,26 +236,22 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
             ), "an accepted error does not point at the text it claims to quote"
             assert accepted.category in CATEGORIES
 
-            label = _best_label(accepted, item["labels"])
-            if found.asr_suspect or (label and label["kind"] != "error"):
-                verdict = "excluded"
-                excluded += 1
-            elif label and label["category"] == accepted.category:
-                verdict = "true positive"
-                true_positives += 1
-            elif label:
-                verdict = f"mislabelled {accepted.category} for {label['category']}"
-                mislabelled += 1
-            else:
-                verdict = "false positive"
-                false_positives += 1
-
+            verdict = product.score(found, item["labels"])
+            (rule if found.detector == "rule" else model).score(found, item["labels"])
             lines.append(
-                f"        {verdict:<38} {accepted.category}/{accepted.subcategory} "
+                f"        {verdict:<38} {found.detector:<4} "
+                f"{accepted.category}/{accepted.subcategory} "
                 f"{accepted.original!r} -> {accepted.correction!r}"
             )
 
-    labelled = true_positives + mislabelled + false_positives
+        for found in detection.superseded:
+            verdict = model.score(found, item["labels"])
+            lines.append(
+                f"        {'superseded, ' + verdict:<38} llm  "
+                f"{found.accepted.category}/{found.accepted.subcategory} "
+                f"{found.accepted.original!r}"
+            )
+
     gold_errors = [
         label
         for item in golden["items"]
@@ -191,11 +269,6 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
         )
     )
 
-    detection_precision = (
-        (true_positives + mislabelled) / labelled if labelled else None
-    )
-    labelling_precision = true_positives / labelled if labelled else None
-
     report = "\n".join(
         [
             "",
@@ -207,35 +280,17 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
             f"{golden['word_count']} words",
             f"labelled errors           {len(gold_errors)}, "
             f"{reachable} clear of the {ASR_CONFIDENCE_FLOOR} per-word gate",
-            f"proposals                 {proposed}",
+            f"model proposals           {proposed}",
             f"rejected by the taxonomy  {rejected}"
             + (f" ({rejected / proposed:.1%})" if proposed else ""),
             f"  reasons                 {reasons or '{}'}",
-            f"scored                    {labelled} "
-            f"(excluded as unknowable: {excluded})",
-            f"  true positives          {true_positives}",
-            f"  right span, wrong label {mislabelled}",
-            f"  false positives         {false_positives}",
-            # `is not None` rather than a truth test: a precision of zero is a
-            # measurement and printing it as "n/a" would hide the worst result there is.
-            "detection precision       "
-            + (
-                f"{detection_precision:.3f}"
-                if detection_precision is not None
-                else "n/a"
-            ),
-            "labelling precision       "
-            + (
-                f"{labelling_precision:.3f}"
-                if labelling_precision is not None
-                else "n/a"
-            ),
-            "detection recall          "
-            + (
-                f"{(true_positives + mislabelled) / reachable:.3f}"
-                if reachable
-                else "n/a"
-            ),
+            f"superseded by a rule      {superseded}",
+            "",
+            *product.lines("the product — what a learner is shown", reachable),
+            "",
+            *model.lines(f"the model alone — {provider.model}", reachable),
+            "",
+            *rule.lines("the rule layer alone", reachable),
             "",
             f"Not asserted. {len(golden['items'])} turns and {len(gold_errors)} "
             "labelled errors are too few to place a precision figure against 0.70 with "
@@ -258,23 +313,23 @@ async def test_error_detection_against_the_hand_labelled_set(golden, capsys):
             "proposed": proposed,
             "rejected": rejected,
             "rejection_reasons": reasons,
-            "scored": labelled,
-            "excluded": excluded,
-            "true_positives": true_positives,
-            "mislabelled": mislabelled,
-            "false_positives": false_positives,
+            "superseded": superseded,
+            # The product's figures at the top, because the product is what S5 is about.
+            **product.as_record(),
+            "by_detector": {"llm": model.as_record(), "rule": rule.as_record()},
         },
     )
 
     assert proposed >= 0
 
 
+@needs_model
 async def test_a_clean_turn_produces_no_errors(golden):
     """The false-positive floor, and the one assertion in this file with teeth.
 
     A detector that finds a mistake in "That was amazing. Thank you." is a detector that
     will find one anywhere, and no precision figure computed over anything else would be
-    worth reading.
+    worth reading. Both detectors are held to it.
     """
     clean = next(
         (item for item in golden["items"] if not item["labels"]),
@@ -283,9 +338,129 @@ async def test_a_clean_turn_produces_no_errors(golden):
     if clean is None:
         pytest.skip("the golden set has no unlabelled turn to check against")
 
-    detection = await detect(OllamaProvider(), clean["transcript"], clean["words"])
+    ruled = rules.propose(grammar.parse(clean["transcript"]))
+    detection = await detect(
+        OllamaProvider(), clean["transcript"], clean["words"], ruled
+    )
     counted = [found for found in detection.errors if not found.asr_suspect]
     assert not counted, (
         f"errors were proposed for a turn with none: "
-        f"{[found.accepted.original for found in counted]}"
+        f"{[(found.detector, found.accepted.original) for found in counted]}"
     )
+
+
+# ── Planted errors: the rule layer, with no model ───────────────────────────
+
+
+def _planted(doc):
+    """Every single-word error the rule layer claims to catch, planted one at a time.
+
+    Yields (family, the text with the error in it, where the error is, the text as it
+    was). The error forms are written out here rather than borrowed from the rule
+    layer's own inflection, so the layer is not grading its own spelling.
+    """
+    text = doc.text
+    for token in doc:
+        lower = token.lower_
+        if lower.startswith(("'", "’")):
+            continue
+
+        wrong = None
+        if token.tag_ == "VBZ":
+            wrong = {"is": "are", "has": "have", "does": "do"}.get(lower)
+            if wrong is None and token.lemma_.lower() != lower:
+                wrong = token.lemma_.lower()
+        elif token.tag_ == "VBP" and lower != "am":
+            wrong = {"are": "is", "have": "has", "do": "does"}.get(lower)
+            if wrong is None and lower.isalpha():
+                wrong = lower + (
+                    "es" if lower.endswith(("s", "x", "ch", "sh", "o")) else "s"
+                )
+        if wrong is not None and any(
+            child.dep_ in ("nsubj", "nsubjpass", "expl")
+            for child in (
+                token.head if token.dep_ in ("aux", "auxpass") else token
+            ).children
+        ):
+            if token.text[:1].isupper():
+                wrong = wrong[:1].upper() + wrong[1:]
+            planted = text[: token.idx] + wrong + text[token.idx + len(token.text) :]
+            yield "agreement", planted, (token.idx, token.idx + len(wrong)), text
+
+        if (
+            lower in ("a", "an")
+            and token.dep_ == "det"
+            and token.head.tag_ == "NN"
+            and text[token.idx + len(token.text) : token.idx + len(token.text) + 1]
+            == " "
+        ):
+            planted = text[: token.idx] + text[token.idx + len(token.text) + 1 :]
+            yield "article", planted, (token.idx, token.idx + 1), text
+
+
+def test_the_rule_layer_on_planted_errors(capsys):
+    """How many of the errors it covers the rule layer finds, and whether it fixes them.
+
+    Recall is printed and not asserted: it is a property of how narrow the rules were
+    made on purpose, and a floor on it would be a reason to widen them. What is asserted
+    is that a correction, when the layer makes one, puts back exactly the words that were
+    there — a caught error with a wrong fix is a correction that is itself a mistake.
+    """
+    texts = native_texts()
+    tally: dict[str, Counter] = {"agreement": Counter(), "article": Counter()}
+    wrong_fixes: list[str] = []
+
+    for where, text in texts:
+        for family, planted, (start, end), original in _planted(grammar.parse(text)):
+            found = rules.propose(grammar.parse(planted))
+            here = [
+                f
+                for f in found
+                if _overlaps(f.accepted.span_start, f.accepted.span_end, start, end)
+            ]
+            tally[family]["planted"] += 1
+            tally[family]["elsewhere"] += len(found) - len(here)
+            if not here:
+                tally[family]["missed"] += 1
+                continue
+            accepted = here[0].accepted
+            fixed = (
+                planted[: accepted.span_start]
+                + accepted.correction
+                + planted[accepted.span_end :]
+            )
+            if fixed == original:
+                tally[family]["caught"] += 1
+            else:
+                tally[family]["wrong_fix"] += 1
+                wrong_fixes.append(
+                    f"{where}: {accepted.original!r} -> {accepted.correction!r}"
+                )
+
+    words = sum(len(text.split()) for _, text in texts)
+    lines = ["", f"planted errors in {len(texts)} native texts, {words} words"]
+    for family, counts in tally.items():
+        planted = counts["planted"]
+        lines.append(
+            f"  {family:<10} planted {planted:>4}  caught {counts['caught']:>3} "
+            f"({counts['caught'] / planted:.1%})  wrong fix {counts['wrong_fix']}  "
+            f"missed {counts['missed']:>4}  proposed elsewhere {counts['elsewhere']}"
+            if planted
+            else f"  {family:<10} nothing planted"
+        )
+    print("\n".join(lines))
+
+    record(
+        "rules",
+        {
+            "status": "measured",
+            "texts": len(texts),
+            "words": words,
+            "planted": {family: dict(counts) for family, counts in tally.items()},
+        },
+    )
+
+    assert all(
+        counts["planted"] for counts in tally.values()
+    ), "nothing was planted in one family, so this measured nothing about it"
+    assert not wrong_fixes, f"a caught error was given the wrong fix: {wrong_fixes}"

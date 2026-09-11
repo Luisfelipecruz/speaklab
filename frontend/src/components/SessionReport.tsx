@@ -3,10 +3,10 @@
  *
  * **The split by provenance is the design.** The report arrives from the API already
  * separated by where each number came from — `measured` and the fluency and form counts
- * inside `analysis` computed from stored rows, the corrections proposed by a language
- * model and then checked, `narrative` written by one outright, `pending` naming what
- * still has no analyser — and this component's one job is to keep that separation on the
- * screen instead of flattening it into a tidy summary.
+ * inside `analysis` computed from stored rows, the corrections found by grammar rules or
+ * proposed by a language model and then checked, `narrative` written by a model outright,
+ * `pending` naming what still has no analyser — and this component's one job is to keep
+ * that separation on the screen instead of flattening it into a tidy summary.
  *
  * A flat report is one refactor away from a chart with a model's opinion on it. So the
  * generated prose is under a heading that says a model wrote it and names it; the counted
@@ -27,6 +27,7 @@
 
 import { AlertTriangle, BarChart3, Bot, Gauge, Hourglass, SpellCheck } from "lucide-react";
 
+import { RuleBadge } from "@/components/Corrections";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -280,9 +281,10 @@ function AnalysisSections({ analysis }: { analysis: SessionAnalysis }) {
           Corrections
         </h3>
         <p className="text-xs text-muted-foreground">
-          Proposed by a language model, then checked: the category comes from a fixed list
-          and the words come from your transcript, so a correction cannot point at
-          something you did not say.
+          Agreement and missing articles are found by grammar rules that read the structure
+          of your sentence. Everything else is proposed by a language model, then checked:
+          the category comes from a fixed list and the words come from your transcript, so a
+          correction cannot point at something you did not say.
         </p>
 
         {errors.items.length === 0 ? (
@@ -312,6 +314,14 @@ function AnalysisSections({ analysis }: { analysis: SessionAnalysis }) {
           )}
         </div>
 
+        {errors.by_detector && errors.items.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            The rules cover only agreement and missing articles, so those two are found
+            more reliably than the other kinds of mistake. Compare the categories with that
+            in mind.
+          </p>
+        )}
+
         {!analysis.complete && (
           <p className="text-xs text-muted-foreground">
             {analysis.turns_outstanding} of your turns have not been analysed yet. Open
@@ -336,6 +346,7 @@ function ErrorRow({ item }: { item: LanguageErrorItem }) {
           {readable(item.category.toLowerCase())}
           {item.subcategory ? ` · ${readable(item.subcategory)}` : ""}
         </Badge>
+        {item.detector === "rule" && <RuleBadge />}
         {!item.counted && (
           <Badge variant="secondary" className="text-xs">
             {item.asr_suspect ? "may be a mishearing" : "low confidence"}

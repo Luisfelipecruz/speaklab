@@ -1,17 +1,22 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.10 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
-PR #15, `537869e`, 2026-09-06), and **two off-milestone fixes are merged**: PR #16
-(`0.13.1`), a fresh clone that can hold a conversation, and PR #17 (`0.13.2`), the first
-cold run of `make setup` — **7 min 12 s, against five minutes, missed** — and an
-evaluation report that names what failed. **m14, grammar practice, is in progress: item 0,
-Q16, goes up as a PR of its own (`0.13.3`)** — the persona gives its instructions away in
-16 of 200 attempts, from 59 of 200 (`docs/decisions/0013`); **item 1, the rule layer, is
-next**, on a fresh branch once that PR is merged. m15 is polish, not started.
-Three criteria — S4, S5, S7 — are blocked on speech only a person can produce, and no
-milestone changes that. The repository is `Luisfelipecruz/speaklab`; every git command is
-prepared in `GIT-COMMANDS.md` for the human to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-10 (PRs #16 and #17; the owner's decisions on m14 and Q16; Q16 done and shipped on its own; §11 rewritten for the next session)
+**Status:** v1.11 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
+a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
+setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
+item 0 — the persona gives its instructions away in 16 of 200 attempts, from 59 of 200
+(`docs/decisions/0013`). **m14, grammar practice, is in progress on a fresh
+`feature/m14-grammar`: item 1, the rule layer, is built and measured, uncommitted**
+(`docs/decisions/0014`) — on planted errors it catches 100 of 126 agreement errors and 2 of
+93 missing articles with no wrong fix; on the golden set it proposes nothing, because the
+set holds none of what it covers. **Item 2, per-form accuracy, is next.** Verifying item 1
+end to end found a defect that is not the rule layer's: ending a session straight after
+speaking writes the report without the last turn, and the report's "open this session
+again" does not finish it (0014 §7). m15 is polish, not started. Three criteria — S4, S5,
+S7 — are blocked on speech only a person can produce, and no milestone changes that. The
+repository is `Luisfelipecruz/speaklab`; every git command is prepared in
+`GIT-COMMANDS.md` for the human to run, never by an agent.
+**Date:** 2026-08-29, last revised 2026-09-11 (m14 item 1 built and measured; the end-of-session defect; §11 rewritten for the next session)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1470,7 +1475,7 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **IN PROGRESS** — item 0 done, in a PR of its own (`0.13.3`)
+### m14 — Grammar practice · **IN PROGRESS** — item 0 merged (PR #18, `0.13.3`); item 1 built and measured
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
@@ -1510,6 +1515,24 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    model, and it makes the category mix partly a property of the detector — which the
    report must say. Measured by `make error-precision`, per detector, before anything is
    built on it.
+   **DONE 2026-09-11, uncommitted** — `docs/decisions/0014`. `api/services/rules.py`: agreement
+   (`third_person_s`, `there_is_are`) and a missing article after `be` or a role after `as`
+   (`missing_indefinite`, `missing_definite`), narrow on purpose — silent on collectives,
+   partitives, units, coordinations, the subjunctive, uncountables, and a bare verb in a
+   past context. A model proposal making a rule's correction is **superseded**: kept on
+   `turns.analysis_rejects` as `superseded_by_rule`, not stored twice, not a refusal.
+   **Measured:** on the golden set the rules propose **nothing** — it holds no agreement
+   error and one article error in a shape they leave alone — so the product's figure is the
+   model's, 0.500 over six, and S5 is undecidable as before. On **planted errors** in the
+   repository's native English (2 454 words, no model, runs in CI): agreement **100 of 126**,
+   articles **2 of 93**, **no wrong fix and no stray proposal**; no proposal on any
+   unplanted native text, asserted. Found and fixed against 5 647 words of package prose:
+   five false-positive shapes; that prose is now a development set. The session report and
+   the transcript say which detector found each row ("grammar rule" badge); the progress
+   caveat says the split by category is partly a property of the detector. **The
+   done-when's "above the model's" cannot be decided on this corpus.** API 748 (715 pass,
+   33 skip), frontend 210 / 31 suites, build green; no migration, no new operation, no new
+   dependency.
 2. **Per-form accuracy.** Nothing links an error to the form it happened in, so "your
    present perfect is 54 % right" cannot be computed. The join is a design decision: the
    parser's verb-phrase spans against the error's span, and only for `VERB_TENSE`.
@@ -1530,8 +1553,9 @@ the reason; `language_errors.detector` allows `'rule'` and every row so far is `
    B2 ×6, C1 ×1.)*
 
 **Decisions to make, not made.** Whether the drill lives on the session page or the
-grammar section; whether a rule-layer row is drawn differently from a model's row on the
-transcript; what the drill's pass mark is, and whether one exists.
+grammar section; what the drill's pass mark is, and whether one exists. *(Made at item 1:
+a rule-layer row is marked on the transcript exactly as a model's is, and its row carries a
+"grammar rule" badge — 0014 §6.)*
 
 **Tests.** Rule proposals against a fixture of known sentences and against the golden set;
 the per-form join against hand-labelled turns; the drill's scoring against known
@@ -1674,13 +1698,23 @@ Evenings-and-weekends pace, one developer.
 
 1. ~~Set the git identity.~~ Done.
 2. ~~Run the **m0 spike**.~~ Passed 2026-08-29.
-3. ~~Create the repository and land m1.~~ Done; `main` is at PR #17.
+3. ~~Create the repository and land m1.~~ Done; `main` is at PR #18.
 
 ### The next actions
 
-**`main` is PR #17 (`0.13.2`)**: m13, the onboarding fix, and the first cold run. **Q16 is
-in its own PR on `feature/m14-grammar`** (`0.13.3`). Only `demo/` is outside both,
-untracked on purpose — it is m15's.
+**`main` is PR #18 (`0.13.3`, `49bdeea`)**: m13, the onboarding fix, the first cold run,
+and Q16. **m14 item 1 is in the working tree on a fresh `feature/m14-grammar`**, built,
+measured and uncommitted; `GIT-COMMANDS.md` §A.15 commits it on the branch, locally, with
+nothing pushed. Only `demo/` is outside, untracked on purpose — it is m15's.
+
+**Done on `feature/m14-grammar`, 2026-09-11, uncommitted:**
+- ~~m14 item 1, the rule layer (Q15).~~ Agreement and a missing article, proposed from the
+  parse; a model proposal making the same correction superseded, not stored twice. On the
+  golden set the rules propose **nothing** — no agreement error and one article error in a
+  shape they leave alone — so S5 is unchanged: 0.500 over six, undecidable. On planted
+  errors in native English, with no model: agreement **100 of 126**, articles **2 of 93**,
+  no wrong fix. `docs/decisions/0014`. `docs/evaluation.md` is **not** regenerated; that
+  is `make eval` at the end of m14.
 
 **Done in PR #17, 2026-09-10:**
 - ~~Verify S1 cold.~~ `make setup` 7 min 12 s, Whisper loaded at 8 min 58 s — **missed
@@ -1702,17 +1736,22 @@ puts m14 first on purpose, because a walkthrough of a product about to gain a se
 a recording made twice — Q16 as m14's item 0, and **Q16 merged on its own** rather than
 waiting for the rest of the milestone.
 
-1. **Merge the Q16 PR** — the owner, with `GIT-COMMANDS.md` §B.12 — and bring `main` current.
-2. **Cut a fresh `feature/m14-grammar` from the new `main`.** The first one is deleted by
-   the squash-merge; the name is m14's and carries on.
-3. **m14 item 1, the rule layer (Q15)** — subject–verb agreement and article omission,
-   proposed from the parse with confidence 1.0 and no taxonomy gate, stored with
-   `detector='rule'`. **Measured per detector with `make error-precision` before anything is
-   built on it**, and the report says the category mix is now partly a property of the
-   detector. Read `docs/decisions/0006` §6 and §10 first: a drill built on a detector that
-   is right half the time teaches the wrong thing half the time.
-4. Then items 2–5 in order — per-form accuracy, the grammar section, the spoken drill, the
-   seeds — and m14's own PR, `0.14.0`, with this plan's edits in it. No plan-only PR.
+1. ~~Merge the Q16 PR and cut a fresh `feature/m14-grammar`.~~ Done by the owner: `49bdeea`.
+2. **Commit item 1 on the branch** — the owner, with `GIT-COMMANDS.md` §A.15. Local only.
+3. **The owner decides what happens to the end-of-session defect** (0014 §7) before item 3
+   builds a section on the report: ending straight after speaking writes the report without
+   the last turn, and "open this session again" does not finish it, because opening is a
+   `GET` and only a second `POST /end` rebuilds. Either a fix PR of its own first, the way
+   #16–#18 went, or folded into m14 as an item. It is small — wait for a turn the live job
+   has claimed, and have the page finish an incomplete report it opens — and every
+   correction a learner is shown is read from that report.
+4. **m14 item 2, per-form accuracy.** The join is a decision: the parser's verb-phrase spans
+   against an error's span, only for `VERB_TENSE`. Read 0014 §5 first — the corpus holds
+   eleven labelled errors, so this item is built against fixtures and the golden set, and
+   its figures will be as thin as S5's.
+5. Then items 3–5 in order — the grammar section, the spoken drill, the seeds — and m14's own
+   PR, `0.14.0`, with this plan's edits in it and `docs/evaluation.md` regenerated. No
+   plan-only PR.
 
 **One open finding, not yet a task.** The 10 s scoring-budget test for a passage-length
 reading failed in one full `make eval` on 2026-09-10 that ran 2.4× slower end to end than

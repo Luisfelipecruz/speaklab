@@ -7,6 +7,48 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — grammar practice, in progress
+
+### Added
+
+- **A rule layer for the two errors a parse can decide.** Subject–verb agreement — `she
+  work`, `the people is`, `there are a problem` — and a missing article after `be` or a
+  role after `as` — `I am engineer`, `it is very good apartment`, `work as teacher` — are
+  now proposed from the dependency parse, with a confidence of 1.0 and no model, and
+  stored with `detector='rule'`. Narrow on purpose: silent on collectives, partitives,
+  quantities, coordinations, the subjunctive, uncountable nouns, and on a bare verb in a
+  past context, where it would be a tense error rather than an agreement one.
+  `docs/decisions/0014`.
+- **Planted errors, measured with no model.** `make error-precision` — and CI — plants one
+  error at a time in the repository's native English, 2 454 words: the rules catch **100 of
+  126** agreement errors and **2 of 93** missing articles, with **no wrong fix and no stray
+  proposal**. No proposal on any unplanted native text, asserted.
+
+### Changed
+
+- **The model's copy of a rule's correction is superseded, not stored twice**, and kept on
+  the turn with its reason. It does not count against the model's rejection rate.
+- **Error detection is scored three ways**: the product, the model alone, the rules alone.
+  On the golden set the rules propose nothing — it holds no agreement error and one article
+  error in a shape they leave alone — so the product's figure is the model's: **0.500**
+  over six, undecidable, as before. `docs/evaluation.md` gains the per-detector table and
+  the planted figures when it is next generated.
+- **The session report says which detector found each correction**, with a "grammar
+  rule" badge on rule rows there and on the transcript, and says the two covered
+  categories are found more reliably than the rest. Reports written before today are
+  unchanged.
+- **The analysis job parses each turn once** and gives the parse to both the form counter
+  and the rules.
+
+### Fixed
+
+- **The accuracy caveat said the model's labelling measured 0.50 precision.** 0.50 was its
+  detection precision — half its proposals landed on a real mistake; its labelling
+  precision, the right category, measured 0.00. The caveat now says so, and says which
+  categories the rules find.
+
+---
+
 ## [0.13.3] — 2026-09-10 · the persona stays in the scene
 
 The first item of grammar practice, shipped on its own: the persona read its own

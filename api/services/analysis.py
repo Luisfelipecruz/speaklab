@@ -25,8 +25,9 @@ anything.
 
 **Deterministic first, model second.** Fluency and grammar are arithmetic and a parse:
 they succeed whether or not Ollama is running, and they are written even when the
-labelling call fails. A turn whose error labelling was unavailable still has its fluency
-and its forms, and says so.
+labelling call fails. So is the rule layer, which reads the same parse. A turn whose error
+labelling was unavailable still has its fluency, its forms and its rule-found errors, and
+says so.
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from config import ANALYSIS_SESSION_BUDGET_S, ERROR_CONFIDENCE_FLOOR
 from db_models import FluencyMetrics, GrammarUsage, LanguageError, Scenario, Turn
 from services import errors as error_detector
-from services import fluency, grammar
+from services import fluency, grammar, rules
 from services.llm import LlmProvider, get_provider
 
 log = logging.getLogger("speaklab.analysis")
@@ -147,8 +148,10 @@ async def _analyse(
     # ── Phase B: the analysers, with no database connection held ────────────
     measures = fluency.analyse(words)
 
+    doc = None
     try:
-        features = await asyncio.to_thread(grammar.analyse, transcript)
+        doc = await asyncio.to_thread(grammar.parse, transcript)
+        features = grammar.count(doc)
         grammar_detail = None
     except Exception as exc:  # noqa: BLE001
         # A missing or broken parser must not cost the turn its fluency numbers, and it
@@ -156,7 +159,20 @@ async def _analyse(
         log.error("grammar parse failed on turn %s: %s", turn_id, exc)
         features, grammar_detail = {}, f"the parser failed: {type(exc).__name__}"
 
-    detection = await error_detector.detect(provider, transcript, words)
+    try:
+        ruled = rules.propose(doc)
+    except Exception as exc:  # noqa: BLE001
+        # A rule that raised is a defect in this code, and the model's labelling and the
+        # forms already counted are still worth writing.
+        log.exception("the rule layer failed on turn %s", turn_id)
+        ruled = []
+        grammar_detail = " · ".join(
+            part
+            for part in (grammar_detail, f"the rule layer failed: {type(exc).__name__}")
+            if part
+        )
+
+    detection = await error_detector.detect(provider, transcript, words, ruled)
 
     # ── Phase C: writes, one transaction ────────────────────────────────────
     async with session_factory() as db:
@@ -191,7 +207,7 @@ async def _analyse(
                     original=found.accepted.original,
                     correction=found.accepted.correction,
                     explanation=found.accepted.explanation,
-                    detector="llm",
+                    detector=found.detector,
                     confidence=found.accepted.confidence,
                     asr_suspect=found.asr_suspect,
                 )
@@ -199,9 +215,7 @@ async def _analyse(
             ]
         )
 
-        turn.analysis_rejects = [
-            rejection.as_record() for rejection in detection.rejected
-        ] or None
+        turn.analysis_rejects = detection.not_stored() or None
         turn.analyzed_at = datetime.now(timezone.utc)
 
         # `analyzed` even when the labelling model was down, and the reason travels in
@@ -512,7 +526,9 @@ def _empty_errors() -> dict:
         "per_100_words": None,
         "by_category": {},
         "items": [],
+        "by_detector": {},
         "rejected": 0,
+        "superseded": 0,
         "rejection_rate": None,
         "rejected_reasons": {},
     }
@@ -525,6 +541,10 @@ def _errors(found: list[LanguageError], measures, rejects) -> dict:
     the speaker said. Below the confidence floor means the model itself hedged. Both are
     shown to the learner and neither is counted, and they are reported separately because
     the first is a fact about the recogniser and the second about the labeller.
+
+    **Which detector found each row is reported too**, because it changes how the split
+    by category reads: the rule layer covers agreement and missing articles and nothing
+    else, so those two are found more reliably than the other seven categories.
     """
     words = sum(m.word_count or 0 for m in measures) if measures else 0
 
@@ -532,16 +552,25 @@ def _errors(found: list[LanguageError], measures, rejects) -> dict:
     by_category: dict[str, int] = {}
     for row in counted:
         by_category[row.category] = by_category.get(row.category, 0) + 1
+    by_detector: dict[str, int] = {}
+    for row in found:
+        by_detector[row.detector] = by_detector.get(row.detector, 0) + 1
 
     reasons: dict[str, int] = {}
-    rejected = 0
+    rejected = superseded = 0
     for record in rejects:
         for entry in record or []:
-            rejected += 1
             reason = str(entry.get("reason", "unknown"))
+            if reason == error_detector.SUPERSEDED:
+                # Passed the gate and lost to a rule that made the same correction. Not
+                # a refusal, so it does not move the model's rejection rate.
+                superseded += 1
+                continue
+            rejected += 1
             reasons[reason] = reasons.get(reason, 0) + 1
 
-    proposed = len(found) + rejected
+    # The model's proposals, whatever became of them. Rule rows are not the model's.
+    proposed = by_detector.get("llm", 0) + rejected + superseded
     return {
         "total": len(found),
         "counted": len(counted),
@@ -564,10 +593,13 @@ def _errors(found: list[LanguageError], measures, rejects) -> dict:
                 "confidence": row.confidence,
                 "asr_suspect": row.asr_suspect,
                 "counted": row in counted,
+                "detector": row.detector,
             }
             for row in found
         ],
+        "by_detector": dict(sorted(by_detector.items())),
         "rejected": rejected,
+        "superseded": superseded,
         # The measurement that says whether the labelling model is strong enough. It is
         # in the report rather than only in the logs because it is the number a decision
         # to change models would be made from.

@@ -224,6 +224,50 @@ async def test_a_failed_turn_is_picked_up_again(turn, factory, db_session):
         assert turn.id in await pending_turn_ids(db)
 
 
+async def test_a_rule_row_is_stored_as_the_rules(turn, factory, db_session):
+    """The one column that says which layer proposed a row."""
+    async with factory() as db:
+        row = await db.get(Turn, turn.id)
+        row.transcript = "my sister work in a bank near the station"
+        row.words = timings(row.transcript)
+        await db.commit()
+
+    await analyse_turn(turn.id, factory, BrokenProvider())
+
+    found = await rows_for(db_session, LanguageError, turn.id)
+    assert [(f.detector, f.category, f.confidence) for f in found] == [
+        ("rule", "SUBJECT_VERB_AGREEMENT", 1.0)
+    ]
+
+
+async def test_the_summary_says_which_detector_found_what(turn, factory, db_session):
+    """A layer that covers two categories finds those two more reliably than the model
+    finds the rest, so the split by category is read differently once it is there — and
+    the report has to say how the rows divide."""
+    async with factory() as db:
+        row = await db.get(Turn, turn.id)
+        row.transcript = "I go to the office every day and my sister work in a bank"
+        row.words = timings(row.transcript)
+        await db.commit()
+
+    duplicate = dict(
+        AN_ERROR,
+        category="SUBJECT_VERB_AGREEMENT",
+        subcategory="third_person_s",
+        original="my sister work",
+        correction="my sister works",
+    )
+    await analyse_turn(turn.id, factory, StubProvider([reply(AN_ERROR, duplicate)]))
+    summary = await summarise(db_session, turn.session_id, None)
+
+    errors = summary["errors"]
+    assert errors["by_detector"] == {"llm": 1, "rule": 1}
+    assert sorted(item["detector"] for item in errors["items"]) == ["llm", "rule"]
+    assert errors["superseded"] == 1
+    assert errors["rejected"] == 0
+    assert errors["rejection_rate"] == 0.0
+
+
 async def test_rejections_are_stored_on_the_turn(turn, factory, db_session):
     """The rate is the measurement that says whether the labelling model is strong
     enough, and it is not recoverable later from the proposals that passed."""

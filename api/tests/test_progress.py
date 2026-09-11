@@ -241,13 +241,14 @@ async def test_two_points_are_not_enough_to_claim_a_direction(
 async def test_the_accuracy_family_carries_the_measured_quality_of_its_labels(
     practised, client
 ):
-    """The rate is a count of rows and is exact. The categories under it came from a model
-    that filed roughly half of them correctly, and that belongs on the screen rather than
-    only in a decision document."""
+    """The rate is a count of rows and is exact. The rows under it come from two detectors
+    of different quality, and which is which belongs on the screen rather than only in a
+    decision document."""
     body = (await client.get("/progress")).json()
     accuracy = next(entry for entry in body["families"] if entry["name"] == "accuracy")
 
     assert accuracy["caveat"] and "0.50" in accuracy["caveat"]
+    assert "grammar rules" in accuracy["caveat"]
     for family in body["families"]:
         if family["name"] != "accuracy":
             assert family["caveat"] is None

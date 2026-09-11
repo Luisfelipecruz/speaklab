@@ -116,16 +116,21 @@ FAMILY_LABELS: dict[str, tuple[str, str]] = {
     ),
 }
 
-# The one family whose numbers rest on a language model's labelling, and the measured
-# quality of that labelling. Carried onto the screen rather than left in a decision
-# document: the rate is a count of rows and is exact, but the categories those rows are
-# grouped by came from a model that filed roughly half of them correctly.
+# The one family whose numbers rest on a detector's judgement, and the measured quality of
+# that judgement. Carried onto the screen rather than left in a decision document: the rate
+# is a count of rows and is exact, but the rows come from two detectors that are not
+# equally good. Grammar rules find agreement and missing articles; a language model
+# proposes the rest, and on the hand-checked set half of its proposals landed on a real
+# mistake and none of those was filed under the right category.
 ACCURACY_CAVEAT = (
-    "The rate is counted from stored corrections and is exact. The categories those "
-    "corrections are filed under were proposed by a language model whose labelling "
-    "measured 0.50 precision on this project's hand-checked set — so read the total as a "
-    "measurement and the split by category as an indication. Corrections sitting on "
-    "words the recogniser was unsure of are excluded from every figure here."
+    "The rate is counted from stored corrections and is exact. Agreement and missing "
+    "articles are found by grammar rules; every other correction is proposed by a "
+    "language model, and on this project's hand-checked set half of its proposals "
+    "(0.50 precision) pointed at a real mistake, usually filed under the wrong category. "
+    "So read the total as a measurement and the split by category as an indication — "
+    "one in which the two kinds the rules cover are found more reliably than the rest. "
+    "Corrections sitting on words the recogniser was unsure of are excluded from every "
+    "figure here."
 )
 
 

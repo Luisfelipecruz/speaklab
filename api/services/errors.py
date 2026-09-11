@@ -24,6 +24,15 @@ of. So they are kept, marked, and kept out of the trends.
 one badly heard word inside a confident turn is averaged away and no turn-level threshold
 can reach it. That is not hypothetical: a stored turn scored 0.899 while containing
 "department" where the speaker said "the apartment", at a word probability of 0.41.
+
+**The rule layer's proposals join here.** `services/rules.py` proposes agreement and
+missing-article errors from the parse, and they are stored beside the model's with
+`detector='rule'`. Where the model proposed the same correction on the same words — the
+same category, or a different category with the rule's word in its correction — the
+model's copy is *superseded*: not stored, because one mistake would otherwise be counted
+twice, and not dropped either, because it is still something the model proposed. It is
+kept apart from the refusals, since passing the gate and then losing to a rule is not a
+failure by the model and must not move its rejection rate.
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 from dataclasses import dataclass, field
 
 from config import (
@@ -40,15 +50,21 @@ from config import (
     ERROR_MAX_SPAN_WORDS,
 )
 from services.llm import ChatMessage, LlmError, LlmProvider
+from services.rules import RuleError
 from services.taxonomy import (
     CATEGORY_GLOSS,
     TAXONOMY,
     Accepted,
     Rejected,
+    label_of,
     validate,
 )
 
 log = logging.getLogger("speaklab.errors")
+
+# The reason a superseded proposal is recorded under, beside the taxonomy's refusals on
+# `turns.analysis_rejects`. Not a `RejectionReason`: the taxonomy did not refuse it.
+SUPERSEDED = "superseded_by_rule"
 
 
 @dataclass
@@ -61,24 +77,52 @@ class DetectedError:
     # and shown; it must not reach an accuracy trend.
     asr_suspect: bool
 
+    # 'llm' or 'rule', which is what `language_errors.detector` stores.
+    detector: str = "llm"
+
 
 @dataclass
 class Detection:
-    """Everything one turn's labelling produced, including what it refused."""
+    """Everything one turn's detection produced, including what it refused.
+
+    `errors` is what gets stored: the rule layer's proposals and the model's, less the
+    model's proposals a rule already made. `superseded` holds those, and `rejected` holds
+    what the taxonomy refused. `status` is the model's — the rules have no failure mode
+    worth a status, and their proposals are here whether or not the model answered.
+    """
 
     errors: list[DetectedError] = field(default_factory=list)
     rejected: list[Rejected] = field(default_factory=list)
+    superseded: list[DetectedError] = field(default_factory=list)
     model: str | None = None
     status: str = "ok"
     detail: str | None = None
 
     @property
     def proposed(self) -> int:
-        return len(self.errors) + len(self.rejected)
+        """What the model proposed, whatever became of it. The rules are not counted."""
+        stored = sum(1 for found in self.errors if found.detector == "llm")
+        return stored + len(self.rejected) + len(self.superseded)
 
     @property
     def rejection_rate(self) -> float | None:
         return round(len(self.rejected) / self.proposed, 4) if self.proposed else None
+
+    def not_stored(self) -> list[dict]:
+        """The model's proposals that did not become rows, each with its reason."""
+        return [rejection.as_record() for rejection in self.rejected] + [
+            {
+                "reason": SUPERSEDED,
+                "label": label_of(
+                    {
+                        "category": found.accepted.category,
+                        "subcategory": found.accepted.subcategory or "",
+                    }
+                )[:120],
+                "original": found.accepted.original[:200],
+            }
+            for found in self.superseded
+        ]
 
 
 def _taxonomy_block() -> str:
@@ -212,17 +256,36 @@ def _messages(transcript: str) -> list[ChatMessage]:
 
 
 async def detect(
-    provider: LlmProvider, transcript: str, words: list[dict] | None
+    provider: LlmProvider,
+    transcript: str,
+    words: list[dict] | None,
+    ruled: list[RuleError] | None = None,
 ) -> Detection:
     """Label one turn. Never raises: a failure is a status, not an exception.
 
     Analysis runs behind the conversation and nobody is waiting for it, so a model that
     is down must leave a turn marked as unanalysed and retryable rather than taking the
     job down with it.
+
+    `ruled` is what the rule layer proposed for the same text, and it is kept whatever
+    the model does: a rule's proposal does not depend on the model being up.
     """
     text = (transcript or "").strip()
     if not text:
         return Detection(status="skipped", detail="the turn has no transcript")
+
+    ruled = ruled or []
+    suspect = low_confidence_spans(text, words)
+    detection = Detection(
+        errors=[
+            DetectedError(
+                accepted=found.accepted,
+                asr_suspect=_overlaps(found.accepted, suspect),
+                detector="rule",
+            )
+            for found in ruled
+        ]
+    )
 
     try:
         completion = await provider.complete(
@@ -234,41 +297,63 @@ async def detect(
             temperature=ANALYSIS_TEMPERATURE,
         )
     except LlmError as exc:
-        return Detection(status="unavailable", detail=f"{type(exc).__name__}: {exc}")
+        detection.status = "unavailable"
+        detection.detail = f"{type(exc).__name__}: {exc}"
+        return detection
 
+    detection.model = completion.model
     proposals = _proposals(completion.text)
     if proposals is None:
-        return Detection(
-            status="unparseable",
-            model=completion.model,
-            detail=completion.text[:300],
-        )
+        detection.status = "unparseable"
+        detection.detail = completion.text[:300]
+        return detection
 
-    suspect = low_confidence_spans(text, words)
-    detection = Detection(model=completion.model)
     taken: set[tuple[int, int]] = set()
-
     for raw in proposals:
         outcome = validate(raw, text, taken)
         if isinstance(outcome, Rejected):
             detection.rejected.append(outcome)
             continue
-        detection.errors.append(
-            DetectedError(
-                accepted=outcome,
-                asr_suspect=_overlaps(outcome, suspect),
-            )
-        )
+        found = DetectedError(accepted=outcome, asr_suspect=_overlaps(outcome, suspect))
+        if _superseded(outcome, ruled):
+            detection.superseded.append(found)
+        else:
+            detection.errors.append(found)
 
-    if detection.rejected:
+    if detection.rejected or detection.superseded:
         log.info(
-            "error labelling on %d chars: %d accepted, %d rejected (%s)",
+            "error labelling on %d chars: %d stored, %d rejected (%s), %d superseded",
             len(text),
             len(detection.errors),
             len(detection.rejected),
             ", ".join(sorted({r.reason for r in detection.rejected})),
+            len(detection.superseded),
         )
     return detection
+
+
+def _superseded(proposal: Accepted, ruled: list[RuleError]) -> bool:
+    """Whether a rule already made this correction on these words.
+
+    Overlapping is not enough on its own: the model may be pointing at a different
+    mistake in the same words, and then both are kept. It is the same correction when the
+    model filed it under the rule's category, or filed it elsewhere while making the
+    rule's change — "she work" corrected to "she works" and called a tense error, which is
+    the model's commonest failure on the golden set.
+    """
+    for rule in ruled:
+        found = rule.accepted
+        if not (
+            proposal.span_start < found.span_end
+            and found.span_start < proposal.span_end
+        ):
+            continue
+        if proposal.category == found.category:
+            return True
+        word = r"(?<![\w'])" + re.escape(rule.replacement) + r"(?![\w'])"
+        if re.search(word, proposal.correction, re.IGNORECASE):
+            return True
+    return False
 
 
 def low_confidence_spans(

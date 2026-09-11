@@ -191,22 +191,23 @@ service is declared under `profiles: ["llm"]` for a Linux host with a GPU, and f
 
 ## Measured
 
-Counted against the running system on 2026-09-05, not recalled — except the two test
-suites, the first run and memory, measured on 2026-09-10. Anything not listed here has not
-been measured yet and is not claimed.
+Counted against the running system on 2026-09-05, not recalled — except the first run and
+memory, measured on 2026-09-10, and the two test suites and error detection, measured on
+2026-09-11. Anything not listed here has not been measured yet and is not claimed.
 
 | | |
 |---|---|
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | **First run, from nothing** | **7 min 12 s** for `make setup`, **8 min 58 s** until Whisper was loaded — against five minutes in PRD §9, **missed**, and the build is nearly all of it. One run, one connection; [Quick start](#quick-start) has what it did and did not include |
 | Memory, five containers, models loaded | **1.94 GiB**, excluding Ollama, against under 8 GB |
-| API test suite | **573** — 540 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **206** across 31 suites, Jest and React Testing Library, no services needed |
+| API test suite | **748** — 715 pass with Postgres and no model services running; the other 33 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **210** across 31 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
 | API operations implemented | 25 of the 30 forecast — m10 added three, and none of them takes a user id |
-| **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size** |
+| **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size**. The model's figure and the product's are the same, because the grammar rules propose nothing on this golden set: it holds no agreement error, and one article error in a shape they leave alone |
+| **Grammar rules, on planted errors** | **100 of 126** agreement errors caught — 0.794 [0.715, 0.855] — and **2 of 93** missing articles, with **no wrong fix and no stray proposal**; no proposal on 2 454 words of native English. No model involved. See [decision 0014](docs/decisions/0014-the-rule-layer.md) |
 | Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
 | Grammar forms detected in the stored corpus | **11 distinct**, over 31 counted instances in 7 turns |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
@@ -335,6 +336,17 @@ recogniser wrote the punctuation and you did not. **25 % of proposals are curren
 refused**, and that rate is the measurement that says whether the model behind this is good
 enough.
 
+**Two errors are decided by rules instead of the model.** Subject–verb agreement — *she
+work*, *the people is*, *there are a problem* — and a missing article after *be* or a role
+after *as* — *I am engineer*, *it is very good apartment* — are read straight off the parse
+and proposed with a confidence of 1.0. The rules are narrow on purpose: silent on a
+collective, a quantity, a subjunctive, an uncountable noun, and on a bare verb in a past
+context, where the mistake is the tense rather than the agreement. When the model proposes
+the same correction it is not stored twice. Because two categories are now found more
+reliably than the other seven, every correction says which detector found it, and the
+report says what that does to the split by category. See
+[decision 0014](docs/decisions/0014-the-rule-layer.md).
+
 **Once a session has been ended, the transcript marks each accepted correction on the
 words it quotes** — a superscript number on the words, a numbered row under the turn with
 the replacement, the category and the explanation. A correction on words the recogniser
@@ -375,10 +387,11 @@ Every entry prints the measurement that chose it — *"2 corrections in 272 word
 a suggestion you cannot check is indistinguishable from a guess. The response also states
 how much it rests on, and on the current corpus it says **thin evidence**.
 
-**The accuracy chart carries m9's measured labelling precision on the screen.** The rate is
-an exact count of stored rows; the categories those rows are grouped by came from a model
-that filed roughly half of them correctly. That belongs next to the chart somebody would
-act on, not in a document they will not open. [Decision
+**The accuracy chart carries the detectors' measured quality on the screen.** The rate is
+an exact count of stored rows; the rows come from grammar rules for two categories and
+from a model for the rest, and half of the model's proposals landed on a real mistake,
+usually under the wrong category. That belongs next to the chart somebody would act on,
+not in a document they will not open. [Decision
 0007](docs/decisions/0007-progress-metrics.md) has the gates, the weights and what S7 does
 and does not demonstrate.
 
@@ -418,7 +431,7 @@ Named explicitly so nothing here reads as a claim.
 | m8 | **The golden pairs.** Criterion S4 — that deliberately broken readings score measurably worse than clean ones — is not met, and cannot be met by what exists: perturbing the reference proves the arithmetic, not that a *learner* error is detected. The test is written and skips. It needs five minutes of a person's voice ([`eval/golden/pron/`](eval/golden/pron/README.md)) |
 | m8 | **A calibrated GOP threshold.** m0 settled the method — a percentile of the correct-speech distribution, per phone — and not the numbers, so `PRON_GOP_THRESHOLDS` is empty and the heatmap says its bands are relative to the reading rather than a pass mark. See [decision 0005 §7](docs/decisions/0005-gop-pipeline.md) |
 | m9 | **Error detection is not accurate enough yet, and the number is published.** Detection precision measures **0.500** against a 0.70 bar. `gemma3:4b` finds roughly the right words and files them under the wrong category three times out of six; `mistral:7b` measured worse. The sample is six scored proposals, so the figure cannot yet decide the question either way. [Decision 0006 §6](docs/decisions/0006-error-taxonomy.md) has the table and the comparison arms |
-| m9 | **A rule-based detector.** `language_errors.detector` allows `'rule'` and every row so far is `'llm'`. Subject–verb agreement and article omission are where the parse is reliable enough to propose errors on its own, and that is the way to raise precision without a bigger model |
+| m14 | **The grammar rules have never been measured on a learner's speech.** The stored corpus holds none of the two errors they cover, so their only figures come from errors planted in native English — an upper bound, because a learner's parse is worse. And the article rule covers two shapes, after *be* and after *as*: a bare noun after a preposition or as an object depends on whether it can be counted, which a parse cannot say, so it is left to the model |
 | m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
 | m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |
 | m10 | **The progress page has almost nothing to show, and the criterion it is judged by is not met.** S7 asks for 30-day trends across four families from ≥ 20 real sessions; the database holds **2** conversations and **2** readings, all on one calendar day. Three families draw a single point, the fourth is gated off, and no direction is claimed anywhere. That is the page behaving correctly, and it is also the whole of what has been demonstrated about it |
@@ -431,7 +444,7 @@ Named explicitly so nothing here reads as a claim.
 | m11 | **A test that runs a deliberately broken suite.** The harness's self-tests feed fixtures to the adjudicator; nothing yet runs a suite that lies |
 | m12 | Documentation and a demo |
 | m13 | **Marks appear only on a session that has been ended.** They are read from the report, which is written at the end, so a conversation abandoned mid-way shows no corrections — for the same reason it has no report |
-| m13 | **A mark on the right words does not make the category right.** The labeller still files a verb-form mistake under word order at the rate decision 0006 measured; the rule layer that would change that is planned, not built |
+| m13 | **A mark on the right words does not make the category right.** The grammar rules file agreement and missing articles themselves; every other correction is still the model's filing, at the rate decision 0006 measured |
 
 ---
 
