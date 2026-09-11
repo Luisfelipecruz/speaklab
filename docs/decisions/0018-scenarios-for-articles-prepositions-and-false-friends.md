@@ -134,21 +134,24 @@ sentences of 0017 §6, and subject to the same limit on who wrote them.
 
 In the speech recognition suite, beside the drill's measurement and by the same comparison:
 each sentence spoken by the `tts` voice with its mistake and corrected, heard by
-`small.en`, and read where the correction belongs. Three runs, because synthesis is not
-deterministic:
+`small.en`, and read where the correction belongs. Four runs, because synthesis is not
+deterministic — the fourth by the `make eval` that wrote `docs/evaluation.md`:
 
 | Kind | Mistake heard as said | Heard as the correction | Something else | Corrected heard as corrected |
 |---|---|---|---|---|
-| Articles | 18, 19, 18 of 20 | 0, 0, 0 | 2, 1, 2 | 20, 20, 20 |
-| Prepositions | 18, 18, 17 | 1, 1, 2 | 1, 1, 1 | 19, 19, 19 |
-| False friends | 18, 18, 18 | 0, 0, 0 | 2, 2, 2 | 20, 20, 20 |
+| Articles | 18, 19, 18, 17 of 20 | 0, 0, 0, 1 | 2, 1, 2, 2 | 20, 20, 20, 20 |
+| Prepositions | 18, 18, 17, 17 | 1, 1, 2, 2 | 1, 1, 1, 1 | 19, 19, 19, 19 |
+| False friends | 18, 18, 18, 18 | 0, 0, 0, 0 | 2, 2, 2, 2 | 20, 20, 20, 20 |
 
-**Prepositions are the kind the recogniser repairs**: *depends of* came back as *depends on*
-in two runs, *next of* as *next to* and *in home* as *at home* in the third — 4 of 60
-tries, 0.067 [0.026, 0.159] — and *next of* was repaired again in the live session of §6.
-**No article mistake and no false friend came back as its correction** in 60 tries each. A
-false friend is a whole word with its own sound, as expected; that a dropped or wrong *a*
-survived every time was not certain, and in this voice it did.
+**Prepositions are the kind the recogniser repairs most**: *depends of* came back as
+*depends on* in two runs, *next of* as *next to* and *in home* as *at home* in the third,
+and *next of* again in the fourth, with *before of that* as *before a vet* — a mishearing
+that happens to drop the *of* — 6 of 80 tries, 0.075 [0.035, 0.154]; and *next of* was
+repaired again in the live session of §6. **No false friend came back as its correction**
+in 80 tries, as expected of a whole word with its own sound. **An article did, once**: in
+the fourth run *It is small suitcase* came back as *in a small suitcase* — 1 of 80, 0.013
+[0.002, 0.067]. In the first three runs a dropped or wrong *a* survived every time, and it
+was the fourth that showed it need not.
 
 "Something else" is mostly the comparison's normalisation rather than the recogniser:
 *five* written *5* (the one correct preposition sentence not heard as corrected, every run),
@@ -163,8 +166,8 @@ Tring*.
 In the error detection suite: each sentence handed to both detectors as written, then the
 corrected sentence. Found means a proposal on the mistake's words filed under its kind;
 the labelled correction is counted apart, because a proposal on the right words can put
-the wrong words in. Three runs, identical to the line — the labelling call runs at
-temperature zero:
+the wrong words in. Four runs, the fourth the one in `docs/evaluation.md`, identical to the
+line — the labelling call runs at temperature zero:
 
 | Kind | Found and filed under it | With the labelled correction | Under another kind | Missed | Proposed on the corrected sentence |
 |---|---|---|---:|---:|---:|
@@ -222,6 +225,12 @@ Across the nine, 6 of 9 replies were clean of the deterministic rules — 4 of t
 where the three runs before this one had 4 or 5, and 2 of the new three — and the judge
 placed all nine in character. The fifteen spoken instructions gave the instructions away 6 times in
 150; nothing in this change touched the prompt they measure.
+
+In the run in `docs/evaluation.md`, 8 of 9 were clean — all three new probes, and every
+one of the first six but `instruction-inside-a-turn`, which ran over its cap and said *my
+instructions* — the judge again placed all nine in character, and the spoken instructions
+were given away 5 times in 150. The clerk again said *a black backpack* back, and the
+coordinator *attended*: the recasts of §6 are not one run's.
 
 ## 5. Found on the way: an imperative given a subject
 

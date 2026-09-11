@@ -7,7 +7,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — grammar practice, in progress
+## [0.14.0] — 2026-09-12 · grammar practice
+
+A learner can now see the grammar they get wrong in their own sentences, and say one of
+them again. Underneath: a rule layer for the two errors a parse can decide, each
+correction to a verb joined to the form it was said in and the form it needs, and three
+scenarios for the mistakes the others did not draw out. The persona fix that opened this
+milestone shipped first, as `0.13.3`.
 
 ### Added
 
@@ -63,8 +69,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A mistake said aloud, measured.** The speech recognition suite (`make asr-wer`, and
   `make eval`) now speaks 89 hand-labelled learner sentences with the `tts` voice, with
   their mistake and corrected, and compares what `small.en` heard as the drill does: a
-  mistake heard as its correction **2, 3 and 2 of 89** in three runs, a correct sentence
-  heard as the mistake **0 of 89** in each. `docs/evaluation.md` gains the table when it is next generated.
+  mistake heard as its correction **2, 3, 2 and 1 of 89** in four runs, the last the one
+  in `docs/evaluation.md`, and a correct sentence heard as the mistake **0 of 89** in each.
 - **Three scenarios for the mistakes the others do not draw out.** *Lost property office*
   (A2) for articles, *A courier who cannot find your door* (B1) for prepositions, and
   *Applying for a training programme* (B2) for false friends. Eleven scenarios, and the
@@ -80,15 +86,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   already did.
 - **Articles, prepositions and false friends, measured on the way to a correction.** Sixty
   hand-labelled sentences written for the three scenarios, twenty per kind. Said aloud in
-  the speech recognition suite: **17–19 of 20** of each kind came back as said, in three
-  runs; only prepositions were repaired, **4 in 60** tries. Found in the error detection
-  suite and filed under their kind: articles **6 of 20**, prepositions **12 of 20**, false
-  friends **6 of 20**, with the labelled correction 4, 9 and 2; **22 of the 60 corrected
-  sentences** drew a proposal. `docs/evaluation.md` gains both tables when it is next
-  generated.
+  the speech recognition suite: **17–19 of 20** of each kind came back as said, in four
+  runs, the last the one in `docs/evaluation.md`; prepositions were repaired **6 times in
+  80** tries, articles once, false friends never. Found in the error detection suite and
+  filed under their kind, the same in all four runs: articles **6 of 20**, prepositions
+  **12 of 20**, false friends **6 of 20**, with the labelled correction 4, 9 and 2; **22 of
+  the 60 corrected sentences** drew a proposal. `docs/evaluation.md` carries both tables.
 - **Three persona probes**, one for each new persona, each handing it a mistake of its kind
   inside an answer too vague to accept. The persona suite asks nine: **6 of 9** replies
-  clean of the deterministic rules in the run that added them.
+  clean of the deterministic rules in the run that added them, **8 of 9** in the one in
+  `docs/evaluation.md`.
 
 ### Changed
 
@@ -97,8 +104,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Error detection is scored three ways**: the product, the model alone, the rules alone.
   On the golden set the rules propose nothing — it holds no agreement error and one article
   error in a shape they leave alone — so the product's figure is the model's: **0.500**
-  over six, undecidable, as before. `docs/evaluation.md` gains the per-detector table and
-  the planted figures when it is next generated.
+  over six, undecidable, as before. `docs/evaluation.md` carries the per-detector table and
+  the planted figures.
 - **The session report says which detector found each correction**, with a "grammar
   rule" badge on rule rows there and on the transcript, and says the two covered
   categories are found more reliably than the rest. Reports written before today are

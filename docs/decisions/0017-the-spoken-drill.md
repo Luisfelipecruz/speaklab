@@ -144,20 +144,22 @@ applied. Each recording heard by `small.en`, compared by the drill exactly as a 
 would be. No model is asked anything. It runs in the speech recognition suite —
 `make asr-wer`, and `make eval` — and records its counts for the evaluation report.
 
-**Results.** Synthesis is not deterministic, so the same sentences were measured three
-times, the third through the evaluation harness (`eval/run.py --only asr`):
+**Results.** Synthesis is not deterministic, so the same sentences were measured four
+times, the third through the evaluation harness (`eval/run.py --only asr`) and the fourth
+by the `make eval` that wrote `docs/evaluation.md`:
 
 | Run | Mistake heard as the correction | Mistake heard as said | Something else | Correct heard as corrected | Correct heard as the mistake |
 |---|---:|---:|---:|---:|---:|
 | 1 | 2 | 81 | 6 | 88 | 0 |
 | 2 | 3 | 78 | 8 | 87 | 0 |
 | 3, the harness | 2 | 81 | 6 | 88 | 0 |
+| 4, the report | 1 | 77 | 11 | 89 | 0 |
 
 **What it means for the page.** *Heard the way you first said it* is strong evidence: no
-correct sentence was heard as the mistake, in 267 tries — 0.000 [0.000, 0.041] over each
+correct sentence was heard as the mistake, in 356 tries — 0.000 [0.000, 0.041] over each
 run's 89. *Heard as corrected* is weaker: a few mistakes in a hundred were heard that way —
-0.022 [0.006, 0.078] on the harness run. The page says both, with the figures, and says the voice
-was synthetic.
+0.022 [0.006, 0.078] on the first harness run, 0.011 [0.002, 0.061] on the report's, 8 of 356
+over all four. The page says both, with the figures, and says the voice was synthetic.
 
 **The mistakes that did not come back as said**, from the second run, read one by one:
 
