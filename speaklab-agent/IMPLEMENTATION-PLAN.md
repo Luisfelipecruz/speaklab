@@ -1942,7 +1942,10 @@ started)*.
    answer counted with its feedback in 3.8 s. Two bugs found by filming and fixed — a text
    match that stopped the clock at 0.0 s, and clips written into the folder a take empties.
    **Revised:** the still on the README's first screen is committed (D117); the video is
-   not.
+   not. **Revised again, at the owner's request (D118):** two portrait cuts for LinkedIn,
+   1080×1350, narrated by a local Piper voice over the app's own sound — `demo/piper.sh`,
+   `demo/narration.cjs`, `demo/mix.cjs`, and `AUDIO=` in `to-mp4.sh`. The short cut is one
+   turn and its report; the full one is every section.
 7. **The README and the docs, against the live system.** The first screen a picture, three
    lines and the Quick start; the status line, the table of what does not exist yet and the
    repository map brought to what is true; `docs/architecture.md` and

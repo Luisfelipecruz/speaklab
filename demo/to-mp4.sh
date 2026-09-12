@@ -7,6 +7,7 @@
 #   SS=2.6 ./to-mp4.sh file.webm      cut the first 2.6s off the front
 #   SCALE=1080:1350 ./to-mp4.sh file.webm   upscale on the way out (lanczos)
 #   POSTER=x.png ./to-mp4.sh file.webm   also embed x.png as the cover frame
+#   AUDIO=x.wav ./to-mp4.sh file.webm    x.wav is the soundtrack (mix.cjs writes it)
 #
 # SS exists because a browser recording starts before the browser has anything to show.
 # Playwright begins capturing when the context is created, so the opening second or two
@@ -24,7 +25,7 @@
 # Notes on the flags:
 #   -pix_fmt yuv420p   required, or Safari/LinkedIn show a black frame
 #   -movflags faststart moves the index to the front so it streams immediately
-#   silent AAC track    some platforms reject or mis-transcode video with no audio
+#   silent AAC track    without AUDIO: some platforms reject or mis-transcode video with no audio
 set -euo pipefail
 cd "$(dirname "$0")"
 DIR="$(pwd)"
@@ -36,6 +37,9 @@ POSTER="${POSTER:-}"
 # at 1080x1350, where the content stopped 43% short of the bottom. Same aspect ratio, so
 # this is a clean 1.25x enlargement, not a stretch. lanczos because text is the subject.
 SCALE="${SCALE:-}"
+# The soundtrack starts at the head cut, as mix.cjs builds it, so SS seeks the video alone.
+# It sits beside the input, like the poster, and is padded to the video's length.
+AUDIO="${AUDIO:-}"
 
 # The input may live in a subdirectory (out-copilot/), so mount ITS directory rather
 # than this script's and refer to everything by basename inside the container.
@@ -46,19 +50,28 @@ convert() {
   base="$(basename "$in")"
   obase="$(basename "$out")"
   local trim_args=() seek_args=() scale_args=()
+  local audio_args=(-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100)
   [ -n "$TRIM" ] && trim_args=(-t "$TRIM")
   [ -n "$SS" ] && seek_args=(-ss "$SS")
   [ -n "$SCALE" ] && scale_args=(-vf "scale=${SCALE}:flags=lanczos")
-  echo "→ $in  →  $obase${SS:+  (head cut at ${SS}s)}${SCALE:+  (scaled to ${SCALE})}${TRIM:+  (trimmed to ${TRIM}s)}"
+  if [ -n "$AUDIO" ]; then
+    if [ ! -f "$dir/$(basename "$AUDIO")" ]; then
+      echo "   $(basename "$AUDIO") is not beside $base" >&2
+      return 1
+    fi
+    audio_args=(-i "/data/$(basename "$AUDIO")")
+  fi
+  echo "→ $in  →  $obase${SS:+  (head cut at ${SS}s)}${SCALE:+  (scaled to ${SCALE})}${TRIM:+  (trimmed to ${TRIM}s)}${AUDIO:+  (soundtrack $(basename "$AUDIO"))}"
   docker run --rm -v "$dir":/data linuxserver/ffmpeg \
     -hide_banner -loglevel error \
     ${seek_args[@]+"${seek_args[@]}"} \
     -i "/data/$base" \
-    -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+    "${audio_args[@]}" \
+    -map 0:v:0 -map 1:a:0 \
     ${trim_args[@]+"${trim_args[@]}"} \
     ${scale_args[@]+"${scale_args[@]}"} \
     -c:v libx264 -preset slow -crf 20 -pix_fmt yuv420p -movflags +faststart \
-    -c:a aac -b:a 128k -shortest -r 25 \
+    -af apad -c:a aac -b:a 160k -shortest -r 25 \
     -y "/data/$obase"
 
   [ -n "$POSTER" ] && embed_cover "$(dirname "$in")/$obase" "$POSTER"

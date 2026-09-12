@@ -583,7 +583,8 @@ eval/           The evaluation harness. run.py orchestrates, report.py adjudicat
                 and mounted read-only into the one container that measures
 docs/           Architecture, data model, decisions, changelog, and the evaluation report
 demo/           The walkthrough recorder: Playwright driving the running stack, a
-                synthetic voice as the microphone, ffmpeg in a container for the .mp4
+                synthetic voice as the microphone, a narrated soundtrack rebuilt from
+                the take's marks, ffmpeg in a container for the .mp4
 speaklab-agent/ The implementation plan — sixteen milestones
 spike/          m0, throwaway, gitignored
 ```

@@ -26,6 +26,10 @@ decision. These did.
 6. **The walkthrough's learner is the project's synthetic voice**, at the owner's choice,
    and the video says so on screen. The still on the README's first screen is in the
    repository; the video is not.
+7. **The LinkedIn cuts are narrated, in portrait, over the app's own sound** (D118): a
+   third synthetic voice explains, the learner's clips and the persona's replies play when
+   they played, and the short cut leaves out what it cannot show in real time rather than
+   cutting it.
 
 ## 1. The export
 
@@ -205,12 +209,88 @@ report as it came out: the model corrected *How much it cost every month?* to *h
 costs every month*, which fixes the verb and not the question, and filed it under word
 order. The README's caption says so, because that is the measured state of the detector.
 
-## 8. What is not settled
+## 8. The narrated cuts
+
+The owner asked, the same day, for a video in LinkedIn's portrait shape and for a voice
+that explains it. The example pointed to — another project's 1080×1350 cut — carries a
+silent track, flat at −91 dB. **Chosen by the owner** (D118): a local Piper narrator, a
+short cut and the full walkthrough, and the app's own sound under the narration.
+
+**Three roles, three voices.** The learner's clips were in the persona's voice, `lessac`, so
+by ear the two sides of the conversation were one speaker. Two other voices spoke the
+learner's turns into the stack's recogniser: `en_GB-alba-medium` came back verbatim, every
+written mistake kept; `en_GB-northern_english_male-medium` turned *it have not* into *it had
+not* and *flat I* into *flat-eye*. The learner is `alba` and the narrator
+`en_US-ryan-high`, both run by `demo/piper.sh` from the stack's own tts image, on ports
+8104 and 8113 and a volume of their own, so the running stack and its model cache are not
+touched.
+
+**The answer's repeat was rewritten, because the recogniser tidied it.** Whisper wrote *the
+the* as *the*, so the word said twice never reached the analyser. A phrase said twice
+survives: *I want to, I want to* is transcribed as said, and `analyse()` counts it as one
+repeat. *API* became *system*; it was heard as *APV*. In the new voice the reading comes
+back at 3.8 % word error against the passage, one miss being *fill* heard as *feel* — the
+contrast the passage drills.
+
+**The narration was checked the same way.** Each of the 24 lines was synthesised and
+transcribed, and three were reworded where Whisper heard *medium* for *median*, *past* for
+*pass* and *set* for *said*. No line quotes a figure from the take: the lines are
+synthesised before it starts, because each scene is held for as long as its line lasts,
+and the stopwatch carries the measured times.
+
+**The soundtrack is rebuilt from what the take did.** A browser recording is pictures
+only. The recorder logs from the page when each clip started and when each `<audio>`
+element began and stopped, fetches the replies before the take's sessions are deleted, and
+writes every sound with its moment into the meta file. `demo/mix.cjs` places them less the
+head cut, lets the narration duck the app — a reply at −18.6 dB mean falls to −32.8 dB
+under a line — normalises to −16 LUFS, and writes the narration as subtitles; `to-mp4.sh`
+takes the result as `AUDIO=`. Frames either side of a reply's logged start show the page
+before it arrived and after.
+
+**Found while filming, and fixed.** The persona's opening line does not play by itself —
+only a reply produced on the page autoplays — so the caption *The persona opens, out loud*
+had been over silence. The full cut presses play, as a person would, and the short one no
+longer says *out loud*. A pause pressed with the mouse missed a button the transcript had
+scrolled, and a reply ran on under the next scene; the press is now a checked click, and
+the soundtrack follows what played either way. The poster put the marked words under the
+sticky header; it is centred on them now.
+
+**Found, not fixed.** In the report, the players of the learner's recording and of an
+opening line nobody played show a length of 0:00, and an opening that was played shows
+0:15 / 0:00. Why is not shown.
+
+**The short cut has no reading.** A reading is 23 s of speech and 7–13 s of scoring, and
+with its lines it was half the cut. The short cut is one turn, its report and the counted
+figures; the reading and the answer are in the full cut. Nothing is edited out of either,
+and the stopwatch stays.
+
+**Measured in the final takes, 2026-09-12, 1080×1350** — a load average of 3.5 as the short
+take started, 5.5 to 10.8 across the full one:
+
+| | short | full |
+|---|---|---|
+| Length | 77.8 s | 284.8 s |
+| File | 9.9 MB | 28.7 MB |
+| Narrated lines | 7 | 23 |
+| First turn answered, with audio | 2.6 s | 2.4 s |
+| Second turn | — | 2.8 s |
+| Report | 1.3 s | 1.3 s |
+| Reading scored | — | 7.3 s |
+| Answer counted, feedback beside it | — | 3.8 s |
+| Loudness | −16.2 LUFS, peak −2.2 dBFS | −16.2 LUFS, peak −2.2 dBFS |
+
+Two earlier short takes were thrown away: the first opened on the silent line and ran
+136 s with the reading; the second ran at a load average of 14.3 — its turn answered in
+4.5 s and its reading scored in 13.3 s — and lost its pause. Each cut's `.mp4`, poster
+and `.srt` stay in `demo/out/`, ignored. LinkedIn does not read an embedded cover: the
+poster is uploaded in the composer, and the `.srt` as the video's captions.
+
+## 9. What is not settled
 
 - **The social-preview image and the repository's topics** are set by hand on GitHub, and
   have not been.
-- **The video is attached nowhere.** The README shows a still; an upload of the `.mp4` is
-  the owner's to make.
+- **The videos are attached nowhere.** The README shows a still; the wide take and the two
+  portrait cuts are the owner's to upload.
 - **S2 has not been re-measured on a quiet machine** since the turn's path changed.
 - **A person's microphone has never been through the interface** in Chrome or Safari; the
   take and m15's end-to-end check replay a synthetic voice.
