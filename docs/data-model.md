@@ -1,8 +1,8 @@
 # Data model
 
-Twelve tables, three enum types, one Alembic revision. This document explains the shape;
-`api/alembic/versions/0001_initial_schema.py` is what actually builds it, and
-`api/db_models/` is what reads and writes it.
+Fourteen tables, four enum types, seven Alembic revisions. This document explains the
+shape; `api/alembic/versions/` is what actually builds it, starting from
+`0001_initial_schema.py`, and `api/db_models/` is what reads and writes it.
 
 The organising idea is in PRD principle **P1**: *deterministic metrics for trends, the
 LLM only for explanation*. Every table below either stores something measured from a
@@ -20,9 +20,10 @@ layer proposed it.
 |---|---|
 | `scenarios` | Persona, goal, target grammar, functions and kinds of mistake, band, rubric |
 | `passages` | Reference text, band, phoneme focus, word count |
+| `answer_prompts` | A work question to answer out loud: its kind, band and time limit |
 
-Both are keyed by `slug`, which is the seed key, the URL segment, and what a session's
-history points at across a content edit. Both carry `is_active`: content is retired by
+All three are keyed by `slug`, which is the seed key, the URL segment, and what history
+points at across a content edit. All three carry `is_active`: content is retired by
 deactivating it, never by deleting it, because a session started last month still has to
 render.
 
@@ -48,6 +49,15 @@ a hardware change reads a new headset as improvement.
 | `sessions` | One sitting: user, scenario or none, mode, status, timing, end report |
 | `turns` | One utterance: transcript, word timings, ASR confidence and model |
 | `attempts` | One read-aloud reading: passage, audio, transcript, WER, scoring status |
+| `answers` | One spoken answer to a prompt: transcript, word timings, what was counted, the model's feedback |
+
+`answers` is not a kind of session. A session is a conversation, and an answer written as
+one would be analysed like a turn and counted into the weekly figures built from turns, so
+a prepared monologue would move the conversation's speech rate. It keeps `delivery` (the
+fluency numbers), `structure` (signposts, sentences, repeats, restarts — every count,
+including the ones no page shows yet) and `feedback` (the model's, with its check and
+status) as JSONB, read whole; `again_of` points at the answer a second attempt says again.
+The recording is never kept.
 
 `turns.words` is JSONB — `[{w, start_ms, end_ms, logprob}]` straight off the recogniser.
 It is read whole, for one purpose (the §7.1 fluency metrics), and never queried across
@@ -226,8 +236,9 @@ the mistake was made; up, down and up again is one of the tests.
 make seed             # idempotent — the second run inserts nothing
 ```
 
-Scenarios and passages are **seeded data, not fixtures**: real rows, versioned as JSON in
-`api/seeds/`, so a content edit is a reviewable diff. The loader keys on `slug` and
+Scenarios, passages and answer prompts are **seeded data, not fixtures**: real rows,
+versioned as JSON in `api/seeds/`, so a content edit is a reviewable diff. A prompt's
+kind is one of four and its time limit between 60 and 120 seconds, checked on load. The loader keys on `slug` and
 reports three outcomes separately — inserted, updated, unchanged — because only the third
 makes a second run a no-op, and a script that printed "8 scenarios loaded" both times
 would be telling the truth in a way that hides the thing worth knowing.

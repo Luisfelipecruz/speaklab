@@ -195,7 +195,7 @@ Counted against the running system on 2026-09-05, not recalled — except the fi
 memory, measured on 2026-09-10; error detection, the form join and the forms in the
 stored corpus, measured on 2026-09-11; a mistake said aloud, measured on 2026-09-11 and
 again on 2026-09-12; and the two test suites, the grammar rules, the three kinds of
-mistake and persona adherence, measured on 2026-09-12.
+mistake, persona adherence and the answer drill, measured on 2026-09-12.
 Anything not listed here has not been measured yet and is not claimed.
 
 | | |
@@ -203,17 +203,20 @@ Anything not listed here has not been measured yet and is not claimed.
 | Containers up and healthy | 6 of 6 with `pron` started; 5 of 5 without it |
 | **First run, from nothing** | **7 min 12 s** for `make setup`, **8 min 58 s** until Whisper was loaded — against five minutes in PRD §9, **missed**, and the build is nearly all of it. One run, one connection; [Quick start](#quick-start) has what it did and did not include |
 | Memory, five containers, models loaded | **1.94 GiB**, excluding Ollama, against under 8 GB |
-| API test suite | **940** — 904 pass with Postgres and no model services running; the other 36 need `asr`, `tts`, `pron` or Ollama |
-| Frontend test suite | **270** across 41 suites, Jest and React Testing Library, no services needed |
+| API test suite | **1 039** — 1 001 pass with Postgres and no model services running; the other 38 need `asr`, `tts`, `pron` or Ollama |
+| Frontend test suite | **296** across 45 suites, Jest and React Testing Library, no services needed |
 | API image | **812 MB**, with no torch — asserted by a test, not by a comment. It was 424 MB before the dependency parser; §"the cost of the parse" in [decision 0006](docs/decisions/0006-error-taxonomy.md) has the breakdown |
 | `asr` image | 746 MB, also no torch. CTranslate2 and ONNX Runtime, not PyTorch |
 | `tts` image | 672 MB, no torch. onnxruntime and a 61 MB voice baked in |
-| API operations implemented | 28 of the 30 forecast, counted from the running app — m10 added three and m14 three; the progress operations take no user id, and a correction's drill is found through its owner |
+| API operations implemented | **30 of the 30 forecast**, counted from the running app — m10 added three, m14 three and m15 two; the progress operations take no user id, a correction's drill is found through its owner, and an answer said again is looked up with its owner in the same query |
 | **Error detection precision** | **0.500** against a 0.70 bar, over six scored proposals — **not met, and not decidable on a corpus this size**. The model's figure and the product's are the same, because the grammar rules propose nothing on this golden set: it holds no agreement error, and one article error in a shape they leave alone |
 | **Grammar rules, on planted errors** | **130 of 172** agreement errors caught — 0.756 [0.686, 0.814] — and **2 of 129** missing articles, with **no wrong fix and no stray proposal**; no proposal on 3 111 words of native English. The three new scenarios' text added 46 agreement errors to plant and found one wrong fix, now guarded; on the 2 454 words there were before, 100 of 126 and 2 of 93, unchanged. No model involved. See decisions [0014](docs/decisions/0014-the-rule-layer.md) and [0018](docs/decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 on the golden set's real turns, where the parse of unpunctuated speech loses the verb; **no correction on any set joined to a wrong form**. No model involved. See [decision 0015](docs/decisions/0015-accuracy-per-form.md) |
 | **A mistake said aloud, as the recogniser hears it** | Of 89 hand-labelled learner sentences spoken with their mistake by the `tts` voice, **2, 3, 2 and 1** came back as the correction in four runs, the last the one in [docs/evaluation.md](docs/evaluation.md), and **none** of the same 89 spoken corrected came back as the mistake in any. One clear synthetic voice, so not a learner's rate. It is what the spoken drill can and cannot tell; see [decision 0017](docs/decisions/0017-the-spoken-drill.md) |
 | **Articles, prepositions and false friends** | Sixty hand-labelled sentences, twenty per kind, one mistake each. **Said aloud** by the `tts` voice: 17–19 of 20 of each kind came back as said in four runs, the last the one in [docs/evaluation.md](docs/evaluation.md). Prepositions were repaired 6 times in 80 tries — *depends of* heard as *depends on* — articles once, and false friends never. **Found** by the detectors and filed under their kind: articles **6 of 20**, prepositions **12 of 20**, false friends **6 of 20**, the rest mostly filed under another kind; 22 of the 60 corrected sentences drew a proposal. See [decision 0018](docs/decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
+| **Make your point: how an answer is built** | Each measure scored against 16 hand-labelled answers held out from the counter, over a bar of 0.90 precision and 0.75 recall: reasons **0.957 / 1.000**, examples 1.000 / 0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, a word said twice 0.923 / 1.000. **A phrase started again, 0.636 / 0.636 — below the bar, so counted and not shown.** No model involved. See [decision 0019](docs/decisions/0019-make-your-point.md) |
+| **A spoken answer, as the recogniser writes it** | Twelve answers with fillers, repeats and restarts, spoken by the `tts` voice, in two runs: fillers 21 and 22 of 24 written down, words said twice 12 and 13 of 13, phrases started again 9 and 8 of 9, signposts 52 of 52 both times; the sentence count within one of the written in 10 and 11 of 12. One clear synthetic voice, which says *um* as a word |
+| **The model's shorter version of an answer** | On 40 labelled answers, `gemma3:4b`'s shorter version brought in a content word the speaker never said in 26, and **9** brought in more than two and were withheld — **2 of 16** on the held-out answers, against 13 of 16 before its instruction asked for the speaker's own words. Every one had fewer sentences than the answer. The check withheld 6 of 6 rewrites written to add a fact, and let 6 of 6 faithful ones through |
 | Out-of-taxonomy rejection rate | **25 %** of proposals refused, with a reason each |
 | Grammar forms detected in the stored corpus | **13 distinct**, over 106 counted instances in 11 turns, 48 of them verb phrases — recounted after the counter stopped missing every negative and question in the simple tenses and reading every present passive as a past |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path |
@@ -253,7 +256,7 @@ learner speech will be worse by an amount that set cannot estimate.
 
 ### Where these numbers come from
 
-`make eval` runs four measurement suites and a corpus census and writes
+`make eval` runs five measurement suites and a corpus census and writes
 [docs/evaluation.md](docs/evaluation.md), dated and with the revision it was taken at.
 Nothing in that file is written by hand.
 
@@ -416,6 +419,34 @@ a stored turn scored 0.899 overall while containing "department" where the speak
 turn-level threshold could ever reach it. See
 [decision 0006 §4](docs/decisions/0006-error-taxonomy.md).
 
+### Make your point (m15)
+
+**Answer a work question out loud, in one go, and see how the answer was built.** Thirteen
+prompts, in four kinds — explain what happened, justify a choice, walk someone through it,
+recommend something — from A2 to C1, each with a limit of one to two minutes. Press to
+start, press to stop; the limit stops it for you. What comes back is counted, not judged:
+how you said it, with the arithmetic a conversation turn gets, and how you built it — the
+reasons, examples, steps, contrasts and summing up, each marked on your words, the
+sentences as the recogniser punctuated them, and the words you said twice.
+
+**A measure is shown only if it was right often enough on answers it was not built
+against.** Sixteen labelled answers were held out from the counter and scored once: every
+kind of signpost and the repeats clear a bar of 0.90 precision and 0.75 recall. A phrase
+started again did not — 0.636 both ways — so it is counted and stored and never shown.
+*Like* is never counted as an example: no parse separates "tools like Jira" from "it
+looks like rain" reliably enough. And more signposts is not a better answer — counting
+*because* would reward saying it — so nothing on the page or over time calls a higher count
+better.
+
+**A language model's feedback sits beside the counts**: the point to say first, the points
+made without a reason or an example, and your answer said again in fewer sentences. That
+shorter version is checked for content words you never said, and withheld — with the words
+that withheld it — if it brought in more than two: a rewrite that improves your answer by
+adding a figure you never gave puts words in your mouth. The model did not hear you, and a
+note about how you sounded is dropped. Then *Say it again, tighter*, and the two answers
+side by side on the same counts, with no pass mark. See
+[decision 0019](docs/decisions/0019-make-your-point.md).
+
 ### Progress, and what it refuses to say (m10)
 
 Everything analysed is collapsed into one row per week, and the progress page reads those
@@ -490,6 +521,10 @@ Named explicitly so nothing here reads as a claim.
 | m14 | **The spoken drill says what the recogniser heard, not whether you said it right.** A mistake said by a clear synthetic voice came back as its correction 2 or 3 times in 89; for a learner's voice that rate has not been measured, and needs a person's recordings. A contraction the recogniser writes — *he's* for *he is* — reads as something else. And the sentence to say carries every correction it held, so a wrong one elsewhere in it is in it too; the page lists them first |
 | m14 | **The grammar rules have never been measured on a learner's speech.** The stored corpus holds none of the two errors they cover, so their only figures come from errors planted in native English — an upper bound, because a learner's parse is worse. And the article rule covers two shapes, after *be* and after *as*: a bare noun after a preposition or as an object depends on whether it can be counted, which a parse cannot say, so it is left to the model |
 | m14 | **The scenarios for articles, prepositions and false friends are not shown to draw them out of anyone.** That needs a person holding them. What was measured is the path a mistake takes to a correction, and for two of the three kinds it is narrow: the detector files most article and false-friend mistakes under another kind, so those scenarios' own kind will be sparse on the grammar page, and in a check of all three some of what appeared there was wrong. The personas also repeat a mistake back corrected — *so you attended a conference* — which nothing counts |
+| m15 | **A phrase started again is counted and not shown.** On the held-out answers the counter found restarts at 0.636 precision and 0.636 recall, below the bar every shown measure clears. It misses a phrase broken off on a noun or on a verb that does not come back, and takes *all in all* and a preposition at the end of a clause for one. A better counter needs a new held-out set, written before it is changed |
+| m15 | **What reaches the transcript was measured on a synthetic voice.** Fillers, repeats and restarts said by the `tts` voice came back 21–22 of 24, 12–13 of 13 and 8–9 of 9 over two runs — but that voice says *um* as a clear word, and a repeat can come back merged into one (*we we rolled back* as *we rerolled back*). A person's hesitation is a sound, and how much of it survives is not measured |
+| m15 | **The model's shorter version is checked for new words, not for a changed meaning.** A rewrite that says something the speaker did not mean, using only words the speaker said, passes the check. Measured on one model: `gemma3:4b` withholds 2 of 16 held-out answers with its current instruction; another model's rate is unknown |
+| m15 | **Whether practising here makes anyone clearer.** The counts say what an answer contains, and a count is not clarity. That needs a person and weeks |
 | m9 | **Independent labels.** The golden set was labelled by the same agent that wrote the detector's prompt — before any detector existed, which is the only thing keeping it honest. A second annotator is the missing piece |
 | m9 | **A reasoning model cannot be used as the provider.** `services/llm/ollama.py` reads `message.content`; Ollama puts a reasoning model's answer in `message.thinking`. `gpt-oss:20b` therefore returns nothing at all |
 | m10 | **The progress page has almost nothing to show, and the criterion it is judged by is not met.** S7 asks for 30-day trends across four families from ≥ 20 real sessions; the database holds **2** conversations and **2** readings, all on one calendar day. Three families draw a single point, the fourth is gated off, and no direction is claimed anywhere. That is the page behaving correctly, and it is also the whole of what has been demonstrated about it |
@@ -509,7 +544,7 @@ Named explicitly so nothing here reads as a claim.
 
 ```
 api/            FastAPI. No model weights, no torch.
-  db_models/    SQLAlchemy — the write path, twelve tables
+  db_models/    SQLAlchemy — the write path, fourteen tables
   models/       Pydantic — the wire shapes
   routers/      One module per resource
   services/     Logic that is neither a route nor a row (hashing, tokens, ASR, TTS, audio, WER)

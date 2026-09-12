@@ -364,6 +364,34 @@ CREATE TABLE progress_snapshots (
     cefr_estimate TEXT,
     UNIQUE (user_id, period, period_start)
 );
+
+CREATE TABLE answer_prompts (        -- m15, migration 0007; seeded, keyed by slug
+    id           BIGSERIAL PRIMARY KEY,
+    slug         TEXT NOT NULL UNIQUE,
+    title        TEXT NOT NULL,
+    prompt       TEXT NOT NULL,
+    category     TEXT NOT NULL,          -- explain | justify | walk-through | recommend
+    cefr_band    TEXT NOT NULL,
+    time_limit_s INTEGER NOT NULL,       -- 60–120, checked by the seed loader
+    is_active    BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE answers (               -- m15, migration 0007; never the recording
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    prompt_id      BIGINT NOT NULL REFERENCES answer_prompts(id),
+    again_of       BIGINT REFERENCES answers(id) ON DELETE SET NULL,
+    transcript     TEXT NOT NULL,
+    words          JSONB NOT NULL DEFAULT '[]',
+    duration_ms    INTEGER,
+    asr_confidence REAL,
+    asr_model      TEXT,
+    delivery       JSONB NOT NULL,       -- fluency, from the word timings
+    structure      JSONB NOT NULL,       -- signposts, sentences, repeats, restarts
+    feedback       JSONB,                -- the model's, with its check and status
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ON answers (user_id, created_at);
 ```
 
 **Why `words JSONB` rather than a `words` table.** Word timings are read as a whole array
@@ -384,7 +412,9 @@ from this list. m5 added none: its `POST /synthesize` is a model-service interna
 the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
 Q9). m6 added the six session routes below, exactly as forecast. m7 added none either — it
 is the interface over m6's six, and its one server-side change was a derived field on
-`TurnOut`, not a route.
+`TurnOut`, not a route. **All 30 exist as of m15**, counted from the running app on
+2026-09-12 — the shape differs from this forecast (progress is three operations, not
+eight, and the grammar page, the drill and the answers were not in it), the count does not.
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -429,6 +459,9 @@ GET    /grammar                       corrections grouped, verb forms, the form
 GET    /corrections/{id}/drill        one correction's sentence, to say again — m14
 POST   /corrections/{id}/drill        audio in -> what was heard, per correction;
                                       nothing stored — not in the forecast; m14
+GET    /answers                       the prompts, your answers, their history — m15
+POST   /answers                       audio in -> counted and stored, the model's
+                                      feedback beside it — not in the forecast; m15
 ```
 
 Model-service internal APIs, never exposed to the browser:
@@ -1687,7 +1720,7 @@ what they declare.
 
 ---
 
-### m15 — Articulation: saying an idea clearly · **NOT STARTED** — admitted 2026-09-12
+### m15 — Articulation: saying an idea clearly · **CODE COMPLETE** — built and measured 2026-09-12, `docs/decisions/0019`; *Make your point* on screen
 
 **Goal.** A learner can answer a work question out loud in one go, and see how the answer
 was built and how it was delivered — both counted by code — with a model's explanation and
@@ -1720,6 +1753,12 @@ its own failure. The drill (m14 item 4) records one utterance and compares it.
    spoken by the `tts` voice and heard by `small.en`, counting what survives. The fluency
    code already says the recogniser drops most `um`s; whether it drops a restart the same
    way decides whether restarts can be counted, and it is measured, not assumed.
+   **DONE 2026-09-12** — `api/tests/answer_labels.py`: 24 development answers (2 115
+   words), 16 held out (1 469), 37 readings of the words with a second use, 12 answers to
+   say aloud; the bars written into the same file first. Said by `tts`, heard by
+   `small.en`, two runs: fillers **21 and 22 of 24** written down, repeats **12 and 13 of
+   13**, restarts **9 and 8 of 9**, signposts 52 of 52 both times, the sentence count within
+   one in **10 and 11 of 12** — both recogniser bars met in both. A synthetic voice says *um* as a word, so this is not a person's hesitation.
 1. **How an answer is built, counted by code** (`services/structure.py`). Signposts from
    closed lists, by what they do — a reason (*because*, *since*, *that's why*), an example
    (*for example*, *for instance*, *such as*), a sequence (*first*, *then*, *finally*), a
@@ -1729,6 +1768,11 @@ its own failure. The drill (m14 item 4) records one utterance and compares it.
    caveat that a sentence boundary is the recogniser's punctuation; restarts and repeated
    words. Each measure scored against item 0's held-out set, with its interval, before any
    screen shows it; a measure below its bar is not shown.
+   **DONE** — held out, precision / recall: reasons **0.957 / 1.000**, examples 1.000 /
+   0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, repeats
+   0.923 / 1.000; **restarts 0.636 / 0.636, below the bar — counted, stored, not shown**.
+   `structure.SHOWN` decides, and CI asserts every measure in it clears its bar. The
+   held-out set is unspent; the same author wrote it and the counter.
 2. **The drill: one spoken answer to a prompt.** A dozen prompts across the scenario
    categories — explain a failure, justify a choice, walk through a process, recommend
    something — each with a band and a time limit of 60 to 120 s, seeded and validated like
@@ -1736,6 +1780,10 @@ its own failure. The drill (m14 item 4) records one utterance and compares it.
    structure, each with its caveat. Whether this is a third session mode (`ALTER TYPE
    session_mode ADD VALUE`, a migration) or a table of its own, and whether prompts are a
    table or scenarios with a flag, is decided when built; at most two new operations.
+   **DONE** — *Make your point* at `/answers`, a rail entry of its own; **13 prompts**, four
+   kinds, A2–C1, 60–120 s; **tables of their own**, `answer_prompts` and `answers`
+   (migration `0007`), not a session mode; **`GET` and `POST /answers`, 30 of 30**. Press to
+   start and to stop, stopped by the time limit; the recording is transcribed and dropped.
 3. **Feedback from the model, beside the counts.** One call after the answer, in
    `narrate_report`'s never-raises shape: what to lead with, which point has no reason or
    example, and the speaker's own answer said in fewer sentences. **The rewrite is checked,
@@ -1743,16 +1791,29 @@ its own failure. The drill (m14 item 4) records one utterance and compares it.
    rewrite over the limit is refused, and the refusal is counted — the taxonomy's
    rejection rate, for a new kind of output. It may not comment on how the answer sounded
    (P2), and nothing it writes reaches a chart (P1).
+   **DONE** — the limit is more than **2** new content words, chosen on 12 development
+   rewrites; on 12 held out the check withheld **6 of 6** that added a fact and showed **6
+   of 6** faithful ones. The model on all 40 answers: with the first instruction its
+   shorter version was withheld **34 of 40** (13 of 16 held out) — paraphrase, not
+   invention; with the instruction asking for the speaker's own words, **9 of 40, 2 of 16
+   held out**. Every shorter version had fewer sentences; no note about sound dropped.
 4. **Say it again, tighter.** A second attempt at the same prompt, compared with the first
    on the same counts, side by side. No pass mark.
+   **DONE** — `answers.again_of`; the two side by side on the same counts, no arrow and no
+   colour. Seen in Chromium with a synthesised answer as the microphone, 1440 light and
+   375 dark; it found duplicate keys in the shared chart, fixed.
 5. **Over time — only what has a better end.** Fewer restarts and shorter sentences may be
    better; more signposts is not, because counting *because* rewards saying it, the trap P3
    names for tense. So signposts are drawn and never judged, as speech rate is, and which
    measures reach `/progress` is decided with item 1's numbers in hand.
+   **DONE** — on the answers page, one point per answer: speech rate, time paused, fillers
+   and words said twice per 100 words, words per sentence, signposts. Only fillers and words
+   said twice get a direction; a rate is withheld under 50 words. **Nothing reaches
+   `/progress`.**
 
-**Decisions to make, not made.** The feature's name on screen — not "articulation", which
-is already a rate here. Session mode or table; prompts as a table or as scenarios. Which
-structure measures reach `/progress`, and their floors.
+**Decisions to make, not made.** None left *(made 2026-09-12, 0019: the name is *Make your
+point*; tables of their own and prompts a seeded table; the history is on the answers page
+and nothing reaches `/progress`, with a direction for fillers and words said twice only)*.
 
 **Not in it.** Intonation, stress and prosody: PRD §15 keeps them out of v1 and nothing here
 scores them. Whether an answer is right: the model may not judge content, only say where

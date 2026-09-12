@@ -140,14 +140,15 @@ a number measured on a laptop mean the same thing. They are FLAC, which needs no
 `git add -f` — and which also exercises the format conversion a set already in the target
 format would never test.
 
-Since m2 the schema exists: twelve tables, three enum types, one revision. Two layers
+Since m2 the schema exists, and it is now fourteen tables, four enum types and seven
+revisions — the last, `0007`, adding the spoken answers and the prompts they answer. Two layers
 above it — `api/db_models/` for columns, `api/models/` for wire shapes — because they
 answer different questions, and `scenarios.persona_prompt` is the standing example of a
 column that is loaded on every query and serialised by nothing. The tables, and why five
 columns are JSONB while two adjacent ones are not, are in
 [data-model.md](data-model.md).
 
-Scenarios and passages are **seeded data, not fixtures**: real rows versioned as JSON in
+Scenarios, passages and answer prompts are **seeded data, not fixtures**: real rows versioned as JSON in
 `api/seeds/`, loaded idempotently by slug with `make seed`. They sit under `api/` rather
 than at the repository root so that one path resolves identically in the container, in
 CI and in a host shell.

@@ -8,6 +8,8 @@
  */
 
 import type {
+  AnswerPrompt,
+  AnswersPage,
   AttemptDetail,
   CategoryCorrections,
   CorrectionExample,
@@ -25,6 +27,7 @@ import type {
   SessionAnalysis,
   SessionDetail,
   SessionReportShape,
+  SpokenAnswer,
   TrendSeries,
   Turn,
 } from "@/lib/api";
@@ -508,6 +511,128 @@ export function makeDrillResult(overrides: Partial<DrillResult> = {}): DrillResu
     substituted: 0,
     missed: 0,
     added: 0,
+    ...overrides,
+  };
+}
+
+// ── Make your point ─────────────────────────────────────────────────────────
+
+export function makePrompt(overrides: Partial<AnswerPrompt> = {}): AnswerPrompt {
+  return {
+    slug: "explain-a-failed-release",
+    title: "Explain a failed release",
+    prompt:
+      "The release you shipped yesterday broke checkout for about an hour. Your manager asks what happened. Explain it to them.",
+    category: "explain",
+    cefr_band: "B2",
+    time_limit_s: 90,
+    ...overrides,
+  };
+}
+
+const SAID =
+  "The release broke checkout because a field was missing. We we rolled back. In short, a missing field.";
+
+function at(text: string, phrase: string) {
+  const start = text.indexOf(phrase);
+  return { start, end: start + phrase.length, text: phrase };
+}
+
+/** One answer as `POST /answers` returns it: counted, with feedback that passed its check. */
+export function makeAnswer(overrides: Partial<SpokenAnswer> = {}): SpokenAnswer {
+  return {
+    id: 7,
+    prompt: makePrompt(),
+    created_at: "2026-09-12T10:15:00Z",
+    again_of: null,
+    transcript: SAID,
+    asr_confidence: 0.91,
+    delivery: {
+      words: 18,
+      duration_ms: 9400,
+      speech_rate_wpm: 114.9,
+      articulation_rate: 131.2,
+      pause_ratio: 0.12,
+      mean_length_run: 6,
+      fillers: 0,
+      fillers_per_100_words: 0,
+    },
+    structure: {
+      words: 18,
+      sentences: 3,
+      words_per_sentence: 6,
+      longest_sentence: 9,
+      signposts: { reason: 1, example: 0, sequence: 0, contrast: 0, close: 1 },
+      repeats: 1,
+      found: [
+        { kind: "reason", ...at(SAID, "because") },
+        { kind: "repeat", ...at(SAID, "We we") },
+        { kind: "close", ...at(SAID, "In short") },
+      ],
+      shown: ["close", "contrast", "example", "reason", "repeat", "sentences", "sequence"],
+      caveat: "Counted from the transcript. More is not better.",
+    },
+    feedback: {
+      status: "ok",
+      model: "gemma3:4b",
+      lead: "Say first that a missing field broke checkout.",
+      gaps: ["rolling back"],
+      rewrite: "A missing field broke checkout, so we rolled back.",
+      rewrite_sentences: 1,
+      invented: [],
+      detail: null,
+      caveat: "Written by a language model reading the transcript. It did not hear you.",
+    },
+    ...overrides,
+  };
+}
+
+export function makeAnswersPage(overrides: Partial<AnswersPage> = {}): AnswersPage {
+  return {
+    prompts: [
+      { ...makePrompt(), answers: 1, last_answered_at: "2026-09-12T10:15:00Z" },
+      {
+        ...makePrompt({
+          slug: "recommend-a-tool",
+          title: "Recommend a tool",
+          prompt: "Your team is choosing a tool to track its work. Recommend one.",
+          category: "recommend",
+          cefr_band: "B1",
+          time_limit_s: 60,
+        }),
+        answers: 0,
+        last_answered_at: null,
+      },
+    ],
+    prompt: null,
+    answers: [makeAnswer()],
+    answered: 1,
+    history: [
+      makeSeries({
+        metric: "fillers_per_100_words",
+        label: "fillers",
+        unit: "per 100 words",
+        better: "lower",
+      }),
+      makeSeries({
+        metric: "speech_rate_wpm",
+        label: "speech rate",
+        unit: "wpm",
+        better: null,
+        change: null,
+        direction: null,
+      }),
+      makeSeries({
+        metric: "repeats_per_100_words",
+        label: "words said twice",
+        unit: "per 100 words",
+        points: [],
+        gate: { shown: false, reason: "No answer yet has 50 words in it.", have: 18, need: 50 },
+        change: null,
+        direction: null,
+      }),
+    ],
+    caveat: "One point per answer, whichever prompt it answered.",
     ...overrides,
   };
 }

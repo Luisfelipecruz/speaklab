@@ -180,3 +180,40 @@ describe("one measured period", () => {
     expect(screen.queryByTestId("single-reading")).not.toBeInTheDocument();
   });
 });
+
+test("a chart of answers says a single point is one answer, not one week", () => {
+  render(
+    <TrendChart
+      per="answer"
+      series={makeSeries({
+        points: [
+          { start: "2026-09-12", value: 1.8, samples: 55, withheld: null },
+          { start: "2026-09-12", value: null, samples: 34, withheld: "fewer than 50 words" },
+        ],
+        change: null,
+        direction: null,
+      })}
+    />,
+  );
+
+  expect(screen.getByText(/Measured on one answer, on 09\/12/)).toBeInTheDocument();
+  expect(screen.queryByText(/week/)).not.toBeInTheDocument();
+});
+
+test("two points on the same day are both drawn and both listed", () => {
+  render(
+    <TrendChart
+      per="answer"
+      series={makeSeries({
+        points: [
+          { start: "2026-09-12", value: 4, samples: 80, withheld: null },
+          { start: "2026-09-12", value: 2, samples: 90, withheld: null },
+        ],
+      })}
+    />,
+  );
+
+  expect(screen.getByTestId("trend-svg").querySelectorAll("circle")).toHaveLength(2);
+  expect(screen.getByRole("img", { name: "errors over 2 answers" })).toBeInTheDocument();
+  expect(screen.getAllByText("09/12")).toHaveLength(2);
+});

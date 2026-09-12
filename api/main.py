@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
+from routers.answers import router as answers_router
 from routers.attempts import router as attempts_router
 from routers.audio import router as audio_router
 from routers.auth import router as auth_router
@@ -75,6 +76,10 @@ app.include_router(grammar_router)
 
 # One of those corrections, said again and compared with what the recogniser heard.
 app.include_router(drills_router)
+
+# A spoken answer to a work prompt: how it was said and how it was built, counted, with a
+# language model's feedback beside the counts.
+app.include_router(answers_router)
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel
 # signing key is the right default for a laptop and a serious problem anywhere else,

@@ -1,0 +1,106 @@
+[
+  {
+    "slug": "explain-a-failed-release",
+    "title": "Explain a failed release",
+    "prompt": "The release you shipped yesterday broke checkout for about an hour. Your manager was not on the incident call and asks what happened. Explain it to them.",
+    "category": "explain",
+    "cefr_band": "B2",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "explain-a-missed-deadline",
+    "title": "Explain a missed deadline",
+    "prompt": "Your team delivered a feature to a client two weeks after the date it promised. The client's account manager asks why. Explain it.",
+    "category": "explain",
+    "cefr_band": "B1",
+    "time_limit_s": 60
+  },
+  {
+    "slug": "explain-a-slow-report",
+    "title": "Explain a slow page to a customer",
+    "prompt": "A customer says the reports page takes ten seconds to open. You know the cause. Explain it to them, and say what happens next.",
+    "category": "explain",
+    "cefr_band": "B1",
+    "time_limit_s": 60
+  },
+  {
+    "slug": "describe-your-job",
+    "title": "Say what you do at work",
+    "prompt": "Someone you have just met asks what you do at work. Tell them what your job is and what a normal day looks like.",
+    "category": "explain",
+    "cefr_band": "A2",
+    "time_limit_s": 60
+  },
+  {
+    "slug": "justify-a-database-choice",
+    "title": "Justify a technology choice",
+    "prompt": "You chose Postgres rather than MongoDB for a new service. A colleague who prefers MongoDB asks why. Justify the choice.",
+    "category": "justify",
+    "cefr_band": "B2",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "push-back-on-scope",
+    "title": "Say not yet to a new request",
+    "prompt": "A product manager wants one more feature added to this sprint. You think it should wait. Tell them why.",
+    "category": "justify",
+    "cefr_band": "B2",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "choose-a-candidate",
+    "title": "Choose between two candidates",
+    "prompt": "You interviewed two candidates for one job. Tell the hiring manager which one you would hire, and why.",
+    "category": "justify",
+    "cefr_band": "C1",
+    "time_limit_s": 120
+  },
+  {
+    "slug": "walk-through-a-release",
+    "title": "Walk a new colleague through a release",
+    "prompt": "A new colleague starts on Monday. Walk them through how a change gets from their laptop to production in your team.",
+    "category": "walk-through",
+    "cefr_band": "B1",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "walk-through-a-code-review",
+    "title": "Explain how you review code",
+    "prompt": "An intern asks how you review a pull request. Walk them through what you do, step by step.",
+    "category": "walk-through",
+    "cefr_band": "B2",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "walk-through-an-alert",
+    "title": "Walk someone through an alert at night",
+    "prompt": "A new engineer joins the on-call rota. Walk them through what to do when an alert wakes them up at night.",
+    "category": "walk-through",
+    "cefr_band": "B2",
+    "time_limit_s": 120
+  },
+  {
+    "slug": "recommend-a-tool",
+    "title": "Recommend a tool",
+    "prompt": "Your team is choosing a tool to track its work. Recommend one you have used, and say why.",
+    "category": "recommend",
+    "cefr_band": "B1",
+    "time_limit_s": 60
+  },
+  {
+    "slug": "recommend-office-days",
+    "title": "Recommend days in the office",
+    "prompt": "Your company is deciding how many days a week people should come to the office. Give your recommendation.",
+    "category": "recommend",
+    "cefr_band": "B2",
+    "time_limit_s": 90
+  },
+  {
+    "slug": "recommend-a-priority",
+    "title": "Recommend one of two projects",
+    "prompt": "Next quarter your team has time for one project: paying down technical debt, or a feature customers keep asking for. Recommend one.",
+    "category": "recommend",
+    "cefr_band": "C1",
+    "time_limit_s": 120
+  }
+]

@@ -4,7 +4,7 @@
     python3 eval/run.py --only asr
     python3 eval/run.py --local --out /tmp/evaluation.md    # what CI does
 
-**Why this is a script on the host and not another pytest file.** The four measurements
+**Why this is a script on the host and not another pytest file.** The measurements
 are pytest suites, and they should stay that way: they need fixtures, async, and the skip
 machinery, and each one has to be runnable on its own by somebody debugging a service.
 What they are not is a report. Pytest's output is prose for a person watching it scroll
@@ -101,6 +101,13 @@ SUITES = (
         "Persona adherence",
         {"OLLAMA_BASE_URL": "http://host.docker.internal:11434"},
         "make persona-adherence",
+    ),
+    Suite(
+        "answers",
+        "tests/test_answer_measures.py",
+        "Spoken answers",
+        {"OLLAMA_BASE_URL": "http://host.docker.internal:11434"},
+        "make answer-feedback",
     ),
 )
 
