@@ -27,8 +27,9 @@ the wrong instrument for *how well does this work for a Spanish-L1 learner?*
 
 A WER measured here is a lower bound. Learner speech is accented, disfluent, and recorded
 on a laptop microphone in a room; the error rate will be higher and the gap is not
-estimable from this set. Closing it needs learner recordings: `spike/RECORD.md` is the
-first five minutes of that work, and m11 is where it becomes a suite with its own numbers.
+estimable from this set. Closing it needs learner recordings; the pronunciation set's
+protocol ([`eval/golden/pron/README.md`](../pron/README.md)) is the first five minutes of
+that work.
 
 **It is also not the pronunciation golden set.** That one is human recordings of *planted
 errors*, it belongs to m8, and it cannot be drawn from a corpus of correct speech.

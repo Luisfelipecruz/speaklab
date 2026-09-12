@@ -36,17 +36,19 @@ categorically different phone and a learner error is a gradient one — a retrac
 epenthesis with a particular vowel quality, an unreleased final stop. The 8-nat gap above
 is an upper bound.
 
-The protocol is `spike/RECORD.md` — about five minutes. **Note that it was written for
-m0 and tells you to put the files in `spike/audio/`; put them here instead**, or do both:
-the spike scripts and this suite read different directories, and only this one is wired to
-criterion S4.
+The protocol is below: about five minutes with a microphone, in one sitting.
 
 ### What to say
 
 Read each line twice — once normally, once saying the **bold** words wrong, naturally
 rather than exaggerated. Same microphone, same room, one sitting, same pace and volume in
 both takes. GOP moves with the microphone (handoff trap 5), so changing device between
-takes invalidates the comparison.
+takes invalidates the comparison. Leave about half a second of silence at the start and
+the end of each take, so the first sound is not clipped.
+
+Any recorder works; on macOS, QuickTime Player → File → New Audio Recording. Save the six
+takes into `eval/golden/pron/raw/`, named after the first column — `p1_clean.m4a` and so
+on. That directory is ignored by git, like every `.wav` here.
 
 | file | say this |
 |---|---|
@@ -68,6 +70,13 @@ for f in eval/golden/pron/raw/*.m4a; do
   b=$(basename "$f" .m4a)
   afconvert -f WAVE -d LEI16@16000 -c 1 "$f" "eval/golden/pron/$b.wav"
 done
+```
+
+Check all six before going on. Each line must say `1 ch, 16000 Hz`; `afinfo` is built
+into macOS too.
+
+```bash
+for f in eval/golden/pron/p?_*.wav; do printf '%-34s' "$f"; afinfo "$f" | grep 'Data format'; done
 ```
 
 ### Register them

@@ -172,6 +172,13 @@ that claim is one that reads the router table rather than a list somebody mainta
 Cross-user reads are **404, not 403** — a 403 confirms the row exists and belongs to
 somebody else, which turns an incrementing id into an enumeration of the table.
 
+Everything an account holds can also leave as one document. `GET /progress/export` returns
+its sessions with their turns and what was measured and corrected in each, its readings
+with their scored sounds, its spoken answers and its weekly snapshots — JSON, sent as a
+download, with each recording listed by the address that streams it rather than embedded.
+Like every progress operation it takes no user id, so no request can export somebody
+else's.
+
 ---
 
 ## 5. Audio, and what the recogniser is for
@@ -433,13 +440,28 @@ own audio is stored either way; it is synthesised speech, not the speaker's voic
 
 ## 8. The frontend
 
-Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. One page today,
-which renders `/health`.
+Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. Every signed-in page
+is a server component that forwards the session cookie to the API
+(`src/lib/server-api.ts`), so a page arrives with its data rather than fetching it after
+it paints; the microphone, the players and the forms are client components inside those
+pages.
 
-That page is not a placeholder. It is the only test that covers the thing no unit test
-can: that the browser reaches the frontend container, the frontend container reaches the
-API container over the compose network, and the API reaches Postgres. It renders whatever
-`/health` actually says, including `degraded`.
+`(auth)` holds sign-in and registration. `(app)` is the signed-in shell — a rail of seven
+sections and the page inside it — and it is one layout rather than seven, so the frame does
+not move from one section to the next. Every page under it has its own `loading.tsx`, a
+skeleton shaped like the page it stands in for: a server render waits for the API, and
+without one the previous page stayed on screen through the wait, which reads as a click
+that did nothing. A page that throws something it did not expect shows `error.tsx` inside
+the shell, with a retry that asks the server again; an address that leads nowhere shows
+`not-found.tsx`, in the product's words, without saying whether the thing ever existed.
+**One cost, accepted:** on a page with a loading state, a not-found decided after the
+response has started streaming is sent with status 200 rather than 404. The page says
+"Nothing here"; the status line had already gone.
+
+`/status` renders whatever `/health` says, including `degraded`. It is the one page that
+covers what no unit test can: that the browser reaches the frontend container, the
+frontend container reaches the API over the compose network, and the API reaches Postgres
+and each model service.
 
 Two API base URLs, because there are two callers: a server component resolves `api:8000`
 inside the compose network, and the browser resolves `localhost:8002` from the host.
@@ -469,7 +491,8 @@ Offset from the other stacks on this machine so all of them run at once.
 | | |
 |---|---|
 | What the product is, and the measurement model | `../PRD.md` §5, §7 |
-| The twelve milestones, the schema, the API surface | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |
+| The sixteen milestones, the schema, the API surface | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |
 | The tables, the enums, the seed contract | [data-model.md](data-model.md) |
-| Why each milestone is shaped the way it is | the **Decisions** block of that milestone in §7 |
-| Does pronunciation scoring actually work | m0 passed — the writeup lands in `decisions/` at m8; the headline numbers are in the README |
+| Why each milestone is shaped the way it is | its section in the plan's §7, and [`decisions/`](decisions/) |
+| Does pronunciation scoring actually work | [decisions/0005](decisions/0005-gop-pipeline.md); the headline numbers are in the README |
+| What every measured figure was measured by | [evaluation.md](evaluation.md), written by `make eval` and never by hand |

@@ -36,6 +36,11 @@ audio_data/
 *.bin
 *.pt
 
+# The pronunciation pairs as they come off a recorder, before conversion to .wav — a
+# person's voice in whatever format the recorder wrote, so no extension pattern above
+# would catch it.
+eval/golden/pron/raw/
+
 # The m0 spike is throwaway; its findings move to docs/decisions/
 spike/
 
