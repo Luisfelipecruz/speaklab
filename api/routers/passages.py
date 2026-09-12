@@ -31,6 +31,10 @@ async def list_passages(
         ),
     ),
 ) -> list[Passage]:
+    """The read-aloud catalogue, filtered by band or by a sound it exercises.
+
+    Ordered by band then title, like the scenarios, so the list is stable across calls.
+    """
     query = select(Passage).where(Passage.is_active.is_(True))
 
     if band is not None:

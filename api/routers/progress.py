@@ -1,6 +1,6 @@
-"""Whether you are getting better, and what to practise next.
+"""Whether you are getting better, what to practise next, and the whole record to keep.
 
-Three operations, and the split between them is the design. `GET /progress` reads
+Three operations serve the page, and the split between them is the design. `GET /progress` reads
 materialised snapshots and computes nothing; `POST /progress/refresh` is the only thing
 that recomputes them; `GET /progress/recommendations` ranks the same stored rows into
 advice. A page load that aggregated raw turns would get slower every week the user
@@ -12,20 +12,25 @@ The rollup itself runs when a session ends, so `stale` is normally false and the
 normally unnecessary — it is there for read-aloud scoring, which finishes after the request
 that started it, and for turns analysed by a backfill.
 
+**The fourth is not for the page.** `GET /progress/export` hands over the account's whole
+history as one JSON file, for a person who wants to keep it or take it somewhere else.
+
 Everything here is scoped to the caller and nothing takes a user id: there is no shape of
 this API in which one account reads another's progress.
 """
 
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import PROGRESS_TREND_DAYS
 from database import get_db
 from db_models import User
 from dependencies import current_user
+from models.export import HistoryExport
 from models.progress import ProgressOut, RecommendationsOut
+from services import export as export_service
 from services import progress as progress_service
 from services import recommend as recommend_service
 from services import rollup as rollup_service
@@ -99,3 +104,24 @@ async def refresh(
     written = await rollup_service.rebuild_user(db, user.id)
     log.info("refresh rebuilt %d periods for user %s", len(written), user.id)
     return await progress_service.build(db, user.id, period=period, days=days)
+
+
+@router.get("/export", response_model=HistoryExport)
+async def export_history(
+    response: Response,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> HistoryExport:
+    """Everything this account has recorded, as one JSON document to keep.
+
+    Sessions with their turns and what was measured and corrected in each, readings with
+    their scored sounds, spoken answers, and the weekly snapshots. Recordings are listed
+    with the address that streams each one rather than embedded. Sent as an attachment,
+    so a browser saves it instead of showing it.
+    """
+    document = await export_service.build(db, user)
+    stamp = document.exported_at.date().isoformat()
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="speaklab-history-{stamp}.json"'
+    )
+    return document

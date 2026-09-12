@@ -25,6 +25,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardListIcon,
+  DownloadIcon,
   HistoryIcon,
   HomeIcon,
   MessagesSquareIcon,
@@ -51,6 +52,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { PUBLIC_API_URL } from "@/lib/api";
 
 /**
  * What the rail can say about each section without asking the API for anything new.
@@ -236,6 +238,19 @@ export function AppSidebar({ facts }: { facts: ShellFacts | null }) {
             </span>
           ) : null}
         </div>
+
+        {user && (
+          // A plain link to the API rather than a fetch. The API answers with an
+          // attachment, so the browser saves the file itself, and a top-level navigation
+          // carries the session cookie with it.
+          <a
+            href={`${PUBLIC_API_URL}/progress/export`}
+            className="flex items-center gap-2 px-2 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline group-data-[collapsible=icon]:hidden"
+          >
+            <DownloadIcon className="size-3.5 shrink-0" aria-hidden="true" />
+            Download your history
+          </a>
+        )}
 
         {facts?.stale && (
           <Badge

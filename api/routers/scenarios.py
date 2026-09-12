@@ -36,7 +36,7 @@ async def list_scenarios(
         ),
     ),
 ) -> list[Scenario]:
-    """The chooser.
+    """The scenario catalogue, filtered by band, setting or target form.
 
     Ordered by band then title so the list is stable across calls — an unordered list
     endpoint returns rows in whatever order Postgres finds them, which changes after an
