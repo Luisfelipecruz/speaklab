@@ -7,6 +7,79 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.15.0] — 2026-09-12 · make your point
+
+A learner can now answer a work question out loud in one go and see how the answer was
+built and how it was said — both counted by code — with a model's notes and a shorter
+version of their own answer beside the counts, never in place of them; then say it again
+and compare the two. `docs/decisions/0019`.
+
+### Added
+
+- **Make your point, `/answers`**, a section of its own in the rail. Thirteen prompts in
+  four kinds — explain a failure, justify a choice, walk through a process, recommend
+  something — each with a band from A2 to C1 and a time limit of 60 to 120 s. Press to
+  start and press to stop; the time limit stops it too. The recording is transcribed and
+  dropped: no audio is kept. Tables of their own, `answer_prompts` and `answers`
+  (migration `0007`), not a session mode; the prompts are seeded and validated like the
+  scenarios. Two new operations, `GET` and `POST /answers`: **30 of the 30 forecast**. Run
+  `make migrate`, then `make seed`.
+- **How an answer is built, counted by code** (`services/structure.py`). Signposts by what
+  they do — a reason, an example, a step, a contrast, summing up — from closed lists, with
+  the dependency parse deciding the words with a second use: *so* as a result and not *so
+  good*, *since* as a reason and not a time, *then* as a step and not the other half of an
+  *if*, and *like* never. Sentences and words per sentence, words said twice, and phrases
+  started again.
+- **The instrument, written before the counter.** Forty answers to the prompts labelled by
+  hand, the way the recogniser writes — 24 the counter was built against (2 115 words) and
+  16 held out from it (1 469) — with 37 readings of the words with a second use, and the
+  bars written into the same file first: a measure is shown to a learner only at 0.90
+  precision and 0.75 recall on the held-out answers, over at least ten marked. Held out:
+  reasons **0.957 / 1.000**, examples 1.000 / 0.909, steps 0.933 / 1.000, contrasts and
+  summing up 1.000 / 1.000, words said twice 0.923 / 1.000. **Phrases started again, 0.636
+  / 0.636 — below the bar, so counted and stored and not shown**; CI asserts every shown
+  measure clears it.
+- **What of a spoken answer reaches the transcript, measured.** Twelve answers with
+  fillers, repeats and restarts, spoken by the `tts` voice and heard by `small.en`, in the
+  speech recognition suite. Four runs, the last the one in `docs/evaluation.md`: fillers
+  **21, 22, 21 and 21 of 24** written down, words said twice 12, 13, 13 and 13 of 13,
+  phrases started again 9, 8, 8 and 8 of 9, signposts 52 of 52 every time, the sentence
+  count within one of the written in 10, 11, 10 and 11 of 12. A synthetic voice says *um*
+  as a word, so this is not a person's hesitation.
+- **Feedback from the model, beside the counts.** One call after the answer, which never
+  holds the answer up and records its own failure: what to lead with, which point has no
+  reason or example, and the answer again in fewer sentences, in the speaker's own words.
+  **The shorter version is checked, not trusted**: a version bringing in more than two
+  content words the speaker never said is withheld, and the words that withheld it are
+  shown instead (`ANSWER_REWRITE_MAX_INVENTED`). A note about how the answer sounded is
+  dropped — the model read a transcript and heard nothing. Nothing it writes is counted or
+  drawn over time.
+- **The check, and the model, measured.** The check withheld **6 of 6** held-out rewrites
+  written to add a fact and let **6 of 6** faithful ones through, the limit chosen on
+  twelve others. `gemma3:4b` on all forty labelled answers: its shorter version was
+  withheld **9 of 40, 2 of 16 held out** — 13 of 16 before its instruction asked for the
+  speaker's own words; it answered in the shape asked for 40 of 40, and every shorter
+  version had fewer sentences than the answer.
+- **Say it again, tighter.** A second attempt at the same prompt, `answers.again_of`,
+  shown beside the first on the same counts. No arrow, no colour, no pass mark.
+- **The answers over time**, on the answers page, one point per answer: speech rate, time
+  paused, fillers and words said twice per 100 words, words per sentence, signposts. Only
+  fillers and words said twice get a direction — more signposts is not better, because
+  counting *because* rewards saying it — and a rate is withheld under 50 words. Nothing
+  reaches `/progress`.
+- **A fifth evaluation suite, `answers`**, and `make answer-feedback`: the counter against
+  the held-out answers, the check against its rewrites, and the model's feedback on the
+  forty answers. `docs/evaluation.md` carries all three.
+- **Settings** `ANSWER_FEEDBACK_TIMEOUT_S`, `ANSWER_FEEDBACK_MAX_TOKENS`,
+  `ANSWER_REWRITE_MAX_INVENTED`, `ANSWER_HISTORY_LIMIT` and `ANSWERS_PER_PROMPT`.
+
+### Changed
+
+- **The trend chart can draw one point per answer** as well as per week, and keys its
+  points by position: two answers on the same day drew two points with one key.
+- **`make seed` loads the prompts** beside the scenarios and passages, and says so for each
+  of the three tables.
+
 ## [0.14.0] — 2026-09-12 · grammar practice
 
 A learner can now see the grammar they get wrong in their own sentences, and say one of

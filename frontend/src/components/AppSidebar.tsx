@@ -29,6 +29,7 @@ import {
   HomeIcon,
   MessagesSquareIcon,
   MicIcon,
+  PresentationIcon,
   SpellCheckIcon,
   TrendingUpIcon,
 } from "lucide-react";
@@ -108,6 +109,12 @@ const SECTIONS: readonly Section[] = [
     label: "Grammar",
     icon: SpellCheckIcon,
     hint: "Your corrections, in your own sentences",
+  },
+  {
+    href: "/answers",
+    label: "Make your point",
+    icon: PresentationIcon,
+    hint: "Answer a work question out loud, and see how it was built",
   },
   {
     href: "/progress",

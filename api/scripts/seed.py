@@ -32,7 +32,8 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db_models import Passage, Scenario
+from db_models import AnswerPrompt, Passage, Scenario
+from models.answer import PromptSeed
 from models.passage import PassageSeed, word_count
 from models.scenario import ScenarioSeed
 
@@ -140,7 +141,7 @@ async def _upsert(
 
 
 async def seed(session: AsyncSession) -> SeedReport:
-    """Load both files into `session`. The caller owns the transaction.
+    """Load every seed file into `session`. The caller owns the transaction.
 
     Taking a session rather than opening one is what lets the test suite run this
     against its own scratch database, and what lets a future `seed --dry-run` roll back
@@ -158,14 +159,18 @@ async def seed(session: AsyncSession) -> SeedReport:
         values["word_count"] = word_count(record.body)
         passage_rows.append(values)
 
+    prompt_rows = [r.model_dump(mode="json") for r in _load("prompts.json", PromptSeed)]
+
     scenario_report = TableReport("scenarios")
     passage_report = TableReport("passages")
+    prompt_report = TableReport("prompts")
 
     await _upsert(session, Scenario, scenario_rows, scenario_report)
     await _upsert(session, Passage, passage_rows, passage_report)
+    await _upsert(session, AnswerPrompt, prompt_rows, prompt_report)
     await session.flush()
 
-    return SeedReport([scenario_report, passage_report])
+    return SeedReport([scenario_report, passage_report, prompt_report])
 
 
 async def main() -> int:

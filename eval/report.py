@@ -46,6 +46,9 @@ NOT_RUN = "not run"
 
 MARK = {MET: "✅", NOT_MET: "❌", UNDECIDABLE: "◐", NOT_RUN: "—"}
 
+# The suites, in the order the report reads them. `run.py` runs the same names.
+SUITE_NAMES = ("asr", "pron", "errors", "personas", "answers")
+
 # The precision bar S5 states. Here rather than in the comparison so that a reader of the
 # report and a reader of this file are looking at the same number.
 S5_PRECISION_BAR = 0.70
@@ -334,7 +337,49 @@ def _asr_section(results: dict, skips: dict) -> list[str]:
         lines
         + _drill(results.get("drill"))
         + _kinds_aloud(results.get("categories_aloud"))
+        + _answers_aloud(results.get("answers_aloud"))
     )
+
+
+def _answers_aloud(aloud: dict | None) -> list[str]:
+    """What of a spoken answer's fillers, repeats, restarts and sentence ends is written down."""
+    if aloud is None:
+        return []
+    lines = [
+        "#### A spoken answer: what reaches the transcript",
+        "",
+        f"Measured {aloud['measured_at']}, `{aloud['model']}` hearing the voice "
+        f"`{aloud['voice']}`: {aloud['answers']} answers to the answer drill's prompts, "
+        "written with fillers, words said twice and phrases started again, and spoken by "
+        "the voice. Whatever the recogniser leaves out cannot be counted.",
+        "",
+        "| | Written down, of those spoken |",
+        "|---|---|",
+    ]
+    for name, key in (
+        ("Fillers", "fillers"),
+        ("Words said twice", "repeats"),
+        ("Phrases started again", "restarts"),
+        ("Signposts", "signposts"),
+    ):
+        tally = aloud[key]
+        lines.append(
+            f"| {name} | {scoring.proportion(tally['heard'], tally['spoken']).format()} |"
+        )
+    lines += [
+        f"| Sentences, heard within one of the count written | "
+        f"{aloud['sentences_within_one']} of {aloud['answers']} answers |",
+        "",
+        "A synthetic voice says a filler as a clear word and a repeat as two clean "
+        "copies, so this is the recogniser with the clearest version of each — not with a "
+        "person's hesitation, which is a sound rather than a word.",
+        "",
+    ]
+    if aloud.get("lost"):
+        lines += ["Not written down:", ""]
+        lines += [f"- {item['kind']}: `{item['quote']}`" for item in aloud["lost"]]
+        lines.append("")
+    return lines
 
 
 def _drill(drill: dict | None) -> list[str]:
@@ -667,6 +712,177 @@ def _kinds_found(found: dict | None) -> list[str]:
     return lines
 
 
+def _answers_section(results: dict, skips: dict) -> list[str]:
+    lines = _suite_heading(
+        "answers",
+        "Spoken answers — how an answer is built, and the model's feedback",
+        results,
+        skips,
+    )
+    answers = results.get("answers")
+    if answers is not None:
+        lines += _answer_feedback(answers)
+    lines += _structure(results.get("structure"))
+    lines += _rewrite_check(results.get("rewrite_check"))
+    return lines
+
+
+# What the answer drill counts, as a reader names it.
+MEASURES = {
+    "reason": "A reason",
+    "example": "An example",
+    "sequence": "A step",
+    "contrast": "A contrast",
+    "close": "Summing up",
+    "repeat": "A word said twice",
+    "restart": "A phrase started again",
+}
+
+
+def _answer_feedback(answers: dict) -> list[str]:
+    """The language model's feedback on the labelled answers, checked."""
+    rewrites = answers["rewrites"]
+    statuses = answers["statuses"]
+    shaped = statuses.get("ok", 0) + statuses.get("refused", 0)
+    by_set = answers.get("by_set", {})
+    lines = [
+        f"| `{answers['model']}` on {answers['answers']} labelled answers | |",
+        "|---|---|",
+        f"| Answered in the shape asked for | "
+        f"{scoring.proportion(shaped, answers['answers']).format()} |",
+        f"| Shorter version with a content word the speaker never said | "
+        f"{scoring.proportion(answers['with_new_words'], rewrites).format()} |",
+        f"| Shorter version withheld, more than {answers['limit']} such words | "
+        f"**{scoring.proportion(answers['withheld'], rewrites).format()}** |",
+    ]
+    for name, key in (("development", "development"), ("held out", "held_out")):
+        tally = by_set.get(key)
+        if tally:
+            lines.append(
+                f"| — withheld, {name} answers | "
+                f"{scoring.proportion(tally['withheld'], tally['answers']).format()} |"
+            )
+    lines += [
+        f"| Shorter version with fewer sentences than the answer | "
+        f"{scoring.proportion(answers['shorter'], rewrites).format()} |",
+        f"| Notes about how the answer sounded, dropped | {answers['dropped_notes']} |",
+        f"| Median time to answer | {_fmt(answers.get('median_latency_ms'), 0)} ms |",
+        "",
+        "The instruction asks for the answer again in the speaker's own words, and it was "
+        "written against the development answers, so the held-out figure is the one that "
+        "says whether it holds. A withheld version is not shown to the learner; the words "
+        "that withheld it are. Nothing the model writes is counted or drawn over time.",
+        "",
+    ]
+    examples = answers.get("withheld_examples") or []
+    if examples:
+        lines += ["Withheld, with the words that were not in the answer:", ""]
+        lines += [
+            f"- {item['prompt']}: {', '.join(item['invented'])}" for item in examples
+        ]
+        lines.append("")
+    return lines
+
+
+def _structure(structure: dict | None) -> list[str]:
+    """Each structure measure against answers a person labelled. No model."""
+    if structure is None:
+        return []
+    bars = structure["bars"]
+    shown = set(structure["shown"])
+    lines = [
+        "#### How an answer is built, against answers labelled by hand",
+        "",
+        f"Measured {structure['measured_at']}, with no model: "
+        f"{structure['answers']['development']} answers the counter was written against "
+        f"and {structure['answers']['held_out']} held out from it, each with its "
+        "signposts, repeats and restarts marked by a person. A measure is shown to a "
+        f"learner only if, on the held-out answers, its precision is at least "
+        f"{bars['precision']} and its recall at least {bars['recall']}, over at least "
+        f"{bars['instances']} marked.",
+        "",
+        "| Measure | Held out: precision | Recall | Shown | Development: found / marked |",
+        "|---|---|---|---|---|",
+    ]
+    for kind, tally in structure["held_out"].items():
+        dev = structure["development"].get(kind, {})
+        precision = scoring.proportion(tally["matched"], tally["found"])
+        recall = scoring.proportion(tally["matched"], tally["marked"])
+        lines.append(
+            f"| {MEASURES.get(kind, kind)} | {precision.format()} | {recall.format()} | "
+            f"{'yes' if kind in shown else '**no**'} | "
+            f"{dev.get('matched', 0)} of {dev.get('marked', 0)}, "
+            f"{dev.get('found', 0)} found |"
+        )
+    hidden = [
+        MEASURES.get(kind, kind) for kind in structure["held_out"] if kind not in shown
+    ]
+    lines += [
+        "",
+        "A measure not shown is still counted and stored. "
+        + (
+            f"Not shown: {', '.join(hidden).lower()}."
+            if hidden
+            else "Every measure is shown."
+        ),
+        "",
+    ]
+    wrong = [
+        (kind, "missed", item)
+        for kind, tally in structure["held_out"].items()
+        for item in tally.get("missed", [])
+    ] + [
+        (kind, "extra", item)
+        for kind, tally in structure["held_out"].items()
+        for item in tally.get("extra", [])
+    ]
+    if wrong:
+        lines += [
+            "On the held-out answers, what the counter missed or found wrongly:",
+            "",
+        ]
+        lines += [
+            f"- {MEASURES.get(kind, kind)}, {what}: {item}"
+            for kind, what, item in wrong
+        ]
+        lines.append("")
+    return lines
+
+
+def _rewrite_check(check: dict | None) -> list[str]:
+    """The check that withholds a shorter version with words the speaker never said."""
+    if check is None:
+        return []
+    lines = [
+        "#### The check on the model's shorter version",
+        "",
+        f"Measured {check['measured_at']}, with no model: rewrites of labelled answers, "
+        "each written to keep to the answer or to add a fact, given to the check that "
+        f"withholds a rewrite with more than {check['limit']} content words the speaker "
+        "never said.",
+        "",
+        "| | Adds a fact: withheld | Keeps to the answer: shown |",
+        "|---|---|---|",
+    ]
+    for name, key in (
+        ("Development — the limit was chosen on it", "development"),
+        ("Held out", "held_out"),
+    ):
+        tally = check[key]
+        lines.append(
+            f"| {name} | "
+            f"{scoring.proportion(tally['adds_a_fact_withheld'], tally['adds_a_fact']).format()}"
+            f" | {scoring.proportion(tally['faithful_shown'], tally['faithful']).format()} |"
+        )
+    lines += [
+        "",
+        "Twelve rewrites a set, written by hand: they show the check can tell the two "
+        "apart, not how often a model does either. The model's own rate is above.",
+        "",
+    ]
+    return lines
+
+
 def _personas_section(results: dict, skips: dict) -> list[str]:
     lines = _suite_heading(
         "personas",
@@ -841,7 +1057,7 @@ def render(
     skips = skips or {}
     failures = failures or {}
     stamp = (generated_at or datetime.now()).strftime("%Y-%m-%d %H:%M")
-    ran = [name for name in ("asr", "pron", "errors", "personas") if name in results]
+    ran = [name for name in SUITE_NAMES if name in results]
 
     lines = [
         "# Evaluation",
@@ -852,9 +1068,9 @@ def render(
         "on the date above, and a hand-edited figure is indistinguishable from a "
         "measured one. Re-run `make eval` instead.",
         "",
-        "Four suites, one census. Suites that ran: "
+        f"{len(SUITE_NAMES)} suites, one census. Suites that ran: "
         + (", ".join(f"`{name}`" for name in ran) if ran else "**none**")
-        + f" ({len(ran)} of 4).",
+        + f" ({len(ran)} of {len(SUITE_NAMES)}).",
         "",
     ]
     if failures:
@@ -923,6 +1139,7 @@ def render(
     lines += _pron_section(results, skips)
     lines += _errors_section(results, skips)
     lines += _personas_section(results, skips)
+    lines += _answers_section(results, skips)
     if failures:
         lines += [
             "### Suites that did not finish clean",
@@ -964,7 +1181,8 @@ def render(
         "```",
         "",
         "Each suite is also runnable on its own — `make asr-wer`, `make pron-golden`, "
-        "`make error-precision`, `make persona-adherence` — and each prints more detail "
+        "`make error-precision`, `make persona-adherence`, `make answer-feedback` — and "
+        "each prints more detail "
         "than lands here. A suite whose service is not up **skips**; it does not fail. "
         "That is what lets CI run the deterministic subset with no model layer at all.",
         "",

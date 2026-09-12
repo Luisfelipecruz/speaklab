@@ -477,3 +477,113 @@ async def test_articles_prepositions_and_false_friends_said_aloud(capsys):
         # The pipeline, as for the verb forms: correct sentences in a clear voice that
         # are mostly not heard as written are audio arriving broken.
         assert heard["corrected"]["corrected"] > sentences[category] / 2
+
+
+# ── A spoken answer: what of how it was said reaches the transcript? ────────
+
+
+def _without_fillers(text: str) -> list[str]:
+    from services.fluency import FILLERS
+    from services.wer import normalise
+
+    return [word for word in normalise(text) if word not in FILLERS]
+
+
+def _holds(words: list[str], quote: str) -> bool:
+    """Whether `quote`'s words appear in `words` as one unbroken run."""
+    wanted = _without_fillers(quote)
+    return any(
+        words[at : at + len(wanted)] == wanted
+        for at in range(len(words) - len(wanted) + 1)
+    )
+
+
+@needs_voice
+async def test_what_of_a_spoken_answer_survives_the_recogniser(capsys):
+    """Answers with fillers, repeats and restarts in them, said by the voice and heard by
+    the recogniser: how much of each reaches the transcript.
+
+    The answer drill counts restarts and signposts from the transcript, and a thing the
+    recogniser does not write down cannot be counted. The fluency code already says the
+    recogniser drops most fillers; whether it drops a word said twice, or a phrase begun
+    again, decides whether those can be shown at all, and it is measured rather than
+    assumed. Sentence ends are counted too, because words per sentence is the
+    recogniser's punctuation.
+
+    A synthetic voice says a filler as a word — clearly, where a person's hesitation is
+    a sound — and says a repeat as two clean copies. This is what the recogniser does
+    with the clearest version of each, not with a learner's.
+    """
+    from services.fluency import FILLERS
+    from services.structure import sentences as sentences_of
+    from services.tts_client import speak
+    from services.wer import normalise
+    from tests.answer_labels import ALOUD
+
+    fillers = {"spoken": 0, "heard": 0}
+    tallies = {
+        kind: {"spoken": 0, "heard": 0} for kind in ("repeats", "restarts", "signposts")
+    }
+    lost: list[dict[str, str]] = []
+    sentence_counts: list[dict[str, int]] = []
+    model = voice = None
+
+    for answer in ALOUD:
+        speech = await speak(answer.text)
+        heard = await transcribe(speech.audio, "answer.wav")
+        model, voice = heard.model, speech.voice
+        words = _without_fillers(heard.text)
+        fillers["spoken"] += answer.fillers
+        fillers["heard"] += sum(1 for word in normalise(heard.text) if word in FILLERS)
+        for kind, quotes in (
+            ("repeats", answer.repeats),
+            ("restarts", answer.restarts),
+            ("signposts", answer.signposts),
+        ):
+            for quote in quotes:
+                tallies[kind]["spoken"] += 1
+                if _holds(words, quote):
+                    tallies[kind]["heard"] += 1
+                else:
+                    lost.append({"kind": kind, "quote": quote, "heard": heard.text})
+        sentence_counts.append(
+            {
+                "written": len(sentences_of(answer.text)),
+                "heard": len(sentences_of(heard.text)),
+            }
+        )
+
+    within_one = sum(
+        1 for count in sentence_counts if abs(count["written"] - count["heard"]) <= 1
+    )
+    with capsys.disabled():
+        print(f"\n  {model}, voice {voice}: {len(ALOUD)} answers")
+        print(f"  fillers    heard {fillers['heard']} of {fillers['spoken']}")
+        for kind, tally in tallies.items():
+            print(f"  {kind:<10} heard {tally['heard']} of {tally['spoken']}")
+        print(
+            f"  sentences  within one of the written count in {within_one} of "
+            f"{len(ALOUD)}: "
+            + ", ".join(f"{c['written']}->{c['heard']}" for c in sentence_counts)
+        )
+        for item in lost:
+            print(f"    {item['kind']} lost: {item['quote']!r} in {item['heard']!r}")
+
+    record(
+        "answers_aloud",
+        {
+            "status": "measured",
+            "model": model,
+            "voice": voice,
+            "answers": len(ALOUD),
+            "fillers": fillers,
+            **tallies,
+            "sentences": sentence_counts,
+            "sentences_within_one": within_one,
+            "lost": lost,
+        },
+    )
+
+    # The pipeline, not the recogniser's judgement: signposts are ordinary words, and a
+    # clear voice whose signposts mostly do not come back is audio arriving broken.
+    assert tallies["signposts"]["heard"] > tallies["signposts"]["spoken"] / 2

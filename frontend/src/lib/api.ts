@@ -929,6 +929,115 @@ export function postDrill(id: number, audio: Blob, filename = "drill.webm"): Pro
   return request<DrillResult>(`/corrections/${id}/drill`, { method: "POST", body: form });
 }
 
+// ── Make your point: a spoken answer to a prompt ─────────────────────────────
+
+export type PromptCategory = "explain" | "justify" | "walk-through" | "recommend";
+
+/** A work question to answer out loud, in one go, within its time limit. */
+export interface AnswerPrompt {
+  slug: string;
+  title: string;
+  prompt: string;
+  category: PromptCategory;
+  cefr_band: CefrBand;
+  time_limit_s: number;
+}
+
+export interface PromptSummary extends AnswerPrompt {
+  /** How often this learner has answered it. */
+  answers: number;
+  last_answered_at: string | null;
+}
+
+/** How it was said: arithmetic over the word timings, as a conversation turn gets. */
+export interface Delivery {
+  words: number;
+  duration_ms: number | null;
+  speech_rate_wpm: number | null;
+  articulation_rate: number | null;
+  pause_ratio: number | null;
+  mean_length_run: number | null;
+  fillers: number;
+  fillers_per_100_words: number | null;
+}
+
+export type SignpostKind = "reason" | "example" | "sequence" | "contrast" | "close";
+
+/** One thing counted in the transcript, by where it is: a signpost by what it does, or a repeat. */
+export interface Counted {
+  kind: SignpostKind | "repeat";
+  start: number;
+  end: number;
+  text: string;
+}
+
+/**
+ * How it was built, counted from the transcript. Only the measures in `shown` cleared
+ * their bar on answers labelled by hand; the rest arrive null and are not drawn.
+ */
+export interface AnswerStructure {
+  words: number;
+  sentences: number | null;
+  words_per_sentence: number | null;
+  longest_sentence: number | null;
+  signposts: Partial<Record<SignpostKind, number>>;
+  repeats: number | null;
+  found: Counted[];
+  shown: string[];
+  caveat: string;
+}
+
+/** What a language model made of the answer, checked. Beside the counts, never in them. */
+export interface AnswerFeedback {
+  status: "ok" | "refused" | "unavailable" | "unparseable" | "skipped";
+  model: string | null;
+  lead: string | null;
+  gaps: string[];
+  /** Null when withheld: it added more words the speaker never said than the limit. */
+  rewrite: string | null;
+  rewrite_sentences: number | null;
+  invented: string[];
+  detail: string | null;
+  caveat: string;
+}
+
+export interface SpokenAnswer {
+  id: number;
+  prompt: AnswerPrompt;
+  created_at: string;
+  /** The earlier answer this one says again, when it does. */
+  again_of: number | null;
+  transcript: string;
+  asr_confidence: number | null;
+  delivery: Delivery;
+  structure: AnswerStructure;
+  feedback: AnswerFeedback | null;
+}
+
+export interface AnswersPage {
+  prompts: PromptSummary[];
+  /** Set when the page asked about one prompt; `answers` are then that prompt's. */
+  prompt: AnswerPrompt | null;
+  answers: SpokenAnswer[];
+  answered: number;
+  /** One point per answer, oldest first, in the progress page's shape. */
+  history: TrendSeries[];
+  caveat: string;
+}
+
+export function postAnswer(
+  prompt: string,
+  audio: Blob,
+  filename = "answer.webm",
+  againOf: number | null = null,
+): Promise<SpokenAnswer> {
+  const form = new FormData();
+  form.append("prompt", prompt);
+  if (againOf !== null) form.append("again_of", String(againOf));
+  form.append("file", audio, filename);
+  return request<SpokenAnswer>("/answers", { method: "POST", body: form });
+}
+
 export function getProgress(
   params: { period?: string; days?: number } = {},
 ): Promise<Progress> {

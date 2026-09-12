@@ -152,6 +152,10 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         # A correction said again. Scoped through its turn's session, not a column.
         ("GET", "/corrections/{error_id}/drill"),
         ("POST", "/corrections/{error_id}/drill"),
+        # Spoken answers. Scoped by a column, and an earlier answer said again is looked
+        # up with the user in the same WHERE.
+        ("GET", "/answers"),
+        ("POST", "/answers"),
     }
 
 

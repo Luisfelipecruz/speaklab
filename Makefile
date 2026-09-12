@@ -7,7 +7,7 @@
 .PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
-        persona-adherence corpus analyze analyze-dry reparse error-precision rollup \
+        persona-adherence answer-feedback corpus analyze analyze-dry reparse error-precision rollup \
         rollup-dry rollup-force
 
 help:                              ## This list
@@ -223,6 +223,13 @@ persona-adherence:                 ## Score persona adherence, and score the jud
 	docker compose --profile tools run --rm \
 		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
 		test python -m pytest /app/tests/test_persona_adherence.py -v -s
+
+answer-feedback:                   ## Score how answers are counted, and the model's feedback on them
+	@echo "The counting half needs nothing running; the feedback half needs Ollama on the"
+	@echo "host. About two minutes."
+	docker compose --profile tools run --rm \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		test python -m pytest /app/tests/test_answer_measures.py -v -s
 
 corpus:                            ## How much practice the database holds
 	docker compose exec api python -m scripts.corpus

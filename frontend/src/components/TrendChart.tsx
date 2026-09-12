@@ -37,6 +37,11 @@ const PADDING = 6;
 
 export interface TrendChartProps {
   series: TrendSeries;
+  /**
+   * What one point is. The progress page draws a week per point; the answers page draws
+   * an answer per point, and two answers can share a date.
+   */
+  per?: "week" | "answer";
 }
 
 /** Enough precision to see a change, never more than the measurement supports. */
@@ -83,7 +88,7 @@ function Caption({ series, latest }: { series: TrendSeries; latest: number }) {
   );
 }
 
-export function TrendChart({ series }: TrendChartProps) {
+export function TrendChart({ series, per = "week" }: TrendChartProps) {
   const drawable = drawablePoints(series);
 
   // The three states share one box, so a family's series line up as a grid of equal
@@ -117,8 +122,9 @@ export function TrendChart({ series }: TrendChartProps) {
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          Measured once, in the week of {when(only.start)}. A line needs a second week
-          with practice in it.
+          {per === "week"
+            ? `Measured once, in the week of ${when(only.start)}. A line needs a second week with practice in it.`
+            : `Measured on one answer, on ${when(only.start)}. A line needs a second answer long enough to count.`}
         </p>
       </figure>
     );
@@ -167,7 +173,7 @@ export function TrendChart({ series }: TrendChartProps) {
         className="h-24 w-full text-chart-1"
         preserveAspectRatio="none"
         role="img"
-        aria-label={`${series.label} over ${drawable.length} periods`}
+        aria-label={`${series.label} over ${drawable.length} ${per === "week" ? "periods" : "answers"}`}
         data-testid="trend-svg"
       >
         {runs.map((points, position) => {
@@ -199,7 +205,7 @@ export function TrendChart({ series }: TrendChartProps) {
           const index = series.points.indexOf(point);
           return (
             <circle
-              key={point.start}
+              key={index}
               cx={x(index)}
               cy={y(point.value as number)}
               r={3}
@@ -215,9 +221,10 @@ export function TrendChart({ series }: TrendChartProps) {
       {/* The same numbers as text. It is what a screen reader gets, and it is what makes
           the component testable without asserting against SVG path arithmetic. */}
       <ul className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {series.points.map((point) => (
+        {/* Keyed by position: two answers on one day share a date. */}
+        {series.points.map((point, index) => (
           <li
-            key={point.start}
+            key={index}
             className={cn("tabular-nums", point.value === null && "italic")}
             title={point.withheld ?? undefined}
           >

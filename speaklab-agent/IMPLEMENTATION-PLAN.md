@@ -1,12 +1,12 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.15 — **m0 passed; m1 through m13 are merged into `main`, CI green** (m13 as
+**Status:** v1.17 — **m0 passed; m1 through m14 are merged into `main`, CI green** (m13 as
 PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
 a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
 setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
 item 0 — the persona gives its instructions away in 16 of 200 attempts, from 59 of 200
-(`docs/decisions/0013`). **m14, grammar practice, is code complete on
-`feature/m14-grammar`, every item committed on the branch** — the rule layer (`886b37a`,
+(`docs/decisions/0013`). **m14, grammar practice, is merged as PR #19 (`0.14.0`,
+`01676db`, 2026-09-12)** — the rule layer (`886b37a`,
 `docs/decisions/0014`), 130 of 172 planted agreement errors and 2 of 129 missing articles
 with no wrong fix; accuracy per form (`b3a8fe5`, `docs/decisions/0015`), 32 of 34
 held-out corrections joined with no wrong form; the end-of-session defect (`b1a35c7`),
@@ -17,20 +17,24 @@ forms as counts, **no percentage on any screen**; the spoken drill (`d74ae6b`,
 and per correction, what the recogniser heard; and the seeds (`ab719d5`,
 `docs/decisions/0018`) — three scenarios for articles, prepositions and false friends, of
 which the detector files 12 of 20 prepositions under their kind but 6 of 20 articles and 6
-of 20 false friends. **Its PR, `0.14.0`, is prepared**: the version, `docs/evaluation.md`
-regenerated with all four suites, and `GIT-COMMANDS.md` §A.20 and §B.13, for the owner to
-run. m15 is polish, not started. Three criteria — S4, S5, S7 — are blocked on speech only
+of 20 false friends; CI green on its first run. **m15, articulation — *Make your point* — is code complete** and
+committed on `feature/m15-articulation` (`f7f1a59`, `9a1d04c`, `docs/decisions/0019`): a
+spoken answer to a work prompt, how it is built and how it is delivered counted by code,
+the model's checked feedback beside the counts, said again side by side; every shown
+measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
+shown, the model's shorter version withheld 2 of 16 held out. Its PR, `0.15.0`, is
+prepared and not opened. **m16 is polish**, not started. Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m14's PR prepared: `0.14.0`, the report regenerated; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-12 (m15 code complete and committed, its PR prepared; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
 
 ## 0. How to read this
 
-Sixteen milestones, `m0` through `m15`. `m0` is a throwaway spike; `m1`–`m15` each
+Seventeen milestones, `m0` through `m16`. `m0` is a throwaway spike; `m1`–`m16` each
 become exactly one stacked pull request.
 
 Every milestone states:
@@ -363,6 +367,34 @@ CREATE TABLE progress_snapshots (
     cefr_estimate TEXT,
     UNIQUE (user_id, period, period_start)
 );
+
+CREATE TABLE answer_prompts (        -- m15, migration 0007; seeded, keyed by slug
+    id           BIGSERIAL PRIMARY KEY,
+    slug         TEXT NOT NULL UNIQUE,
+    title        TEXT NOT NULL,
+    prompt       TEXT NOT NULL,
+    category     TEXT NOT NULL,          -- explain | justify | walk-through | recommend
+    cefr_band    TEXT NOT NULL,
+    time_limit_s INTEGER NOT NULL,       -- 60–120, checked by the seed loader
+    is_active    BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE answers (               -- m15, migration 0007; never the recording
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    prompt_id      BIGINT NOT NULL REFERENCES answer_prompts(id),
+    again_of       BIGINT REFERENCES answers(id) ON DELETE SET NULL,
+    transcript     TEXT NOT NULL,
+    words          JSONB NOT NULL DEFAULT '[]',
+    duration_ms    INTEGER,
+    asr_confidence REAL,
+    asr_model      TEXT,
+    delivery       JSONB NOT NULL,       -- fluency, from the word timings
+    structure      JSONB NOT NULL,       -- signposts, sentences, repeats, restarts
+    feedback       JSONB,                -- the model's, with its check and status
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ON answers (user_id, created_at);
 ```
 
 **Why `words JSONB` rather than a `words` table.** Word timings are read as a whole array
@@ -377,13 +409,15 @@ tables precisely because they are queried across rows, aggregated by category an
 Target: **30** operations — 29 as first forecast, plus the `POST /auth/logout` that m3
 found was forced by the httpOnly-cookie decision (D24): a script that cannot read the
 token cannot delete it either, so logging out has to be a server operation. Counted
-against `app.openapi()` at m15, not recalled — this list is the forecast, the running
+against `app.openapi()` at m16, not recalled — this list is the forecast, the running
 system is the authority. **18 exist as of m7**, counted from the running app rather than
 from this list. m5 added none: its `POST /synthesize` is a model-service internal API, and
 the "internal preview endpoint" the m5 deliverable list named was not built (D31, resolving
 Q9). m6 added the six session routes below, exactly as forecast. m7 added none either — it
 is the interface over m6's six, and its one server-side change was a derived field on
-`TurnOut`, not a route.
+`TurnOut`, not a route. **All 30 exist as of m15**, counted from the running app on
+2026-09-12 — the shape differs from this forecast (progress is three operations, not
+eight, and the grammar page, the drill and the answers were not in it), the count does not.
 
 ```
 GET    /health                        liveness; reports each model service independently
@@ -428,6 +462,9 @@ GET    /grammar                       corrections grouped, verb forms, the form
 GET    /corrections/{id}/drill        one correction's sentence, to say again — m14
 POST   /corrections/{id}/drill        audio in -> what was heard, per correction;
                                       nothing stored — not in the forecast; m14
+GET    /answers                       the prompts, your answers, their history — m15
+POST   /answers                       audio in -> counted and stored, the model's
+                                      feedback beside it — not in the forecast; m15
 ```
 
 Model-service internal APIs, never exposed to the browser:
@@ -1342,7 +1379,7 @@ arriving late. m7 shipped `AppShell` as a header that exists, in its own words, 
 person who cannot get from a conversation back to the catalogue has to type a URL" — a
 stated minimum, not a design. The scope-creep rule is there to stop features being
 invented; it should not be used to rule an unmet quality bar out of scope. §9 now reads
-m1–m13 — and, since 2026-09-06, m1–m15.
+m1–m13 — since 2026-09-06, m1–m15, and since 2026-09-12, m1–m16.
 
 **What is wrong, counted rather than asserted.**
 
@@ -1488,14 +1525,14 @@ practise a correction — all m14. The report's own list is untouched.
 
 ---
 
-### m14 — Grammar practice · **CODE COMPLETE** — item 0 merged (PR #18, `0.13.3`); items 1–5 committed on the branch; the PR, `0.14.0`, prepared
+### m14 — Grammar practice · **MERGED** — item 0 as PR #18 (`0.13.3`), items 1–5 as PR #19 (`0.14.0`, `01676db`), 2026-09-12
 
 **Goal.** A learner can see which grammar they get wrong, in their own sentences, and
 practise it — against a detector that is right often enough to be worth practising against.
 
 **Why here.** The owner asked for it on 2026-09-06. It is a new idea, and R8 says new ideas
 go to the PRD first: PRD §15.1 records it, dated. It comes after m13 because the
-corrections are its raw material, and before m15 because a walkthrough of a product about
+corrections are its raw material, and before polish (then m15) because a walkthrough of a product about
 to gain a section is a recording made twice.
 
 **What exists already, so none of it is rebuilt.** Every user turn is parsed for 26
@@ -1686,7 +1723,121 @@ what they declare.
 
 ---
 
-### m15 — Polish, documentation, demo · **NOT STARTED** *(was m13 until 2026-09-06)*
+### m15 — Articulation: saying an idea clearly · **CODE COMPLETE, PR PREPARED** — built and measured 2026-09-12, committed as `f7f1a59` and `9a1d04c`, `0.15.0`, `docs/decisions/0019`; *Make your point* on screen
+
+**Goal.** A learner can answer a work question out loud in one go, and see how the answer
+was built and how it was delivered — both counted by code — with a model's explanation and
+a tighter version of their own answer beside the counts, never in place of them.
+
+**Why here.** The owner asked on 2026-09-12 for training in articulating ideas clearly,
+and chose, when asked, both halves: how an idea is built when spoken, and how it is
+delivered. It is a new idea, so it went into PRD §15.1 first (R8). Before polish, now m16,
+for the reason m13 and m14 went before it: a walkthrough of a product about to gain a
+section is a recording made twice. After m14, because it reuses m14's drill — record,
+transcribe, compare, store nothing that is not needed.
+
+**What exists already, so none of it is rebuilt.** Delivery is measured: speech rate,
+articulation rate, pause ratio, mean length of run, fillers per 100 words and response
+latency, from word timings (`services/fluency.py`, PRD §7.1). **"Articulation rate"
+already names one of them** — words over phonated time — so this milestone's feature needs
+another name on screen, or the page will say "articulation" about two different things. The
+dependency parse (`services/grammar.py`) gives clauses and the subordination index. The
+session report is split by provenance — `measured`, `analysis`, `narrative` — and
+`narrate_report` is the shape for a model call that never blocks the session and records
+its own failure. The drill (m14 item 4) records one utterance and compares it.
+
+**What is missing, in the order it has to be built.**
+
+0. **The instrument, before any measure.** Hand-labelled answers to the prompts, written
+   the way the recogniser writes and before any code — as the verb forms and the three
+   kinds of mistake were — each with its structure marked: the signposts by what they do,
+   the example, the closing line, the sentences, the restarts. A development set and a
+   held-out set. And what reaches the transcript at all: answers with restarts and fillers
+   spoken by the `tts` voice and heard by `small.en`, counting what survives. The fluency
+   code already says the recogniser drops most `um`s; whether it drops a restart the same
+   way decides whether restarts can be counted, and it is measured, not assumed.
+   **DONE 2026-09-12** — `api/tests/answer_labels.py`: 24 development answers (2 115
+   words), 16 held out (1 469), 37 readings of the words with a second use, 12 answers to
+   say aloud; the bars written into the same file first. Said by `tts`, heard by
+   `small.en`, four runs, the last in `docs/evaluation.md`: fillers **21, 22, 21 and 21 of
+   24** written down, repeats **12, 13, 13 and 13 of 13**, restarts **9, 8, 8 and 8 of 9**,
+   signposts 52 of 52 every time, the sentence count within one in **10, 11, 10 and 11 of
+   12** — both recogniser bars met in all four. A synthetic voice says *um* as a word, so this is not a person's hesitation.
+1. **How an answer is built, counted by code** (`services/structure.py`). Signposts from
+   closed lists, by what they do — a reason (*because*, *since*, *that's why*), an example
+   (*for example*, *for instance*, *such as*), a sequence (*first*, *then*, *finally*), a
+   contrast (*but*, *however*), a close (*so*, *in short*, *overall*) — with the parse
+   deciding a word that has another use: *so* as a result and not *so good*, *since* as a
+   reason and not a time, and *like* never. Sentences and words per sentence, with the
+   caveat that a sentence boundary is the recogniser's punctuation; restarts and repeated
+   words. Each measure scored against item 0's held-out set, with its interval, before any
+   screen shows it; a measure below its bar is not shown.
+   **DONE** — held out, precision / recall: reasons **0.957 / 1.000**, examples 1.000 /
+   0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, repeats
+   0.923 / 1.000; **restarts 0.636 / 0.636, below the bar — counted, stored, not shown**.
+   `structure.SHOWN` decides, and CI asserts every measure in it clears its bar. The
+   held-out set is unspent; the same author wrote it and the counter.
+2. **The drill: one spoken answer to a prompt.** A dozen prompts across the scenario
+   categories — explain a failure, justify a choice, walk through a process, recommend
+   something — each with a band and a time limit of 60 to 120 s, seeded and validated like
+   the scenarios. One recording, no persona and no reply. The page shows delivery and
+   structure, each with its caveat. Whether this is a third session mode (`ALTER TYPE
+   session_mode ADD VALUE`, a migration) or a table of its own, and whether prompts are a
+   table or scenarios with a flag, is decided when built; at most two new operations.
+   **DONE** — *Make your point* at `/answers`, a rail entry of its own; **13 prompts**, four
+   kinds, A2–C1, 60–120 s; **tables of their own**, `answer_prompts` and `answers`
+   (migration `0007`), not a session mode; **`GET` and `POST /answers`, 30 of 30**. Press to
+   start and to stop, stopped by the time limit; the recording is transcribed and dropped.
+3. **Feedback from the model, beside the counts.** One call after the answer, in
+   `narrate_report`'s never-raises shape: what to lead with, which point has no reason or
+   example, and the speaker's own answer said in fewer sentences. **The rewrite is checked,
+   not trusted**: content words it introduces that the speaker never said are counted, a
+   rewrite over the limit is refused, and the refusal is counted — the taxonomy's
+   rejection rate, for a new kind of output. It may not comment on how the answer sounded
+   (P2), and nothing it writes reaches a chart (P1).
+   **DONE** — the limit is more than **2** new content words, chosen on 12 development
+   rewrites; on 12 held out the check withheld **6 of 6** that added a fact and showed **6
+   of 6** faithful ones. The model on all 40 answers: with the first instruction its
+   shorter version was withheld **34 of 40** (13 of 16 held out) — paraphrase, not
+   invention; with the instruction asking for the speaker's own words, **9 of 40, 2 of 16
+   held out**. Every shorter version had fewer sentences; no note about sound dropped.
+4. **Say it again, tighter.** A second attempt at the same prompt, compared with the first
+   on the same counts, side by side. No pass mark.
+   **DONE** — `answers.again_of`; the two side by side on the same counts, no arrow and no
+   colour. Seen in Chromium with a synthesised answer as the microphone, 1440 light and
+   375 dark; it found duplicate keys in the shared chart, fixed.
+5. **Over time — only what has a better end.** Fewer restarts and shorter sentences may be
+   better; more signposts is not, because counting *because* rewards saying it, the trap P3
+   names for tense. So signposts are drawn and never judged, as speech rate is, and which
+   measures reach `/progress` is decided with item 1's numbers in hand.
+   **DONE** — on the answers page, one point per answer: speech rate, time paused, fillers
+   and words said twice per 100 words, words per sentence, signposts. Only fillers and words
+   said twice get a direction; a rate is withheld under 50 words. **Nothing reaches
+   `/progress`.**
+
+**Decisions to make, not made.** None left *(made 2026-09-12, 0019: the name is *Make your
+point*; tables of their own and prompts a seeded table; the history is on the answers page
+and nothing reaches `/progress`, with a direction for fillers and words said twice only)*.
+
+**Not in it.** Intonation, stress and prosody: PRD §15 keeps them out of v1 and nothing here
+scores them. Whether an answer is right: the model may not judge content, only say where
+the speaker's own structure is thin.
+
+**Tests.** Each structure measure against the labelled sets; the parse's reading of *so*,
+*since* and *like* against sentences written for it; the rewrite check against rewrites that
+add a fact; the drill end to end in Chromium with a synthesised WAV as the microphone.
+
+**Done when.** Each structure measure is reported with its held-out precision and recall
+and shown only above its bar; what of a restart and a filler survives the recogniser is
+measured; a learner can pick a prompt, answer out loud, see delivery, structure and the
+model's feedback, and answer again to compare; the rewrite's invented-content rate is
+measured and in `docs/evaluation.md`.
+
+**Branch** `feature/m15-articulation` · **PR** `feat: add a spoken answer drill that counts how an idea is built and delivered` · `0.15.0`. The plan and PRD edits that admit it are the branch's first commit.
+
+---
+
+### m16 — Polish, documentation, demo · **NOT STARTED** *(was m13 until 2026-09-06, m15 until 2026-09-12)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1733,11 +1884,11 @@ repository on LinkedIn renders GitHub's generic card without one — and reposit
 - Empty states matter disproportionately: a new user's progress page has no data, and "not enough data yet — practise 5 more times" is the correct design, not a blank chart.
 
 **Done when.** A clean clone reaches all-healthy with no manual editing (criterion S1) —
-already true, and timed once at 7 min 12 s. m15 decides between making the first build
+already true, and timed once at 7 min 12 s. m16 decides between making the first build
 faster and stating the miss as a limitation; either way the README carries a re-measured
 figure. Every S-criterion is verified and recorded, and the walkthrough is recorded.
 
-**Branch** `feature/m15-polish` · **PR** `feat: finalise documentation, demo and empty states`
+**Branch** `feature/m16-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
 ---
 
@@ -1758,7 +1909,8 @@ m1 scaffold
                                                                           └─ m12 shell
                                                                               └─ m13 corrections in the transcript
                                                                                   └─ m14 grammar practice
-                                                                                      └─ m15 polish
+                                                                                      └─ m15 articulation
+                                                                                          └─ m16 polish
 ```
 
 m4 and m5 are genuinely independent and could be worked in either order. Everything else
@@ -1778,7 +1930,7 @@ at `main` except m1.
 | R5 GOP varies with hardware | m10 | Within-user z-score, device fingerprint, sample gate |
 | R6 `pron` memory pressure | m1, m8 | Profiled service, graceful degradation tested |
 | R7 Persona drift | m6, m11 | Per-turn re-anchoring, summarised history, adherence suite |
-| R8 Scope creep | this document | m1–m15 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled |
+| R8 Scope creep | this document | m1–m16 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled. m15, articulation, was added on 2026-09-12 at the owner's request the same way — PRD §15.1 first — and placed before polish, now m16 |
 
 ---
 
@@ -1803,8 +1955,9 @@ Evenings-and-weekends pace, one developer.
 | m12 | 3–4 | The sidebar is the easy half; deciding what belongs on a signed-in home is not |
 | m13 | 1 | The join already existed in the report; the work is placement and the tests |
 | m14 | 4–5 | The rule layer has to be measured before anything is built on it |
-| m15 | 3 | |
-| **Total** | **~46–51** | |
+| m15 | 4–5 | The labelled answers and the parse's reading of the signposts are most of it |
+| m16 | 3 | |
+| **Total** | **~50–56** | |
 
 ---
 
@@ -1818,15 +1971,28 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**`main` is PR #18 (`0.13.3`, `49bdeea`)**: m13, the onboarding fix, the first cold run,
-and Q16. **`feature/m14-grammar` carries all of m14** — `886b37a`, `b3a8fe5`, `b1a35c7`,
-`fad37c7`, `d74ae6b` and `ab719d5`, committed locally by the owner, nothing pushed — and
-**the PR's last commit is in the working tree**: `0.14.0`, `docs/evaluation.md`
-regenerated, and the figures the report moved. `GIT-COMMANDS.md` §A.20 commits it and
-§B.13 pushes, opens and merges. Only `demo/` is outside, untracked on purpose — it is
-m15's.
+**`main` is PR #19 (`0.14.0`, `01676db`)**: all of m14, squash-merged on 2026-09-12.
+**m15 is committed on `feature/m15-articulation`** — `d75accb` (the PRD and this plan),
+`f7f1a59` (the instrument and the counter), `9a1d04c` (the drill, the feedback, the
+history, the eval suite) — and its PR is prepared: `GIT-COMMANDS.md` §A.23 commits the
+version and the report, §B.14 pushes and opens it. Nothing is pushed. Only `demo/` is
+outside, untracked on purpose — it is polish's, m16.
 
-**Prepared on `feature/m14-grammar`, 2026-09-12, uncommitted:**
+**Prepared on `feature/m15-articulation`, 2026-09-12:**
+- m15's PR, `0.15.0`. `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The
+  criteria are unchanged — S4 not run, S5 0.500 over six, S6 1.72 %, S7 not met. The
+  answers suite is identical to every run before it (9 of 40 shorter versions withheld, 2
+  of 16 held out); the spoken answers are recorded as a fourth run beside three, both
+  bars met in all four. The PR body is `.pr-bodies/m15-articulation.md`.
+
+**Done on `feature/m15-articulation`, 2026-09-12, committed as `f7f1a59` and `9a1d04c`:**
+- ~~m15 items 0–5.~~ The labelled answers and the bars first; the counter, every shown
+  measure above 0.90 / 0.75 held out and phrases started again below it, not shown; *Make
+  your point* at `/answers`, 13 prompts, `GET`/`POST /answers`, 30 of 30; the model's
+  feedback with its shorter version checked for new words; say it again side by side; the
+  history on the answers page. `docs/decisions/0019`.
+
+**Merged as PR #19, 2026-09-12:**
 - ~~m14's PR.~~ `make eval` with all four suites, 11 min 17 s. The criteria are unchanged —
   S4 not run, S5 0.500 over six, S6 1.72 %, S7 not met — and the planted errors, the form
   join and the three kinds' detection are identical to the milestone's runs. **Three
@@ -1888,7 +2054,7 @@ m15's.
   fix. One phrasing worse, one model only (`docs/decisions/0013` §7). The persona suite
   asks fifteen phrasings. `docs/evaluation.md` regenerated.
 
-**Decided by the owner, 2026-09-10:** m14 next and the LinkedIn post after m15 — this plan
+**Decided by the owner, 2026-09-10:** m14 next and the LinkedIn post after polish (m15 then, m16 now) — this plan
 puts m14 first on purpose, because a walkthrough of a product about to gain a section is
 a recording made twice — Q16 as m14's item 0, and **Q16 merged on its own** rather than
 waiting for the rest of the milestone. **2026-09-11:** the end-of-session defect as an m14
@@ -1899,13 +2065,15 @@ item (2b) rather than a PR of its own.
    `b1a35c7`, `fad37c7`, `d74ae6b`.
 3. ~~m14 item 5, the seeds.~~ Built and measured; `docs/decisions/0018`.
 4. ~~Commit item 5 on the branch.~~ Done by the owner: `ab719d5`.
-5. **m14's PR, `0.14.0`** — the owner, with `GIT-COMMANDS.md` §A.20 (one commit: the
-   version, the report, the figures it moved, and this plan) and §B.13 (push, open, wait
-   for CI, squash-merge). **CI has never run on any of m14's six commits**, so its run on
-   the PR is the first check of them off this machine. After the merge, on any checkout:
-   `make migrate`, then `make seed`; on a database with stored turns, `make reparse` then
-   `make rollup`.
-6. Then m15, polish — when the owner asks for it, not before.
+5. ~~m14's PR, `0.14.0`.~~ Merged as #19, `01676db`; CI green on all three jobs. On any
+   other checkout: `make migrate`, then `make seed`; on a database with stored turns,
+   `make reparse` then `make rollup`.
+6. ~~m15, articulation.~~ Built and measured; committed by the owner as `d75accb`,
+   `f7f1a59` and `9a1d04c` (§A.21, §A.22).
+7. **m15's PR, `0.15.0`.** §A.23 commits the version, the changelog and the report; §B.14
+   pushes, opens and merges it — both run by the owner. On any other checkout afterwards:
+   `make migrate`, then `make seed`.
+8. Then m16, polish — when the owner asks for it, not before.
 
 **A finding from item 5, not yet a task.** The detector files most article and false-friend
 mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under
@@ -1941,12 +2109,12 @@ the squash absorbed it and the next `git pull --ff-only` refused on a genuine di
 Nothing was lost, and one command proved it — `git diff <pr-head> origin/main`, empty. The
 sheet's §D sections now end in a push and a check for exactly this reason.
 
-**What m15 must not do:** rewrite the README into something warmer than the measurements
+**What m16, polish, must not do:** rewrite the README into something warmer than the measurements
 support. Three criteria are unmet, one has never run, and one is a role-integrity failure
 found by this project's own harness. A portfolio README that leads with those is a
 stronger document than one that buries them, and it is the only one consistent with S10.
 
-Three things still need a person, and none of them blocks m13, m14 or m15 — but two are now what
+Three things still need a person, and none of them blocks m15 or m16 — but two are now what
 stands between this project and three of its own success criteria:
 
 - **Recordings for the pronunciation golden pairs** — about five minutes, protocol in

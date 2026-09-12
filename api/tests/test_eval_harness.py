@@ -770,3 +770,154 @@ def test_the_three_kinds_of_mistake_are_reported_heard_and_found():
     assert "#### Articles, prepositions and false friends, found" in errors
     assert "| False friends | 19 | 0.316 [" in errors
     assert "— rules 0, model 6 | 4 | 3 | 10 | 2 | 1 |" in errors
+
+
+# ── Spoken answers ──────────────────────────────────────────────────────────
+
+
+def _tally(marked: int, found: int, matched: int, missed=(), extra=()) -> dict:
+    return {
+        "marked": marked,
+        "found": found,
+        "matched": matched,
+        "missed": list(missed),
+        "extra": list(extra),
+    }
+
+
+def structure_result() -> dict:
+    return {
+        "suite": "structure",
+        "measured_at": "2026-09-12T12:00:00+00:00",
+        "status": "measured",
+        "bars": {"precision": 0.9, "recall": 0.75, "instances": 10},
+        "answers": {"development": 24, "held_out": 16},
+        "held_out": {
+            "reason": _tally(22, 23, 22, extra=["…[since] we went fully remote…"]),
+            "restart": _tally(11, 11, 7, missed=["…but [the work], it took five…"]),
+        },
+        "development": {
+            "reason": {"marked": 39, "found": 39, "matched": 39},
+            "restart": {"marked": 8, "found": 7, "matched": 7},
+        },
+        "shown": ["reason", "sentences"],
+    }
+
+
+def rewrite_check_result() -> dict:
+    counts = {
+        "adds_a_fact": 6,
+        "adds_a_fact_withheld": 6,
+        "faithful": 6,
+        "faithful_shown": 5,
+        "wrong": [],
+    }
+    return {
+        "suite": "rewrite_check",
+        "measured_at": "2026-09-12T12:00:00+00:00",
+        "status": "measured",
+        "limit": 2,
+        "development": {**counts, "faithful_shown": 6},
+        "held_out": counts,
+    }
+
+
+def answers_result() -> dict:
+    return {
+        "suite": "answers",
+        "measured_at": "2026-09-12T12:00:00+00:00",
+        "status": "measured",
+        "model": "gemma3:4b",
+        "answers": 40,
+        "statuses": {"ok": 31, "refused": 9},
+        "by_set": {
+            "development": {"answers": 24, "withheld": 7},
+            "held_out": {"answers": 16, "withheld": 2},
+        },
+        "limit": 2,
+        "rewrites": 40,
+        "with_new_words": 26,
+        "new_words": 61,
+        "withheld": 9,
+        "shorter": 40,
+        "dropped_notes": 0,
+        "median_latency_ms": 2900,
+        "withheld_examples": [{"prompt": "choose-a-candidate", "invented": ["skills"]}],
+    }
+
+
+def test_a_structure_measure_below_its_bar_is_counted_and_reported_as_not_shown():
+    lines = "\n".join(report._structure(structure_result()))
+
+    assert "| A reason | 0.957 [0.790, 0.992] over 23 | 1.000 [" in lines
+    assert "| A phrase started again | 0.636 [" in lines
+    assert "| **no** |" in lines
+    assert "Not shown: a phrase started again." in lines
+    assert "[the work]" in lines
+    assert "[since]" in lines
+
+
+def test_the_rewrite_check_is_reported_set_by_set():
+    lines = "\n".join(report._rewrite_check(rewrite_check_result()))
+
+    assert "| Development — the limit was chosen on it | 1.000 [" in lines
+    assert "| Held out | 1.000 [0.610, 1.000] over 6 | 0.833 [" in lines
+
+
+def test_the_models_feedback_is_reported_with_its_denominators_and_by_set():
+    lines = "\n".join(report._answer_feedback(answers_result()))
+
+    assert "| `gemma3:4b` on 40 labelled answers | |" in lines
+    assert "**0.225 [" in lines
+    assert "| — withheld, held out answers | 0.125 [" in lines
+    assert "choose-a-candidate: skills" in lines
+
+
+def test_a_spoken_answer_said_aloud_is_reported():
+    aloud = {
+        "measured_at": "2026-09-12T12:00:00+00:00",
+        "model": "small.en",
+        "voice": "en_US-lessac-medium",
+        "answers": 12,
+        "fillers": {"spoken": 24, "heard": 21},
+        "repeats": {"spoken": 13, "heard": 12},
+        "restarts": {"spoken": 9, "heard": 9},
+        "signposts": {"spoken": 52, "heard": 52},
+        "sentences": [],
+        "sentences_within_one": 10,
+        "lost": [
+            {"kind": "repeats", "quote": "The sprint is, the sprint is", "heard": "…"}
+        ],
+    }
+
+    lines = "\n".join(report._answers_aloud(aloud))
+
+    assert "| Fillers | 0.875 [" in lines
+    assert (
+        "| Sentences, heard within one of the count written | 10 of 12 answers |"
+        in lines
+    )
+    assert "- repeats: `The sprint is, the sprint is`" in lines
+
+
+def test_the_counting_is_reported_when_the_model_half_did_not_run():
+    results = {
+        "structure": structure_result(),
+        "rewrite_check": rewrite_check_result(),
+    }
+
+    document = report.render(results, report.adjudicate(results, {}), skips={})
+
+    answers = document.split("\n### Spoken answers")[1].split("\n### ")[0]
+    assert "**Not run.**" in answers
+    assert "#### How an answer is built, against answers labelled by hand" in answers
+    assert "#### The check on the model's shorter version" in answers
+
+
+def test_the_report_counts_the_answers_suite_among_its_suites():
+    results = {"answers": answers_result()}
+
+    document = report.render(results, report.adjudicate(results, {}), skips={})
+
+    assert "5 suites, one census. Suites that ran: `answers` (1 of 5)." in document
+    assert "make answer-feedback" in document

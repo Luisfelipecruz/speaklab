@@ -20,7 +20,7 @@ import os
 # drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
 # which is the small version of the rule this project runs on: a number is reported by
 # the thing it describes, never written down beside it.
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -418,3 +418,28 @@ GRAMMAR_MIN_FORM_CORRECTIONS = int(os.environ.get("GRAMMAR_MIN_FORM_CORRECTIONS"
 # Characters of the sentence kept either side of a correction. Enough to read it in its
 # sentence; an unpunctuated turn would otherwise be quoted whole.
 GRAMMAR_CONTEXT_CHARS = int(os.environ.get("GRAMMAR_CONTEXT_CHARS", "90"))
+
+
+# ── Spoken answers ──────────────────────────────────────────────────────────
+
+# How long the answer page waits for the language model's feedback. The answer is stored
+# before the model is asked, so running out of time costs the explanation and nothing
+# else; the ceiling keeps a model that is loading from holding the page for two minutes.
+ANSWER_FEEDBACK_TIMEOUT_S = float(os.environ.get("ANSWER_FEEDBACK_TIMEOUT_S", "60"))
+
+# Room for one sentence to lead with, two gaps, and the answer said again shorter. The
+# rewrite is the long part, and a JSON object cut off inside it is feedback lost whole.
+ANSWER_FEEDBACK_MAX_TOKENS = int(os.environ.get("ANSWER_FEEDBACK_MAX_TOKENS", "700"))
+
+# Content words the shorter version may use that the speaker never said. Joining two
+# sentences takes a word or two the answer did not have; a new figure, product or cause is
+# more than that, and a rewrite over the limit is withheld and counted. Chosen on
+# rewrites written for the purpose, before they were scored.
+ANSWER_REWRITE_MAX_INVENTED = int(os.environ.get("ANSWER_REWRITE_MAX_INVENTED", "2"))
+
+# Answers drawn on the history, newest last. Enough for months of practice at a few a
+# week; older ones stay stored.
+ANSWER_HISTORY_LIMIT = int(os.environ.get("ANSWER_HISTORY_LIMIT", "60"))
+
+# Earlier answers listed under one prompt, newest first.
+ANSWERS_PER_PROMPT = int(os.environ.get("ANSWERS_PER_PROMPT", "10"))

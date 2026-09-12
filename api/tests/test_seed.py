@@ -15,7 +15,8 @@ import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from db_models import Passage, Scenario
+from db_models import AnswerPrompt, Passage, Scenario
+from models.answer import PromptSeed
 from models.passage import PassageSeed
 from models.scenario import ScenarioSeed
 from scripts.seed import SEEDS_DIR, _load, seed
@@ -42,16 +43,20 @@ async def empty_session():
     await engine.dispose()
 
 
-async def test_the_first_run_loads_eleven_scenarios_and_twelve_passages(empty_session):
+async def test_the_first_run_loads_the_scenarios_passages_and_prompts(empty_session):
     report = await seed(empty_session)
     await empty_session.commit()
 
-    scenarios, passages = report.tables
+    scenarios, passages, prompts = report.tables
     assert (scenarios.inserted, scenarios.updated) == (11, 0)
     assert (passages.inserted, passages.updated) == (12, 0)
+    assert (prompts.inserted, prompts.updated) == (13, 0)
 
     assert await empty_session.scalar(select(func.count()).select_from(Scenario)) == 11
     assert await empty_session.scalar(select(func.count()).select_from(Passage)) == 12
+    assert (
+        await empty_session.scalar(select(func.count()).select_from(AnswerPrompt)) == 13
+    )
 
 
 async def test_the_second_run_inserts_nothing(seeded):
@@ -61,7 +66,7 @@ async def test_the_second_run_inserts_nothing(seeded):
 
     assert report.inserted == 0
     assert report.updated == 0
-    assert [t.unchanged for t in report.tables] == [11, 12]
+    assert [t.unchanged for t in report.tables] == [11, 12, 13]
 
 
 async def test_an_edited_seed_updates_in_place_and_says_so(seeded):
@@ -108,10 +113,50 @@ def test_the_seed_files_validate_against_the_models_that_serve_them():
     runs `make seed`."""
     assert len(_load("scenarios.json", ScenarioSeed)) == 11
     assert len(_load("passages.json", PassageSeed)) == 12
+    assert len(_load("prompts.json", PromptSeed)) == 13
+
+
+def test_the_prompts_span_the_four_kinds_of_answer_and_the_bands():
+    prompts = _load("prompts.json", PromptSeed)
+    assert {prompt.category for prompt in prompts} == {
+        "explain",
+        "justify",
+        "walk-through",
+        "recommend",
+    }
+    assert {prompt.cefr_band.value for prompt in prompts} >= {"A2", "B1", "B2", "C1"}
+
+
+@pytest.mark.parametrize("seconds", [30, 180])
+def test_a_time_limit_outside_a_minute_to_two_is_rejected(
+    tmp_path, monkeypatch, seconds
+):
+    bad = [
+        {
+            "slug": "too-long",
+            "title": "t",
+            "prompt": "p",
+            "category": "explain",
+            "cefr_band": "B1",
+            "time_limit_s": seconds,
+        }
+    ]
+    (tmp_path / "prompts.json").write_text(json.dumps(bad))
+    monkeypatch.setattr("scripts.seed.SEEDS_DIR", tmp_path)
+
+    with pytest.raises(SystemExit) as excinfo:
+        _load("prompts.json", PromptSeed)
+
+    assert "too-long" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
-    "filename,model", [("scenarios.json", ScenarioSeed), ("passages.json", PassageSeed)]
+    "filename,model",
+    [
+        ("scenarios.json", ScenarioSeed),
+        ("passages.json", PassageSeed),
+        ("prompts.json", PromptSeed),
+    ],
 )
 def test_slugs_are_unique_within_a_seed_file(filename, model):
     """A duplicate slug would load as an update of the earlier record, and the file

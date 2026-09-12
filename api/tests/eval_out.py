@@ -1,6 +1,6 @@
 """How a measurement suite hands its numbers to the harness.
 
-The four suites are pytest files, and that is deliberate: they need fixtures, async, the
+The suites are pytest files, and that is deliberate: they need fixtures, async, the
 skip machinery, and the ability to be run one at a time by somebody debugging a service.
 But pytest's output is prose for a human, and `eval/run.py` needs figures. Scraping the
 one to get the other is a parser that breaks the first time a suite prints an extra line.
