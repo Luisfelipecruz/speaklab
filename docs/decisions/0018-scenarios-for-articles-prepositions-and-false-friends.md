@@ -136,14 +136,14 @@ In the speech recognition suite, beside the drill's measurement and by the same 
 each sentence spoken by the `tts` voice with its mistake and corrected, heard by
 `small.en`, and read where the correction belongs. Four runs here, because synthesis is not
 deterministic, the fourth by the `make eval` of `0.14.0`; then three after m15, after the
-semicolon in each cell, the last by the `make eval` that wrote the `docs/evaluation.md`
-there is now:
+first semicolon in each cell, the last by the `make eval` of `0.15.0`; and m16's, after the
+second, by the `make eval` that wrote the `docs/evaluation.md` there is now:
 
 | Kind | Mistake heard as said | Heard as the correction | Something else | Corrected heard as corrected |
 |---|---|---|---|---|
-| Articles | 18, 19, 18, 17; 20, 19, 19 of 20 | 0, 0, 0, 1; 0, 0, 1 | 2, 1, 2, 2; 0, 1, 0 | 20, 20, 20, 20; 20, 20, 20 |
-| Prepositions | 18, 18, 17, 17; 17, 17, 18 | 1, 1, 2, 2; 2, 2, 1 | 1, 1, 1, 1; 1, 1, 1 | 19, 19, 19, 19; 19, 19, 19 |
-| False friends | 18, 18, 18, 18; 18, 18, 18 | 0, 0, 0, 0; 0, 0, 0 | 2, 2, 2, 2; 2, 2, 2 | 20, 20, 20, 20; 20, 20, 20 |
+| Articles | 18, 19, 18, 17; 20, 19, 19; 18 of 20 | 0, 0, 0, 1; 0, 0, 1; 1 | 2, 1, 2, 2; 0, 1, 0; 1 | 20, 20, 20, 20; 20, 20, 20; 20 |
+| Prepositions | 18, 18, 17, 17; 17, 17, 18; 17 | 1, 1, 2, 2; 2, 2, 1; 2 | 1, 1, 1, 1; 1, 1, 1; 1 | 19, 19, 19, 19; 19, 19, 19; 19 |
+| False friends | 18, 18, 18, 18; 18, 18, 18; 18 | 0, 0, 0, 0; 0, 0, 0; 0 | 2, 2, 2, 2; 2, 2, 2; 2 | 20, 20, 20, 20; 20, 20, 20; 20 |
 
 **Prepositions are the kind the recogniser repairs most**: *depends of* came back as
 *depends on* in two runs, *next of* as *next to* and *in home* as *at home* in the third,
@@ -156,7 +156,10 @@ the fourth run *It is small suitcase* came back as *in a small suitcase* — 1 o
 was the fourth that showed it need not. The three runs after m15 repaired *next of* each
 time and *depends of* in the first two — prepositions 11 of 140 over all seven — and the
 last heard *It is small suitcase* as *in a small suitcase* again: articles 2 of 140, false
-friends still never.
+friends still never. m16's run, the one in `docs/evaluation.md`, repaired *next of* again,
+heard *before of that* as *before a vet* again, and *It is small suitcase* as *in a small
+suitcase* a third time: prepositions 13 of 160 over all eight, articles 3 of 160, false
+friends never.
 
 "Something else" is mostly the comparison's normalisation rather than the recogniser:
 *five* written *5* (the one correct preposition sentence not heard as corrected, every run),
@@ -171,7 +174,7 @@ Tring*.
 In the error detection suite: each sentence handed to both detectors as written, then the
 corrected sentence. Found means a proposal on the mistake's words filed under its kind;
 the labelled correction is counted apart, because a proposal on the right words can put
-the wrong words in. Seven runs — four here and three after m15, the last the one in
+the wrong words in. Eight runs — four here, three after m15 and m16's, the one in
 `docs/evaluation.md` — identical to the line; the labelling call runs at temperature zero:
 
 | Kind | Found and filed under it | With the labelled correction | Under another kind | Missed | Proposed on the corrected sentence |
@@ -231,11 +234,14 @@ where the three runs before this one had 4 or 5, and 2 of the new three — and 
 placed all nine in character. The fifteen spoken instructions gave the instructions away 6 times in
 150; nothing in this change touched the prompt they measure.
 
-In the run in `docs/evaluation.md`, 8 of 9 were clean — all three new probes, and every
+In m14's report, 8 of 9 were clean — all three new probes, and every
 one of the first six but `instruction-inside-a-turn`, which ran over its cap and said *my
 instructions* — the judge again placed all nine in character, and the spoken instructions
 were given away 5 times in 150. The clerk again said *a black backpack* back, and the
-coordinator *attended*: the recasts of §6 are not one run's.
+coordinator *attended*: the recasts of §6 are not one run's. m16's report, the one in
+`docs/evaluation.md`, on the same prompt as m15's: 7 of 9 clean, both failures over the
+cap, the judge again placing all nine in character, and the spoken instructions given away
+12 times in 150.
 
 ## 5. Found on the way: an imperative given a subject
 

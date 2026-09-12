@@ -89,7 +89,7 @@ async def add_turn(
     provider: LlmProvider = Depends(get_provider),
     analyser: Analyser = Depends(get_analyser),
 ) -> TurnResponse:
-    """Speak; be heard; be answered."""
+    """Send one spoken turn; get back what was heard, the persona's reply, and its audio."""
     started = time.perf_counter()
 
     # ── Phase A: reads ──────────────────────────────────────────────────────

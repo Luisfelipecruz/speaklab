@@ -151,10 +151,10 @@ queries for again; as a type, `'compelted'` is rejected on the way in.
 Three CHECK constraints instead, where the vocabulary has two members or is expected to
 change: `turns.role`, `language_errors.detector`, `progress_snapshots.period`.
 
-`language_errors.category` has neither. The taxonomy *is* closed — invariant I3 — but it
-is enforced in the application layer at m9, because it will be revised once real
-transcripts have been read, and a revision should be a code change with a test rather
-than an `ALTER TYPE` that cannot run inside a transaction.
+`language_errors.category` has neither. The taxonomy *is* closed, but it is enforced in the
+application layer, because it is revised as real transcripts are read, and a revision
+should be a code change with a test rather than an `ALTER TYPE` that cannot run inside a
+transaction.
 
 `cefr_band` is TEXT in the database and a closed enum at the API edge
 (`api/models/common.py`), which is what makes `?band=B7` a 422 rather than an empty list.
@@ -249,18 +249,20 @@ than surfacing as a 500 a week later. `passages.word_count` is *derived* from th
 rather than stated in the file, so the file cannot disagree with itself.
 
 `phoneme_focus` is validated against the 39 ARPAbet symbols in `api/models/common.py`.
-That tuple and m8's `phone_map.py` are two copies of one phone set, and m8 must assert
-they are equal: a phone missing from one of them is a pronunciation error that is never
-scored and never reported as unscored.
+That tuple and the pronunciation service's `phone_map.py` are two copies of one phone set,
+and `tests/test_phone_map.py` asserts they are equal: a phone missing from one of them is a
+pronunciation error that is never scored and never reported as unscored.
 
 ---
 
 ## 7. What is not here yet
 
-`users` exists and nothing writes to it — accounts are m3. Every table from `sessions`
-downward is empty until the milestone that fills it: m6 for sessions and turns, m8 for
-attempts and phoneme scores, m9 for errors and grammar usage, m10 for snapshots.
+Two columns exist that nothing writes. `audio_assets.device_hint` is there so a chart can
+mark the day the microphone changed, and nothing fills it in. `progress_snapshots.cefr_estimate`
+is there so an estimated band would be recorded once rather than recomputed by each screen
+that shows it, and nothing writes one: a band assigned from a handful of turns would be a
+confident answer to a question this data cannot settle.
 
-That is deliberate. The plan puts the whole schema in one revision because everything
-downstream writes to these tables, and getting the shape right once is cheaper than
-eleven migrations that reshape it.
+There is no way to delete an account, or an answer. A session can be deleted, and takes
+its turns, their measurements and any recording left with nothing pointing at it. What an
+account holds can be taken away whole, as one JSON document: `GET /progress/export`.

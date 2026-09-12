@@ -1,0 +1,39 @@
+name: Bug report
+description: Something does not work the way the README says it does
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. make setup
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: health
+    attributes:
+      label: Output of `make health`
+      description: The API's own account of what is up and what is degraded.
+      render: json
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Docker and Compose versions, and the browser if it is the interface.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The relevant lines from `make logs`. Leave out anything personal — a transcript is what somebody said.
+      render: text

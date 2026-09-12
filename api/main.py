@@ -15,6 +15,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
 from routers.answers import router as answers_router
@@ -30,13 +31,69 @@ from routers.scenarios import router as scenarios_router
 from routers.sessions import router as sessions_router
 from routers.turns import router as turns_router
 
+# The sections of the OpenAPI document, in the order a reader meets the product. Every
+# router names one of these as its tag, and a tag used without a description here fails
+# test_openapi.py.
+TAGS = [
+    {
+        "name": "health",
+        "description": "Whether the stack is up, and which model service is not.",
+    },
+    {
+        "name": "auth",
+        "description": "Accounts, and the httpOnly session cookie every private "
+        "operation reads.",
+    },
+    {
+        "name": "scenarios",
+        "description": "The role-play catalogue. Seeded content, the same for every "
+        "account, readable without one.",
+    },
+    {
+        "name": "sessions",
+        "description": "A conversation: start it, speak turns into it, end it for its "
+        "report, delete it.",
+    },
+    {
+        "name": "passages",
+        "description": "The read-aloud catalogue, each passage written to exercise a "
+        "group of sounds.",
+    },
+    {
+        "name": "attempts",
+        "description": "One reading of a passage, scored sound by sound in the "
+        "background and polled until it is done.",
+    },
+    {
+        "name": "audio",
+        "description": "Stored recordings, streamed to their owner and to nobody else.",
+    },
+    {
+        "name": "grammar",
+        "description": "Your corrections in your own sentences, and one of them said "
+        "again.",
+    },
+    {
+        "name": "answers",
+        "description": "A spoken answer to a work question: how it was said and how "
+        "it was built, counted by code.",
+    },
+    {
+        "name": "progress",
+        "description": "Trends from stored measurements, what to practise next, and "
+        "the whole history as a file.",
+    },
+]
+
 app = FastAPI(
     title="SpeakLab",
     description=(
-        "Practise spoken English against local models. Scenario role-play, read-aloud "
-        "pronunciation scoring with per-phoneme GOP, and measurable progress over time."
+        "Practise spoken English against local models: scenario role-play, read-aloud "
+        "pronunciation scoring with per-phoneme GOP, your own corrections to say again, "
+        "spoken answers to work questions, and progress measured over time."
     ),
     version=VERSION,
+    openapi_tags=TAGS,
 )
 
 app.add_middleware(
@@ -66,8 +123,8 @@ app.include_router(turns_router)
 # no other use for.
 app.include_router(attempts_router)
 
-# Trends and recommendations. Last, because it is the only router that reads what every
-# other one wrote and adds nothing of its own to the schema.
+# Trends, recommendations, and the whole history as a file. It reads what the other
+# routers wrote.
 app.include_router(progress_router)
 
 # Your corrections, grouped, and the verb form to practise. Beside progress: it reads the
@@ -80,6 +137,20 @@ app.include_router(drills_router)
 # A spoken answer to a work prompt: how it was said and how it was built, counted, with a
 # language model's feedback beside the counts.
 app.include_router(answers_router)
+
+
+def _first_sentence(docstring: str) -> str:
+    paragraph = " ".join(docstring.split("\n\n")[0].split())
+    head, stop, _ = paragraph.partition(". ")
+    return head if stop else paragraph.rstrip(".")
+
+
+# An operation's summary is the first sentence of its docstring, and the whole docstring
+# is its description. Left to itself FastAPI titles an operation after its function —
+# "Read Me", "Add Turn" — which names the code rather than what the operation does.
+for route in app.routes:
+    if isinstance(route, APIRoute) and route.summary is None and route.description:
+        route.summary = _first_sentence(route.description)
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel
 # signing key is the right default for a laptop and a serious problem anywhere else,

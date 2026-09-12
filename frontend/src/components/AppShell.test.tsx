@@ -146,6 +146,23 @@ test("a signed-out reader is offered the way in rather than a sign-out", () => {
   expect(screen.queryByRole("button", { name: /sign out/i })).not.toBeInTheDocument();
 });
 
+test("the whole history is one link away, as a file to keep", () => {
+  renderShell();
+
+  expect(screen.getByRole("link", { name: "Download your history" })).toHaveAttribute(
+    "href",
+    expect.stringMatching(/\/progress\/export$/),
+  );
+});
+
+test("a reader nobody has identified is offered no history to download", () => {
+  renderShell({ status: "anonymous" });
+
+  expect(
+    screen.queryByRole("link", { name: "Download your history" }),
+  ).not.toBeInTheDocument();
+});
+
 describe("on a phone", () => {
   beforeEach(() => {
     window.innerWidth = 375;

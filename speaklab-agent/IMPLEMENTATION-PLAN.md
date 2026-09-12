@@ -1,6 +1,6 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.17 — **m0 passed; m1 through m14 are merged into `main`, CI green** (m13 as
+**Status:** v1.18 — **m0 passed; m1 through m15 are merged into `main`, CI green** (m13 as
 PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
 a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
 setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
@@ -17,17 +17,17 @@ forms as counts, **no percentage on any screen**; the spoken drill (`d74ae6b`,
 and per correction, what the recogniser heard; and the seeds (`ab719d5`,
 `docs/decisions/0018`) — three scenarios for articles, prepositions and false friends, of
 which the detector files 12 of 20 prepositions under their kind but 6 of 20 articles and 6
-of 20 false friends; CI green on its first run. **m15, articulation — *Make your point* — is code complete** and
-committed on `feature/m15-articulation` (`f7f1a59`, `9a1d04c`, `docs/decisions/0019`): a
+of 20 false friends; CI green on its first run. **m15, articulation — *Make your point* — is merged as PR #20 (`0.15.0`,
+`53279df`, 2026-09-12)** (`docs/decisions/0019`): a
 spoken answer to a work prompt, how it is built and how it is delivered counted by code,
 the model's checked feedback beside the counts, said again side by side; every shown
 measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
-shown, the model's shorter version withheld 2 of 16 held out. Its PR, `0.15.0`, is
-prepared and not opened. **m16 is polish**, not started. Three criteria — S4, S5, S7 — are blocked on speech only
+shown, the model's shorter version withheld 2 of 16 held out; CI green on its first run.
+**m16, polish, is code complete** on `feature/m16-polish`, its PR prepared for the owner. Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m15 code complete and committed, its PR prepared; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; `demo/` out of the repository and the README reshaped; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1723,7 +1723,7 @@ what they declare.
 
 ---
 
-### m15 — Articulation: saying an idea clearly · **CODE COMPLETE, PR PREPARED** — built and measured 2026-09-12, committed as `f7f1a59` and `9a1d04c`, `0.15.0`, `docs/decisions/0019`; *Make your point* on screen
+### m15 — Articulation: saying an idea clearly · **MERGED as PR #20** (`53279df`, 2026-09-12) — built and measured 2026-09-12, committed as `f7f1a59`, `9a1d04c` and `8b1dd50`, `0.15.0`, `docs/decisions/0019`; *Make your point* on screen
 
 **Goal.** A learner can answer a work question out loud in one go, and see how the answer
 was built and how it was delivered — both counted by code — with a model's explanation and
@@ -1837,7 +1837,7 @@ measured and in `docs/evaluation.md`.
 
 ---
 
-### m16 — Polish, documentation, demo · **NOT STARTED** *(was m13 until 2026-09-06, m15 until 2026-09-12)*
+### m16 — Polish, documentation, demo · **CODE COMPLETE** — started 2026-09-12 at the owner's request *(was m13 until 2026-09-06, m15 until 2026-09-12)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1861,10 +1861,13 @@ README.md                              (rewritten against measured reality; the 
                                         a picture, three lines, and the Quick start)
 docs/{architecture.md,data-model.md,evaluation.md}   (finalised)
 docs/changelog.md
-demo/{record.cjs,to-mp4.sh,package.json}   the recorder exists, untracked and never run;
-                                        its package.json names a VIDEO-PLAN.md that is not in
-                                        this repository. The .mp4 and the poster go to the
-                                        post and the README, not into git (out/ is ignored)
+demo/                                  the walkthrough recorder — run, and kept out of the
+                                        repository (D119); the .mp4 goes to the post and the
+                                        still to the README
+docs/{how-it-works.md,measurements.md,limitations.md}   the README's long sections, moved
+                                        word for word (D120)
+CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, .github/ISSUE_TEMPLATE/, .github/pull_request_template.md
+                                        the files a contributor looks for (D120)
 eval/golden/pron/RECORD.md             the recording protocol, moved out of gitignored spike/
                                         so a clone can record S4's pairs — read it for
                                         anything personal before it is tracked
@@ -1876,6 +1879,107 @@ Makefile                               (all targets documented)
 
 **Done by hand on GitHub, not by a commit.** A custom social-preview image — a link to the
 repository on LinkedIn renders GitHub's generic card without one — and repository topics.
+
+**The items, in the order they are built** *(written 2026-09-12, when the milestone
+started)*.
+
+0. **The record first.** m15 merged as #20 in this plan, these items, v1.18. It rides in
+   the branch's first commit, with item 1. **DONE 2026-09-12.**
+1. **`GET /progress/export`** (FR-25). The caller's whole history as one JSON document:
+   the account without its password hash, every session with its turns, each turn's
+   measurements and corrections, every reading with its scored phones, every spoken
+   answer, and the weekly snapshots. Recordings are referenced by their `GET /audio/{id}`
+   address rather than embedded — a JSON file is no place for megabytes of waveform, and
+   that address is ownership-checked like everything else. Sent as a download, scoped to
+   the caller, taking no user id, like every progress operation. 31 operations. A link to
+   it where the account is shown.
+   **DONE** — `models/export.py` and `services/export.py`, one query per table; a link
+   under the account's email in the rail. **31 operations.** On the live database the
+   export of each of the 6 accounts counts exactly what the database holds, the largest
+   198 594 bytes in 17 ms. Seven tests, and the ownership test names the route.
+2. **Loading, failure and not-found, designed.** No route has a `loading.tsx`, an
+   `error.tsx` or a `not-found.tsx`: a slow server render leaves the previous page on
+   screen, and a thrown one shows Next's generic screen. A skeleton per section, shaped
+   like the page it stands in for; one error boundary for the signed-in sections that says
+   what failed and offers a retry; a not-found in the product's own words. The empty states
+   exist and were designed (m10, m12) — each is checked, not rebuilt.
+   **DONE** — a `loading.tsx` for each of the 12 signed-in pages and one for the group,
+   shaped as cards, a list, figures or a document; `error.tsx` in the shell and at the root,
+   `global-error.tsx`, and `not-found.tsx` in the shell and at the root; a test that reads
+   the tree and names any page without a loading state of its own. **One cost:** a
+   not-found decided after streaming has begun is sent as 200 — `/sessions/abc` answers 200
+   with *Nothing here*, an unmatched address 404.
+3. **The OpenAPI document as a reader meets it.** Every tag described, every operation
+   with a summary, and a test that fails on an operation without one.
+   **DONE** — ten tags described; each summary is the first sentence of the operation's
+   docstring, set once in `main.py`; three docstrings rewritten and one written
+   (`GET /passages` had none); `tests/test_openapi.py`.
+4. **The recording protocol in the repository.** `eval/golden/pron/README.md` already
+   carries the lines to say and the conversion; what only `spike/RECORD.md` has — the
+   check that the files are 16 kHz mono, the silence at each end, a recorder to use — is
+   folded into it, and its pointer to `spike/` goes. `RECORD.md` itself is not copied: it
+   carries a path from the machine it was written on. Every Make target is already in
+   `make help` (40 of 40), which is checked rather than rebuilt.
+   **DONE** — the silence at each end, a recorder, `raw/` (now ignored by git) and an
+   `afinfo` check folded into `eval/golden/pron/README.md`; the ASR set's README and the
+   pronunciation manifest point there instead of at `spike/`. `make help`: 40 of 40.
+5. **S1, re-measured cold** — #17's method: a `git archive` copy, empty volumes, a
+   builder of its own. Then decided: a faster first build, if the build can be shortened
+   without adding a tool to the stack, or the miss stated as a limitation with its figure.
+   Either way the README carries the new number.
+   **DONE** — 2026-09-12, a copy of `53279df`: **`make setup` 153 s, Whisper loaded at
+   163 s — met.** The build is unchanged; the API's `pip install` took 88 s, against 346 s
+   on 2026-09-10, and nothing is compiled from source. One synthesised turn heard verbatim
+   and answered in 3.5 s; 1.74 GiB. **Decided: no change to the build** — the first miss
+   was the connection, and both runs are in the README. The live stack was stopped for the
+   run and restored; nothing of the copy survives.
+6. **The walkthrough.** `demo/` checked against the product as it is now — three
+   sections were added after it was written — and run. Its `package.json` stops naming a
+   file that is not in the repository. The video and its poster go to the README and the
+   post, never into git; the clips it replays are the owner's voice, used with the owner's
+   say-so.
+   **DONE** — **the owner chose the project's synthetic voice** (D116): `demo/voices.sh`
+   writes the learner's lines, the captions say so, and the scenes count scenarios and
+   passages off the page and film the grammar page and *Make your point*. Filmed at
+   1280×720: turns answered in 4.0 s, the report in 1.8 s, the reading scored in 12.3 s, the
+   answer counted with its feedback in 3.8 s. Two bugs found by filming and fixed — a text
+   match that stopped the clock at 0.0 s, and clips written into the folder a take empties.
+   **Revised:** the still on the README's first screen is committed (D117); the video is
+   not. **Revised again, at the owner's request (D118):** two portrait cuts for LinkedIn,
+   1080×1350, narrated by a local Piper voice over the app's own sound — `demo/piper.sh`,
+   `demo/narration.cjs`, `demo/mix.cjs`, and `AUDIO=` in `to-mp4.sh`. The short cut is one
+   turn and its report; the full one is every section. **Taken out of the repository, at
+   the owner's request (D119):** the version commit stops tracking `demo/`, which is
+   ignored from then on; the recorder stays on the machine that records, and the
+   squash-merge never puts it on `main`.
+7. **The README and the docs, against the live system.** The first screen a picture, three
+   lines and the Quick start; the status line, the table of what does not exist yet and the
+   repository map brought to what is true; `docs/architecture.md` and
+   `docs/data-model.md` through m15. Every S-criterion in one table, S1 to S10, each with
+   the command or the person that settles it.
+   **DONE** — the first screen is a still from the take, three lines and the Quick start; a
+   table of all ten criteria with where each stands and what settles it — S1, S3, S6, S8 and
+   S9 met, S2 met on a quiet machine and missed on a busy one, S4 never run, S5 undecidable,
+   S7 not met, S10 a rule; the gaps table, the repository map and every figure the cold run
+   and the suites re-measured brought to 2026-09-12. `docs/architecture.md` describes the
+   frontend as it is and the export; `docs/data-model.md` says what is not there.
+   `docs/decisions/0020`.
+   **Reshaped at the owner's request (D120):** the README in the shape of a large
+   open-source project's — badges, features, known limitations, documentation,
+   development, contributing, acknowledgements — the four feature sections, the measured
+   table with its prose, and the table of what does not exist yet moved word for word into
+   `docs/how-it-works.md`, `docs/measurements.md` and `docs/limitations.md`; CONTRIBUTING,
+   SECURITY, a code of conduct and issue and pull-request templates added.
+   **Rewritten by component, at the owner's request (D121):** the reference documents
+   describe the system as it is — `how-it-works.md`, `limitations.md`, `architecture.md`
+   and `measurements.md` organised by component, in the present tense, with no milestone
+   ids, and a sampled figure as one range across runs; decision records frozen.
+8. **The PR.** `make eval` at the commit holding the code, `0.16.0`, the changelog.
+   **DONE in the tree** — `make eval` at `0174d7f`, all five suites, 16 min 24 s: S4–S7
+   unchanged, and the sampled figures that moved on the same code recorded beside the
+   earlier runs (D102). `0.16.0`; the changelog. Checked in Docker after the bump: API
+   1 049 (1 011 pass, 38 skip), `make lint`, frontend 316 / 49, `tsc`, ESLint, and CI's
+   harness step on a copy. The owner's: §A.27, then §B.15.
 
 **Decisions.**
 - Every number in the README is counted from the live system at write time — operation count from `app.openapi()`, test count from pytest, WER and GOP separation from `make eval`.
@@ -1971,15 +2075,15 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**`main` is PR #19 (`0.14.0`, `01676db`)**: all of m14, squash-merged on 2026-09-12.
-**m15 is committed on `feature/m15-articulation`** — `d75accb` (the PRD and this plan),
-`f7f1a59` (the instrument and the counter), `9a1d04c` (the drill, the feedback, the
-history, the eval suite) — and its PR is prepared: `GIT-COMMANDS.md` §A.23 commits the
-version and the report, §B.14 pushes and opens it. Nothing is pushed. Only `demo/` is
-outside, untracked on purpose — it is polish's, m16.
+**`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
+and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,
+is code complete on `feature/m16-polish`**, cut from `53279df`; its items are in m16 above.
+`demo/`, the walkthrough recorder, was tracked in `836d430` and `0174d7f` and is kept out
+of the repository from the version commit on (D119): ignored, on the machine that
+records, and never on `main`, because the branch is squash-merged.
 
-**Prepared on `feature/m15-articulation`, 2026-09-12:**
-- m15's PR, `0.15.0`. `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The
+**Merged as PR #20, 2026-09-12:**
+- ~~m15's PR, `0.15.0`.~~ `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The
   criteria are unchanged — S4 not run, S5 0.500 over six, S6 1.72 %, S7 not met. The
   answers suite is identical to every run before it (9 of 40 shorter versions withheld, 2
   of 16 held out); the spoken answers are recorded as a fourth run beside three, both
@@ -2070,10 +2174,10 @@ item (2b) rather than a PR of its own.
    `make reparse` then `make rollup`.
 6. ~~m15, articulation.~~ Built and measured; committed by the owner as `d75accb`,
    `f7f1a59` and `9a1d04c` (§A.21, §A.22).
-7. **m15's PR, `0.15.0`.** §A.23 commits the version, the changelog and the report; §B.14
-   pushes, opens and merges it — both run by the owner. On any other checkout afterwards:
-   `make migrate`, then `make seed`.
-8. Then m16, polish — when the owner asks for it, not before.
+7. ~~m15's PR, `0.15.0`.~~ Merged as #20, `53279df`; CI green on all three jobs. On any
+   other checkout: `make migrate`, then `make seed`.
+8. **m16, polish** — asked for by the owner on 2026-09-12. Items 0 to 8 are in m16 above.
+   Code complete; §A.27 and §B.15 are the owner's.
 
 **A finding from item 5, not yet a task.** The detector files most article and false-friend
 mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under

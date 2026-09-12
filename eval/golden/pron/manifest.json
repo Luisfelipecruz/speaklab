@@ -34,5 +34,5 @@
     }
   },
   "pairs": [],
-  "pairs_note": "Empty until somebody records them. Protocol: spike/RECORD.md — the three passages in spike/passages.json read twice, once naturally and once with the ten logged substitutions. Human recordings only; see README.md for why TTS cannot stand in. This is what criterion S4 is measured on."
+  "pairs_note": "Empty until somebody records them. Protocol: README.md in this directory — three sentences read twice, once naturally and once with the marked words said wrong. Human recordings only; see README.md for why TTS cannot stand in. This is what criterion S4 is measured on."
 }

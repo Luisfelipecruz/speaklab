@@ -7,6 +7,68 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.16.0] — 2026-09-12 · polish
+
+A stranger can clone the repository, run it and understand the engineering: the first run
+is measured again and met, every signed-in page has a loading, failure and not-found state
+of its own, the API describes itself, the whole history can be exported, and the README
+leads with the ten success criteria and sends the long sections to `docs/`.
+`docs/decisions/0020`.
+
+### Added
+
+- **`GET /progress/export`**, the caller's whole history as one JSON document, sent as a
+  download: the account without its password hash, every session with its turns and each
+  turn's measurements and corrections, every reading with its scored sounds, every spoken
+  answer, and the weekly snapshots. Recordings are listed by their `GET /audio/{id}`
+  address, not embedded. Scoped to the caller, taking no user id, and linked under the
+  account's email in the rail. **31 operations.** On the live database the export of each
+  of the 6 accounts counts exactly what the tables hold; the largest is 198 594 bytes, in
+  17 ms.
+- **A waiting state for every signed-in page**: 13 `loading.tsx`, each shaped like the page
+  it stands in for; an error boundary in the shell and at the root that says what failed
+  and offers a retry; `global-error.tsx`; and not-found pages in the product's own words. A
+  test reads the route tree and names any page without a loading state of its own. A
+  not-found decided after streaming has begun is sent as 200.
+- **The OpenAPI document as a reader meets it**: ten tags described, and each operation's
+  summary the first sentence of its docstring; `tests/test_openapi.py` fails on an
+  operation without one.
+- **The files a contributor looks for**: `CONTRIBUTING.md`, `SECURITY.md`,
+  `CODE_OF_CONDUCT.md`, issue templates for a bug and for a feature, and a pull-request
+  template.
+- **`docs/how-it-works.md`, `docs/measurements.md` and `docs/limitations.md`** — the
+  system described by component, in the present tense: what each part does, refuses to do
+  and is measured to do; every figure with its source, a figure that moves from run to run
+  given as a range; and what does not exist yet.
+- **A still from the recorded walkthrough on the README's first screen**,
+  `docs/walkthrough.png`: a report as it came out, with a correction that fixed the verb
+  and not the question, filed under word order.
+
+### Changed
+
+- **The README**, in the shape of a large open-source project's: badges, the features, the
+  quick start, the architecture, all ten success criteria with where each stands and what
+  settles it, the known limitations, the documentation, development, contributing and
+  acknowledgements — 361 lines from 602.
+- **The recording protocol for the pronunciation pairs** is in
+  `eval/golden/pron/README.md`, with the silence at each end, a recorder and a format
+  check; raw recordings are ignored by git.
+- **S1, measured cold again, is met**: `make setup` 153 s and Whisper loaded at 163 s, from
+  a copy of `53279df` with empty volumes and a builder of its own — against 432 s and
+  538 s on 2026-09-10 with the same build. The build is not changed; the miss was the
+  connection.
+- **S2 on a busy machine**: 5356 ms p95 at a load average of 16.7–18.0, recorded beside the
+  quiet 2684 ms. **S3**: a 34-second reading scored in 7.5 s.
+- **`docs/evaluation.md` regenerated** by `make eval` at `0174d7f`, all five suites, in
+  16 min 24 s. The criteria are unchanged — S4 not run, S5 0.500 over six, S6 1.72 %, S7
+  not met, 7 sessions on 2 days. On the same code and model as m15's report, the sampled
+  figures moved and are recorded beside the earlier runs: persona replies clean 7 of 9
+  against 8, the spoken instructions given away 12 of 150 against 4 — six of the twelve on
+  one phrasing — a mistake said aloud heard as its correction 1 of 89 against 2, and
+  fillers written down 23 of 24 against 21.
+
+---
+
 ## [0.15.0] — 2026-09-12 · make your point
 
 A learner can now answer a work question out loud in one go and see how the answer was
