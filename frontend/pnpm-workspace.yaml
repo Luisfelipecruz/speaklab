@@ -1,0 +1,29 @@
+# pnpm's settings for the frontend. It is one package, not a workspace; pnpm reads its
+# settings from this file either way.
+
+# A release is installed only once it has been public for a day. A version pushed from a
+# stolen account is usually found and pulled within hours, so a day's wait keeps it out.
+# Set explicitly, which also makes it strict: a release younger than this fails the
+# install instead of being quietly replaced by an older one.
+minimumReleaseAge: 1440
+
+# A release published with weaker evidence of where it came from than an earlier release
+# of the same package is refused. A version pushed with a stolen token, where the package
+# normally publishes from its own CI, looks exactly like that.
+trustPolicy: no-downgrade
+
+# Excepted by exact version, each one checked by hand. Every one is a release on an older
+# major line, published by a maintainer of the package with a matching release in the
+# project's own repository; each reads as a downgrade only because it came out after
+# releases of a newer line that carry provenance.
+trustPolicyExclude:
+  # eslint-config-next requires the 3.x line, and no 3.x release has ever carried
+  # provenance.
+  - eslint-import-resolver-typescript@3.10.1
+  - semver@6.3.1
+
+# No dependency runs an install script unless it is listed here as `true`. Neither of
+# these is needed here: lint, the types and the tests pass without their scripts.
+allowBuilds:
+  "@parcel/watcher": false
+  unrs-resolver: false

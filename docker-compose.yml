@@ -1,25 +1,16 @@
 # SpeakLab — the whole service graph, declared once.
 #
-# Seven services. Five start by default (postgres, api, frontend, asr, tts) and three are
-# behind profiles, because a profiled service is excluded from `up` AND from `build` —
-# which is what lets this file name a build context that does not exist yet without
-# breaking anything:
+# Nine services. Six start by default — postgres, api, frontend, asr, tts, and
+# volume-owner, a job that runs before the others and exits — and three are behind
+# profiles, because a profiled service is excluded from `up` AND from `build`:
 #
-#   pron     pron (m8)                torch, ~2 GB. Profiled for that reason alone (D10)
+#   pron     pron                     torch, ~2 GB. Profiled for that reason alone
 #   llm      ollama                   NOT the default. See the api service's comment
 #   tools    test                     batch jobs with an exit code, not services
 #
-# **The `speech` profile is gone as of m5.** It existed to keep two not-yet-created build
-# contexts inert; m4 created infra/asr and m5 created infra/tts, so it had no members
-# left and an empty profile is a thing people paste into a command that then does
-# nothing. `docker compose up -d` now brings up the whole conversational stack — FIVE
-# containers — and only the 2 GB pronunciation service stays opt-in.
-#
-# This file was written complete at m1 rather than minimal, so that the shape of the
-# system is visible in one place from the start (IMPLEMENTATION-PLAN.md §1.1). Later
-# milestones still amend it — m3 added the auth variables, m4 added the ASR ones and
-# un-profiled the asr service — but they amend a declared graph rather than discovering
-# it a service at a time.
+# Every published port is bound to 127.0.0.1. The stack is for the person at this
+# machine: the database has a development password, and the model services answer anyone
+# who can reach them. The health checks are in the images, not here.
 
 services:
 
@@ -33,7 +24,9 @@ services:
     # There is also no docker-entrypoint-initdb.d script. Alembic owns the schema from
     # m2 onward, and an init.sql that also created tables would be a second source of
     # truth that runs exactly once, on an empty volume, and silently diverges after that.
-    image: postgres:16
+    # Pinned to a minor release, so a security release arrives as a reviewed change to
+    # this line rather than whenever the tag moves.
+    image: postgres:16.15
     environment:
       POSTGRES_DB: ${DB_NAME:-speaklab}
       POSTGRES_USER: ${DB_USER:-speaklab}
@@ -41,7 +34,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-speaklab} -d ${DB_NAME:-speaklab}"]
       interval: 5s
@@ -49,6 +42,25 @@ services:
       retries: 5
     networks:
       - speaklab
+
+  # Hands the named volumes to the account the services run as, then exits. A volume first
+  # written by an image that ran as root holds files that account cannot replace, and a
+  # recording or a model download would fail on them. It changes only what it finds owned
+  # by someone else, so on a volume that is already right it does nothing. `-h` changes a
+  # symlink itself rather than what it points to; the model cache is full of them.
+  volume-owner:
+    build:
+      context: .
+      dockerfile: infra/api/Dockerfile
+      target: runtime
+    user: root
+    entrypoint: ["find", "/audio", "/models", "!", "-user", "10001", "-exec", "chown", "-h", "10001:10001", "{}", "+"]
+    volumes:
+      - audio_data:/audio
+      - model_cache:/models
+    healthcheck:
+      disable: true
+    network_mode: none
 
   # ── API ────────────────────────────────────────────────────────────────────
   api:
@@ -58,13 +70,16 @@ services:
       # would ship spike/.venv and frontend/node_modules to the daemon.
       context: .
       dockerfile: infra/api/Dockerfile
-    # depends_on lists postgres and NOTHING ELSE, deliberately. The API must start and
-    # serve scenarios, sessions, auth and progress while asr/tts/pron are still loading
-    # their weights, and on a machine that never starts them at all (FR-27, invariant I6).
-    # Adding a model service here would turn a degraded stack into a dead one.
+      target: runtime
+    # depends_on lists postgres and the volume job and NOTHING ELSE, deliberately. The API
+    # must start and serve scenarios, sessions, auth and progress while asr/tts/pron are
+    # still loading their weights, and on a machine that never starts them at all. Adding
+    # a model service here would turn a degraded stack into a dead one.
     depends_on:
       postgres:
         condition: service_healthy
+      volume-owner:
+        condition: service_completed_successfully
     # Every key in .env reaches the API, not only the ones `environment:` below names.
     # Without this, the tuning keys in .env.example — the LLM estimator, the progress
     # gates, paging — were documented, editable, and read by nothing: config.py only sees
@@ -115,22 +130,16 @@ services:
     # line is what makes the host-Ollama default portable rather than a Mac-only trick.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # --reload, because ./api is bind-mounted over the image's copy below. The image runs
+    # without it.
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     volumes:
       - ./api:/app
       # Named volume for audio, not a bind mount. Recordings must survive a rebuild and
       # must never be able to appear in `git status` (traps §9.6).
       - audio_data:/audio
     ports:
-      - "8002:8000"
-    healthcheck:
-      # /health is 200 while every model service is unreachable — that is the normal
-      # state until m4. It is 503 only when the database is gone, which is the one
-      # condition that genuinely makes this container useless.
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
+      - "127.0.0.1:8002:8000"
     networks:
       - speaklab
 
@@ -148,7 +157,6 @@ services:
       # one for both is the classic Next.js container bug.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8002}
       INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000}
-      WATCHPACK_POLLING: "true"
     volumes:
       - ./frontend:/app
       # Anonymous volumes so the container's own node_modules and .next survive the
@@ -157,19 +165,7 @@ services:
       - /app/node_modules
       - /app/.next
     ports:
-      - "3003:3000"
-    healthcheck:
-      # busybox wget, because node:22-alpine has no curl and adding one to a dev image
-      # to answer a healthcheck is a poor trade. --spider makes it a HEAD-like request
-      # that downloads nothing.
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      # `next dev` compiles the first route on demand, so the first request after start
-      # is seconds rather than milliseconds. Without this window the container reports
-      # unhealthy while it is simply working.
-      start_period: 60s
+      - "127.0.0.1:3003:3000"
     networks:
       - speaklab
 
@@ -203,16 +199,13 @@ services:
       WHISPER_VAD: ${WHISPER_VAD:-1}
       WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-0}
       HF_HOME: /models
+    depends_on:
+      volume-owner:
+        condition: service_completed_successfully
     volumes:
       - model_cache:/models
     ports:
-      - "8101:8101"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8101/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 180s
+      - "127.0.0.1:8101:8101"
     networks:
       - speaklab
 
@@ -240,20 +233,15 @@ services:
       # Below 1 is faster speech, above 1 is slower. 1.0 is the voice's trained rate.
       PIPER_LENGTH_SCALE: ${PIPER_LENGTH_SCALE:-1.0}
       PIPER_VOICE_DIR: /models/piper
+    depends_on:
+      volume-owner:
+        condition: service_completed_successfully
     volumes:
       # For voices other than the one in the image. Shared with asr and pron so a
       # rebuild never re-downloads anything (FR-28).
       - model_cache:/models
     ports:
-      - "8102:8102"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8102/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      # 60s, not asr's 180s: the default voice is already in the image, so this window
-      # covers process start rather than a download.
-      start_period: 60s
+      - "127.0.0.1:8102:8102"
     networks:
       - speaklab
 
@@ -265,18 +253,13 @@ services:
     environment:
       PRON_MODEL: ${PRON_MODEL:-facebook/wav2vec2-lv-60-espeak-cv-ft}
       HF_HOME: /models
+    depends_on:
+      volume-owner:
+        condition: service_completed_successfully
     volumes:
       - model_cache:/models
     ports:
-      - "8103:8103"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8103/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      # 1.2 GB of weights on a cold cache, and the m0 spike measured 1.77 s to load them
-      # once cached. The generous window is for the download, not the load.
-      start_period: 300s
+      - "127.0.0.1:8103:8103"
     networks:
       - speaklab
 
@@ -294,7 +277,7 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     healthcheck:
       test: ["CMD-SHELL", "ollama list || exit 1"]
       interval: 15s
@@ -309,6 +292,9 @@ services:
     build:
       context: .
       dockerfile: infra/api/Dockerfile
+      # The same installed dependencies as the api service, with the test and lint tools
+      # added, running as root so it can write into the bind-mounted source and .eval/.
+      target: test
     profiles: ["tools"]
     command: python -m pytest /app/tests -v
     depends_on:

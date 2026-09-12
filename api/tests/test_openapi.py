@@ -6,9 +6,7 @@ function name per operation and not a word about any section. These tests read t
 document the running app serves, so an operation added without a docstring is named here.
 """
 
-from fastapi.routing import APIRoute
-
-from main import app
+from main import api_routes, app
 
 SCHEMA = app.openapi()
 OPERATIONS = [
@@ -18,6 +16,19 @@ OPERATIONS = [
 ]
 
 
+def test_the_route_walk_finds_every_operation_the_document_lists():
+    """The walk the tests here and in test_ownership.py loop over, checked against what the
+    app actually serves. A walk that found nothing would let every loop over it pass
+    without asserting anything."""
+    walked = {
+        (method, route.path)
+        for route in api_routes()
+        for method in route.methods - {"HEAD", "OPTIONS"}
+    }
+
+    assert walked == {(method, path) for method, path, _ in OPERATIONS}
+
+
 def test_every_operation_has_a_description():
     missing = [f"{m} {p}" for m, p, op in OPERATIONS if not op.get("description")]
 
@@ -25,9 +36,7 @@ def test_every_operation_has_a_description():
 
 
 def test_every_summary_is_a_sentence_about_the_operation_not_its_function_name():
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    for route in api_routes():
         default = route.name.replace("_", " ").title()
         assert route.summary, route.path
         assert route.summary != default, route.path

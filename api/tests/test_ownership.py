@@ -21,14 +21,14 @@ from fastapi.routing import APIRoute
 
 from db_models import AudioAsset, User
 from dependencies import current_user, get_owned_or_404
-from main import app
+from main import api_routes
 from services.security import hash_password
 
 # Every route that answers without a session, and why. The reason column is not
 # decoration: this is the list somebody edits to make the test below pass, and an entry
 # added without a reason is an endpoint that was opened up because a test complained.
 PUBLIC_ROUTES: dict[tuple[str, str], str] = {
-    ("GET", "/health"): "the compose healthcheck curls it; it has no credentials",
+    ("GET", "/health"): "the container health check calls it; it has no credentials",
     ("GET", "/health/models"): "reports on containers, not on people",
     ("POST", "/auth/register"): "creating the account that will hold the session",
     ("POST", "/auth/login"): "obtaining the session",
@@ -61,15 +61,15 @@ def _api_routes() -> list[tuple[str, str, APIRoute]]:
     `APIRoute` only — Starlette's own routes for `/docs` and `/openapi.json` carry no
     dependency tree, and asserting a policy about authentication on the schema endpoint
     would be a category error. If those should ever require a session that is a
-    middleware decision, not a dependency one.
+    middleware decision, not a dependency one. test_openapi.py checks that this walk
+    finds every operation the OpenAPI document lists, so it cannot come back empty and
+    pass.
     """
-    found = []
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
-        for method in sorted(route.methods - {"HEAD", "OPTIONS"}):
-            found.append((method, route.path, route))
-    return found
+    return [
+        (method, route.path, route)
+        for route in api_routes()
+        for method in sorted(route.methods - {"HEAD", "OPTIONS"})
+    ]
 
 
 def test_every_route_is_either_scoped_to_a_user_or_declared_public():

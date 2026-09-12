@@ -1175,7 +1175,7 @@ def render(
         "",
         "```bash",
         "make up                  # postgres, api, asr, tts",
-        "make pron-up             # the pronunciation service, 1.78 GB",
+        "make pron-up             # the pronunciation service, 1.87 GB",
         "ollama serve             # on the host, with the configured model pulled",
         "make eval                # every suite that can run, then this document",
         "```",

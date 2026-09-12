@@ -86,7 +86,7 @@ async def say_it_again(
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"upload is {len(data)} bytes; the limit is {MAX_UPLOAD_BYTES}",
         )
 

@@ -6,7 +6,7 @@ run in `asr`, `tts` and `pron`, and this image contains none of their weights an
 torch. That separation is what lets this container start in a couple of seconds, and its
 size is worth re-measuring rather than quoting the next time it is claimed.
 
-Routers are registered explicitly, one line each, as their milestones land. There is no
+Routers are registered explicitly, one entry each in `ROUTERS`. There is no
 auto-discovery: a router that fails to import should break startup loudly rather than
 disappear from the OpenAPI schema with nothing in the logs.
 """
@@ -104,39 +104,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health_router)
-app.include_router(auth_router)
-app.include_router(scenarios_router)
-app.include_router(passages_router)
-app.include_router(audio_router)
-app.include_router(sessions_router)
-# After sessions, and it matters: both routers carry the /sessions prefix, and FastAPI
-# matches in registration order. `POST /sessions/{id}/turns` and `POST /sessions/{id}/end`
-# cannot collide — the literal segments differ — but registering the more specific router
-# first would put the endpoint the product is about above the CRUD it belongs to in the
-# OpenAPI schema, which is a worse table of contents than it is a routing decision.
-app.include_router(turns_router)
+# Every router the app serves, in the order it is included. FastAPI keeps an included
+# router as one opaque entry of `app.routes` rather than copying its operations into it,
+# so this tuple, not `app.routes`, is how the app's own code and its tests reach every
+# operation.
+ROUTERS = (
+    health_router,
+    auth_router,
+    scenarios_router,
+    passages_router,
+    audio_router,
+    sessions_router,
+    # After sessions, and it matters: both routers carry the /sessions prefix, and FastAPI
+    # matches in registration order. `POST /sessions/{id}/turns` and
+    # `POST /sessions/{id}/end` cannot collide — the literal segments differ — but
+    # registering the more specific router first would put the endpoint the product is
+    # about above the CRUD it belongs to in the OpenAPI schema, which is a worse table of
+    # contents than it is a routing decision.
+    turns_router,
+    # Read-aloud. A sibling of the conversation loop rather than a child of it: an attempt
+    # belongs to a session, but it is addressed by its own id because the client polls it,
+    # and `/sessions/{id}/attempts/{id}` would make a poll carry a session id the poller
+    # has no other use for.
+    attempts_router,
+    # Trends, recommendations, and the whole history as a file. It reads what the other
+    # routers wrote.
+    progress_router,
+    # Your corrections, grouped, and the verb form to practise. Beside progress: it reads
+    # the same rows the snapshots are built from, and lists the sentences a snapshot
+    # cannot hold.
+    grammar_router,
+    # One of those corrections, said again and compared with what the recogniser heard.
+    drills_router,
+    # A spoken answer to a work prompt: how it was said and how it was built, counted,
+    # with a language model's feedback beside the counts.
+    answers_router,
+)
 
-# Read-aloud. A sibling of the conversation loop rather than a child of it: an attempt
-# belongs to a session, but it is addressed by its own id because the client polls it,
-# and `/sessions/{id}/attempts/{id}` would make a poll carry a session id the poller has
-# no other use for.
-app.include_router(attempts_router)
+for router in ROUTERS:
+    app.include_router(router)
 
-# Trends, recommendations, and the whole history as a file. It reads what the other
-# routers wrote.
-app.include_router(progress_router)
 
-# Your corrections, grouped, and the verb form to practise. Beside progress: it reads the
-# same rows the snapshots are built from, and lists the sentences a snapshot cannot hold.
-app.include_router(grammar_router)
+def api_routes() -> list[APIRoute]:
+    """Every operation the app serves, as the `APIRoute` its router declared.
 
-# One of those corrections, said again and compared with what the recogniser heard.
-app.include_router(drills_router)
-
-# A spoken answer to a work prompt: how it was said and how it was built, counted, with a
-# language model's feedback beside the counts.
-app.include_router(answers_router)
+    FastAPI serves these instances rather than copies, so a change made to one here is
+    what the OpenAPI document and the request handling see.
+    """
+    return [
+        route
+        for router in ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute)
+    ]
 
 
 def _first_sentence(docstring: str) -> str:
@@ -148,8 +168,8 @@ def _first_sentence(docstring: str) -> str:
 # An operation's summary is the first sentence of its docstring, and the whole docstring
 # is its description. Left to itself FastAPI titles an operation after its function —
 # "Read Me", "Add Turn" — which names the code rather than what the operation does.
-for route in app.routes:
-    if isinstance(route, APIRoute) and route.summary is None and route.description:
+for route in api_routes():
+    if route.summary is None and route.description:
         route.summary = _first_sentence(route.description)
 
 # Said once, at startup, in the logs the operator is already reading. The sentinel

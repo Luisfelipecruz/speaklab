@@ -1,0 +1,5 @@
+# The rules the Python here is checked against, named rather than left to ruff's default,
+# so a new ruff release cannot change what the lint means. api/ruff.toml holds the same
+# rules for the test container, which mounts api/ as its root and never sees this file.
+[lint]
+select = ["E4", "E7", "E9", "F"]

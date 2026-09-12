@@ -229,7 +229,7 @@ async def _transcribe(data: bytes, file: UploadFile) -> Transcription:
         )
     except AsrRejected as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"The recording could not be read: {exc.detail}",
         ) from exc
     except AsrUnavailable as exc:
@@ -275,7 +275,7 @@ async def _persist_user_turn(
             )
         except AudioTooLarge as exc:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(exc)
             ) from exc
         asset_id = asset.id
 

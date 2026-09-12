@@ -1,0 +1,9 @@
+# SpeakLab API: the test and lint tools.
+#
+# Installed on top of requirements.txt into the `test` stage of infra/api/Dockerfile and
+# into CI's API job. Never into the stage the API runs from.
+
+pytest==9.1.1
+pytest-asyncio==1.4.0
+ruff==0.16.7
+black==26.5.1

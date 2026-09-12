@@ -179,7 +179,7 @@ async def test_the_model_is_given_the_prompt_the_answer_and_that_it_did_not_hear
 
     await answer_feedback.ask(stub, PROMPT, ANSWER)
 
-    (system, user) = stub.calls[0]
+    system, user = stub.calls[0]
     assert "did not hear" in system.content
     assert PROMPT in user.content
     assert ANSWER in user.content

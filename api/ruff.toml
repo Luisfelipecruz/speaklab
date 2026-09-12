@@ -1,0 +1,6 @@
+# The rules this code is checked against, named rather than left to ruff's default, so a
+# new ruff release cannot change what the lint means. The same rules are in the
+# repository root's ruff.toml, which covers eval/ on a host and in CI; in the test
+# container eval/ is mounted under this directory and is checked by this file.
+[lint]
+select = ["E4", "E7", "E9", "F"]

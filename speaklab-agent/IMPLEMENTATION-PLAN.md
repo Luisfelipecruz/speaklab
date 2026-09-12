@@ -23,18 +23,18 @@ spoken answer to a work prompt, how it is built and how it is delivered counted 
 the model's checked feedback beside the counts, said again side by side; every shown
 measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
 shown, the model's shorter version withheld 2 of 16 held out; CI green on its first run.
-**m16, polish, is code complete** on `feature/m16-polish`, its PR prepared for the owner. Three criteria — S4, S5, S7 — are blocked on speech only
+**m16, polish, is committed** on `feature/m16-polish` (`0a58955`), its PR prepared for the owner. **m17, security and dependencies, is in progress** on `feature/m17-security` — items 0–5 committed, item 6 (Next 16) in the tree (`docs/decisions/0021`). Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; `demo/` out of the repository and the README reshaped; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; `demo/` out of the repository and the README reshaped; m17 added at the owner's request and items 0–5 built; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
 
 ## 0. How to read this
 
-Seventeen milestones, `m0` through `m16`. `m0` is a throwaway spike; `m1`–`m16` each
+Eighteen milestones, `m0` through `m17`. `m0` is a throwaway spike; `m1`–`m17` each
 become exactly one stacked pull request.
 
 Every milestone states:
@@ -1994,6 +1994,123 @@ figure. Every S-criterion is verified and recorded, and the walkthrough is recor
 
 **Branch** `feature/m16-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
+### m17 — Security and dependencies · **CODE COMPLETE** — started 2026-09-12 at the owner's request; items 0–7 committed, item 8 in the tree
+
+**Goal.** Someone who runs Trivy on the repository, reads its pins or opens its security
+settings finds nothing out of date that could be current, and nothing exposed that need
+not be.
+
+**Why here.** After polish, and because of it: a project published for strangers to read
+is judged on its dependencies too. The owner asked for a review of "the libraries we use
+and the language versions we have, as well as with Trivy scans" — "it doesn't look good for
+an open-source project to have outdated dependencies and pose a security risk" — and it
+scored **41 of 100**: 3 CRITICAL and about 100 HIGH in each Python image, 4 and 45 in the
+frontend's; python-multipart, Starlette and PyJWT with published advisories, two of them
+reachable before the login check; every container root, every port on every interface,
+the database's with a development password; Next.js 15 at the end of its support on
+2026-10-21; no Dependabot, no scan in CI, actions pinned to tags, private vulnerability
+reporting off while `SECURITY.md` points at it. The owner then asked for pnpm in place of
+npm, and for the fixes to start.
+
+**Deliverables.**
+```
+infra/*/requirements.txt, infra/api/requirements-dev.txt   the web stack current; test tools out of the runtime image
+infra/*/Dockerfile                     unprivileged, pinned bases, fixes applied at build, health checks inside
+docker-compose.yml                     127.0.0.1 ports, postgres:16.15, the volume-owner job, build targets
+frontend/{package.json,pnpm-lock.yaml,pnpm-workspace.yaml}   pnpm 12 and its supply-chain settings
+.github/{workflows/ci.yml,dependabot.yml}   read-only token, pinned actions, Trivy, Dependabot
+api/main.py, api/tests/test_{ownership,openapi}.py   the routers walked explicitly
+ruff.toml, api/ruff.toml               the lint's rules named
+docs/decisions/0021, 0022              what was decided, and measured
+```
+
+**The items, in the order they are built** *(written 2026-09-12, when the milestone
+started)*.
+
+0. **The record.** This milestone, and `docs/decisions/0021`. **DONE.**
+1. **The Python web stack, current, in all four services.** FastAPI (and with it
+   Starlette), uvicorn, python-multipart; PyJWT and the database libraries in the API;
+   the test and lint tools in a stage of their own.
+   **DONE** — FastAPI 0.141.1, Starlette 1.6.0, uvicorn 0.52.4, python-multipart 0.0.32,
+   PyJWT 2.14.0; pytest 9.1.1, pytest-asyncio 1.4.0, ruff 0.16.7, black 26.5.1 in
+   `requirements-dev.txt`. **Found:** FastAPI 0.137 stopped copying routers into
+   `app.routes`; two ownership tests failed, and the summary loop and its test had quietly
+   stopped doing anything — the routers are walked explicitly now, and a test holds the
+   walk to the OpenAPI document (D123). ruff's wider default is pinned back to the rules
+   the code was written against, black 26 applied (D124). Starlette's renamed 413 and 422
+   constants, Alembic's `path_separator`, a test key PyJWT called too short. **1 050 —
+   1 012 pass, 38 skip, no warnings.**
+2. **The images.** An unprivileged account; the base pinned to its exact release; the
+   distribution's fixes at build time; no package installed to answer a health check.
+   **DONE** — uid 10001 in the four Python images, `node` in the frontend; `volume-owner`
+   hands existing volumes over, symlinks included (D125). Trivy: api, asr, tts **0 / 44**
+   from 3 / ~100, none fixable; pron 0 / 45; frontend **0 / 0** from 4 / 45. Sizes: api
+   826 MB, asr 790, tts 722, pron 1.84 GB.
+3. **Compose.** Every port on `127.0.0.1`; Postgres pinned to 16.15, Debian kept.
+   **DONE** — the stack brought up as `make setup` does: every service healthy, every model
+   loaded under the new account, a recording written to `/audio`.
+4. **The frontend on pnpm and Node 24.** The owner's addition. pnpm 12 with a day's wait,
+   no weaker provenance than before, no install scripts by default; Next and React at the
+   latest patch of their lines; the vulnerable transitive copies moved.
+   **DONE** — pnpm 12.4.1; two trust exceptions, each checked by hand, out of 874 packages
+   scanned (D126); npm, corepack, and pnpm's store and cache out of the image — 1.05 GB,
+   from 1.66 GB; Next 15.5.25, React 19.1.9, PostCSS overridden under Next, `qs` 6.16.0;
+   `pnpm audit` finds nothing. Jest 316 / 49, `tsc`, ESLint, `next build` green.
+5. **CI and Dependabot.** A read-only token, actions pinned to commits, a Trivy job,
+   Dependabot for every ecosystem the repository has.
+   **DONE in the tree** — Trivy from its image by digest (D127), its gate command run here:
+   exit 0. `dependabot.yml` valid against the published schema. **Never run on GitHub:**
+   nothing is pushed.
+6. **Next 16 and React 19.3**, before Next 15's support ends on 2026-10-21.
+   **DONE in the tree** — Next 16.3.5, React 19.3.0, `eslint-config-next` 16.3.5 and its
+   flat configs; nothing in the code used what Next 16 removes. pnpm held the install until
+   the last of Next's platform binaries was a day old. The PostCSS override is gone (Next 16
+   pins a fixed release); `WATCHPACK_POLLING` is gone (Turbopack in the container sees a
+   host edit and a deletion without it). **Two React Compiler rules off** — `refs` 15,
+   `set-state-in-effect` 6 — for D124's reason (D128). Jest 316 / 49, `tsc`, ESLint, the
+   Turbopack build; every signed-in page rendered with a real session cookie, the account
+   deleted after; `pnpm audit` nothing; the CI Trivy gate 0. No `AGENTS.md` or `CLAUDE.md`
+   written.
+7. **The model libraries** — torch 2.14, transformers 5.17, onnxruntime 1.30, piper-tts
+   1.8 — one at a time, each with `make eval`, because each changes what is measured.
+   **DONE**, committed as `08aa0b5` — torch 2.14.0, transformers 5.17.0, huggingface_hub 1.31.0 in
+   pron (torchaudio 2.11.0 is the latest); onnxruntime 1.30.0, piper-tts 1.8.0 in tts; asr
+   already current through faster-whisper's unpinned dependencies. **Each measured alone
+   against an image built from `35d8d94`, side by side, requests alternating**, instead of
+   a `make eval` each (D129, `docs/decisions/0022`): per-phone GOP **identical** after all
+   three pron changes, the golden suite unchanged (9 of 10 detected, 10 of 10 named, 0
+   desyncs), latency the same within noise; synthesis latency and audio length the same;
+   WER 1.72 %, the synthetic-voice figures within one voice's own spread. A cold download
+   with hub 1.31 fills an empty volume as uid 10001. pron 1.87 GB, tts 724 MB; Trivy pron
+   0 / 45, tts 0 / 44, the repository gate 0. **Found:** the 10 s latency test fails at
+   load 25 with either image (4 999 ms at load 10); prepositions said aloud 16 of 20 twice
+   on the unchanged voice, under the published 17–20.
+8. **The PR.** `make eval` on the committed tree, then `0.17.0`, the changelog, the
+   review re-scored; the synthetic-voice ranges the report moves, in `measurements.md` and
+   `limitations.md`. On GitHub, by the owner:
+   private vulnerability reporting, Dependabot alerts and security updates, a ruleset on
+   `main` that requires CI.
+   **DONE in the tree** — `make eval` at `08aa0b5` on a clean tree, all five suites, 15 min
+   20 s at load 5–19: S4–S7 unchanged, and every pronunciation, rule and form figure the
+   same; sampled on the synthetic voice, prepositions heard as said 16 of 20 (the range is
+   now 16–20), the drill 2 of 89, the instructions given away 10 of 150, every answer's
+   sentence count within one. `0.17.0`; the changelog. **The re-score found the frontend's
+   tools behind** and brought them current (D130): TypeScript 6.0.3, jest-dom 7.0.1, Jest
+   30.5.1, user-event 14.6.7, shadcn 4.21.0, lucide-react 1.45.0 — TypeScript 7 and ESLint
+   10 wait on typescript-eslint and three lint plugins. Every Python pin at PyPI's latest.
+   Trivy unchanged — api, asr, tts 0 / 44, pron 0 / 45, frontend 0 / 0 at 1.06 GB,
+   `postgres:16.15` 14 / 101 — and the gate 0. API 1 050 (1 012 / 38), lint; Jest 316 /
+   49, `tsc`, ESLint, `next build`. Private vulnerability reporting is on; the review scores
+   **89 of 100**, 94 with Dependabot alerts, security updates and a ruleset on `main`.
+
+**Decisions.** D122–D130, `docs/decisions/0021` and `0022`.
+
+**Done when.** CI's four jobs green on the PR, the Trivy job among them; items 6 and 7
+done, or deferred by a record that says why; the review re-scored from the live system; the
+GitHub settings on.
+
+**Branch** `feature/m17-security`, stacked on `feature/m16-polish` · **PR** `fix: bring dependencies current, run every service unprivileged, and scan in CI`
+
 ---
 
 ## 8. Dependency graph
@@ -2015,6 +2132,7 @@ m1 scaffold
                                                                                   └─ m14 grammar practice
                                                                                       └─ m15 articulation
                                                                                           └─ m16 polish
+                                                                                              └─ m17 security and dependencies
 ```
 
 m4 and m5 are genuinely independent and could be worked in either order. Everything else
@@ -2034,7 +2152,7 @@ at `main` except m1.
 | R5 GOP varies with hardware | m10 | Within-user z-score, device fingerprint, sample gate |
 | R6 `pron` memory pressure | m1, m8 | Profiled service, graceful degradation tested |
 | R7 Persona drift | m6, m11 | Per-turn re-anchoring, summarised history, adherence suite |
-| R8 Scope creep | this document | m1–m16 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled. m15, articulation, was added on 2026-09-12 at the owner's request the same way — PRD §15.1 first — and placed before polish, now m16 |
+| R8 Scope creep | this document | m1–m16 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled. m15, articulation, was added on 2026-09-12 at the owner's request the same way — PRD §15.1 first — and placed before polish, now m16. m17, security and dependencies, was added on 2026-09-12 at the owner's request after a scored review, for m12's reason: an unmet bar on work already delivered |
 
 ---
 
@@ -2061,7 +2179,8 @@ Evenings-and-weekends pace, one developer.
 | m14 | 4–5 | The rule layer has to be measured before anything is built on it |
 | m15 | 4–5 | The labelled answers and the parse's reading of the signposts are most of it |
 | m16 | 3 | |
-| **Total** | **~50–56** | |
+| m17 | 2–3 | Mostly mechanical; a framework's changed internals and the trust policy were not |
+| **Total** | **~52–59** | |
 
 ---
 
@@ -2074,6 +2193,12 @@ Evenings-and-weekends pace, one developer.
 3. ~~Create the repository and land m1.~~ Done; `main` is at PR #18.
 
 ### The next actions
+
+**m17, security and dependencies, is code complete.** Items 0–7 are committed on
+`feature/m17-security` as `1128062`, `a303e66`, `35d8d94` and `08aa0b5` (§A.28–§A.31),
+stacked on `feature/m16-polish` at `0a58955`; item 8 — `0.17.0`, the report, the frontend's
+tools — is in the tree for §A.32, and §B.16 is the PR. m16's own PR, §B.15, is still the
+owner's to open, and m17 stacks on it.
 
 **`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
 and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,
