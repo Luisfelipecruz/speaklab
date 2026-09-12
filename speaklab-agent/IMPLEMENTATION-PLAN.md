@@ -1,6 +1,6 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.16 — **m0 passed; m1 through m14 are merged into `main`, CI green** (m13 as
+**Status:** v1.17 — **m0 passed; m1 through m14 are merged into `main`, CI green** (m13 as
 PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
 a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
 setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
@@ -17,14 +17,17 @@ forms as counts, **no percentage on any screen**; the spoken drill (`d74ae6b`,
 and per correction, what the recogniser heard; and the seeds (`ab719d5`,
 `docs/decisions/0018`) — three scenarios for articles, prepositions and false friends, of
 which the detector files 12 of 20 prepositions under their kind but 6 of 20 articles and 6
-of 20 false friends; CI green on its first run. **m15 is now articulation** — a spoken
-answer to a work prompt, how it is built and how it is delivered counted by code, the
-model's feedback beside the counts — admitted on 2026-09-12 at the owner's request and
-recorded in PRD §15.1 first; not started. **m16 is polish**, not started. Three criteria — S4, S5, S7 — are blocked on speech only
+of 20 false friends; CI green on its first run. **m15, articulation — *Make your point* — is code complete** and
+committed on `feature/m15-articulation` (`f7f1a59`, `9a1d04c`, `docs/decisions/0019`): a
+spoken answer to a work prompt, how it is built and how it is delivered counted by code,
+the model's checked feedback beside the counts, said again side by side; every shown
+measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
+shown, the model's shorter version withheld 2 of 16 held out. Its PR, `0.15.0`, is
+prepared and not opened. **m16 is polish**, not started. Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m14 merged; m15 articulation admitted and polish renumbered to m16; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-12 (m15 code complete and committed, its PR prepared; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1720,7 +1723,7 @@ what they declare.
 
 ---
 
-### m15 — Articulation: saying an idea clearly · **CODE COMPLETE** — built and measured 2026-09-12, `docs/decisions/0019`; *Make your point* on screen
+### m15 — Articulation: saying an idea clearly · **CODE COMPLETE, PR PREPARED** — built and measured 2026-09-12, committed as `f7f1a59` and `9a1d04c`, `0.15.0`, `docs/decisions/0019`; *Make your point* on screen
 
 **Goal.** A learner can answer a work question out loud in one go, and see how the answer
 was built and how it was delivered — both counted by code — with a model's explanation and
@@ -1756,9 +1759,10 @@ its own failure. The drill (m14 item 4) records one utterance and compares it.
    **DONE 2026-09-12** — `api/tests/answer_labels.py`: 24 development answers (2 115
    words), 16 held out (1 469), 37 readings of the words with a second use, 12 answers to
    say aloud; the bars written into the same file first. Said by `tts`, heard by
-   `small.en`, two runs: fillers **21 and 22 of 24** written down, repeats **12 and 13 of
-   13**, restarts **9 and 8 of 9**, signposts 52 of 52 both times, the sentence count within
-   one in **10 and 11 of 12** — both recogniser bars met in both. A synthetic voice says *um* as a word, so this is not a person's hesitation.
+   `small.en`, four runs, the last in `docs/evaluation.md`: fillers **21, 22, 21 and 21 of
+   24** written down, repeats **12, 13, 13 and 13 of 13**, restarts **9, 8, 8 and 8 of 9**,
+   signposts 52 of 52 every time, the sentence count within one in **10, 11, 10 and 11 of
+   12** — both recogniser bars met in all four. A synthetic voice says *um* as a word, so this is not a person's hesitation.
 1. **How an answer is built, counted by code** (`services/structure.py`). Signposts from
    closed lists, by what they do — a reason (*because*, *since*, *that's why*), an example
    (*for example*, *for instance*, *such as*), a sequence (*first*, *then*, *finally*), a
@@ -1967,11 +1971,26 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**`main` is PR #19 (`0.14.0`, `01676db`)**: all of m14, squash-merged on 2026-09-12, CI
-green on the first run of any m14 commit. **m15 is articulation, admitted the same day**:
-PRD §15.1 and this plan are edited in the working tree on `main`, and `GIT-COMMANDS.md`
-§A.21 cuts `feature/m15-articulation` and commits them as the branch's first commit. Only
-`demo/` is outside, untracked on purpose — it is polish's, now m16.
+**`main` is PR #19 (`0.14.0`, `01676db`)**: all of m14, squash-merged on 2026-09-12.
+**m15 is committed on `feature/m15-articulation`** — `d75accb` (the PRD and this plan),
+`f7f1a59` (the instrument and the counter), `9a1d04c` (the drill, the feedback, the
+history, the eval suite) — and its PR is prepared: `GIT-COMMANDS.md` §A.23 commits the
+version and the report, §B.14 pushes and opens it. Nothing is pushed. Only `demo/` is
+outside, untracked on purpose — it is polish's, m16.
+
+**Prepared on `feature/m15-articulation`, 2026-09-12:**
+- m15's PR, `0.15.0`. `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The
+  criteria are unchanged — S4 not run, S5 0.500 over six, S6 1.72 %, S7 not met. The
+  answers suite is identical to every run before it (9 of 40 shorter versions withheld, 2
+  of 16 held out); the spoken answers are recorded as a fourth run beside three, both
+  bars met in all four. The PR body is `.pr-bodies/m15-articulation.md`.
+
+**Done on `feature/m15-articulation`, 2026-09-12, committed as `f7f1a59` and `9a1d04c`:**
+- ~~m15 items 0–5.~~ The labelled answers and the bars first; the counter, every shown
+  measure above 0.90 / 0.75 held out and phrases started again below it, not shown; *Make
+  your point* at `/answers`, 13 prompts, `GET`/`POST /answers`, 30 of 30; the model's
+  feedback with its shorter version checked for new words; say it again side by side; the
+  history on the answers page. `docs/decisions/0019`.
 
 **Merged as PR #19, 2026-09-12:**
 - ~~m14's PR.~~ `make eval` with all four suites, 11 min 17 s. The criteria are unchanged —
@@ -2049,10 +2068,12 @@ item (2b) rather than a PR of its own.
 5. ~~m14's PR, `0.14.0`.~~ Merged as #19, `01676db`; CI green on all three jobs. On any
    other checkout: `make migrate`, then `make seed`; on a database with stored turns,
    `make reparse` then `make rollup`.
-6. **m15, articulation — admitted 2026-09-12.** The branch and its docs commit first
-   (`GIT-COMMANDS.md` §A.21), then item 0, the instrument: labelled answers written before
-   any code, and what of a restart or a filler survives the recogniser.
-7. Then m16, polish — when the owner asks for it, not before.
+6. ~~m15, articulation.~~ Built and measured; committed by the owner as `d75accb`,
+   `f7f1a59` and `9a1d04c` (§A.21, §A.22).
+7. **m15's PR, `0.15.0`.** §A.23 commits the version, the changelog and the report; §B.14
+   pushes, opens and merges it — both run by the owner. On any other checkout afterwards:
+   `make migrate`, then `make seed`.
+8. Then m16, polish — when the owner asks for it, not before.
 
 **A finding from item 5, not yet a task.** The detector files most article and false-friend
 mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under
