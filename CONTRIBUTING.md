@@ -37,16 +37,34 @@ Everything runs in containers, as CI runs it:
 | `make lint` | ruff and black over the API, check only; `make fmt` fixes in place |
 | `make test` | The API suite against Postgres. Tests that need a model service skip when it is not up |
 | `make test-frontend` | Jest and React Testing Library |
-| `docker compose run --rm --no-deps frontend npm run typecheck` | TypeScript |
-| `docker compose run --rm --no-deps frontend npm run lint` | ESLint |
+| `docker compose run --rm --no-deps frontend pnpm run typecheck` | TypeScript |
+| `docker compose run --rm --no-deps frontend pnpm run lint` | ESLint |
 
-CI runs three jobs on every pull request: the API's lint and tests with the evaluation
-harness's own tests, the frontend's lint, types, tests and build, and a check that the
-Compose file parses with every profile.
+CI runs four jobs on every pull request: the API's lint and tests with the evaluation
+harness's own tests, the frontend's lint, types, tests and build, a check that the Compose
+file parses with every profile, and a Trivy scan that fails on a HIGH or CRITICAL
+vulnerability with a fixed release, a Dockerfile that runs as root, or a secret.
 
 If your change moves a measured figure, run what measures it — `make eval` runs every
 suite into [docs/evaluation.md](docs/evaluation.md) — and update the figure wherever it is
 quoted, with its date. `docs/evaluation.md` is never edited by hand.
+
+## Dependencies
+
+- **Python requirements are pinned exactly**, one file per service under `infra/`. The
+  API's test and lint tools are in `infra/api/requirements-dev.txt` and never in the image
+  the API runs from.
+- **The frontend uses pnpm**, at the version `packageManager` names in
+  `frontend/package.json`. Add a package with
+  `docker compose run --rm --no-deps frontend pnpm add <name>` and commit
+  `frontend/pnpm-lock.yaml` with it. pnpm refuses a release less than a day old, and runs
+  no dependency's install script unless `frontend/pnpm-workspace.yaml` allows it; allowing
+  one is a change to review, not a default.
+- **Dependabot proposes updates weekly.** An update to a model library — faster-whisper,
+  Piper, onnxruntime, transformers, torch — changes what the product measures, and needs
+  `make eval` before it merges.
+- **Every service runs as an unprivileged account**, and every published port is bound to
+  `127.0.0.1`. Keep both.
 
 ## Rules the code keeps
 

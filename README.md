@@ -78,7 +78,7 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
 | **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Measured on a cold build, 2026-09-12: images of 821 MB (api), 751 MB (asr), 684 MB (tts), 1.66 GB (frontend) and 657 MB (`postgres:16`) — 4.6 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.78 GB image and 1.2 GB of weights |
+| **Disk** | Measured on 2026-09-12: images of 826 MB (api), 790 MB (asr), 722 MB (tts), 1.05 GB (frontend) and 657 MB (`postgres:16.15`) — 4.0 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.84 GB image and 1.2 GB of weights |
 | **Memory** | **1.74 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` on 2026-09-12 — asr 673 MiB, frontend 613, tts 236, api 190, postgres 72; 1.94 GiB the first time, on 2026-09-10. Ollama is not in either figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
@@ -127,17 +127,20 @@ Then:
 Open the app at **`localhost`**, not at a LAN address. Browsers only grant microphone
 access on a secure origin, and `http://192.168.x.x:3003` is not one — the app detects this
 and says so rather than rendering a record button that cannot work, but the fix is the URL.
+Every port is bound to `127.0.0.1` anyway, so nothing here answers the network you are on.
 
 The default stack is **five** containers: postgres, api, frontend, `asr` and `tts` — the
-whole conversational stack. It does not start `pron`, which keeps its profile permanently
-so that nobody downloads 1.78 GB of torch to try a conversation. **`/health` reporting
+whole conversational stack — each service running as an unprivileged account, and a job
+that runs first, hands the named volumes to that account, and exits. It does not start
+`pron`, which keeps its profile permanently so that nobody downloads 1.84 GB of torch to
+try a conversation. **`/health` reporting
 `degraded` is the system working correctly** while `pron` is off: it names every service
 it probed, and read-aloud still works in that state — a reading comes back with its
 transcript and its word error rate, and says in words that the phone scores are missing
 and how to get them (PRD R6). The Piper voice is inside its image, so the first thing the
 system says out loud does not wait for a download.
 
-For pronunciation scoring, `make pron-up` — 1.78 GB of image and 1.2 GB of weights,
+For pronunciation scoring, `make pron-up` — 1.84 GB of image and 1.2 GB of weights,
 measured at 109 s to first readiness including the download. Readings taken while it was
 off can be scored afterwards without being read again (`FR-16`).
 
@@ -196,9 +199,9 @@ Three separate model services rather than one, and none of them inside the API i
 
 | | Runtime | Why separate |
 |---|---|---|
-| `asr` | faster-whisper on CTranslate2 | No torch. 751 MB image. Torch is not allowed in the request path |
-| `tts` | Piper on onnxruntime | No torch either. 684 MB image around a 61 MB voice, 50× real time on CPU |
-| `pron` | wav2vec2 + torch | **1.78 GB**. Its own profile, so the stack is usable by someone who never downloads it. torch comes from PyTorch's CPU index — from PyPI it was 8.51 GB, because those wheels pull the NVIDIA stack on arm64 too |
+| `asr` | faster-whisper on CTranslate2 | No torch. 790 MB image. Torch is not allowed in the request path |
+| `tts` | Piper on onnxruntime | No torch either. 722 MB image around a 61 MB voice, 50× real time on CPU |
+| `pron` | wav2vec2 + torch | **1.84 GB**. Its own profile, so the stack is usable by someone who never downloads it. torch comes from PyTorch's CPU index — from PyPI it was 8.51 GB, because those wheels pull the NVIDIA stack on arm64 too |
 
 Ollama runs on the **host**, not in Compose. Docker Desktop on macOS cannot pass the
 Apple GPU into a Linux container, so a containerised Ollama runs CPU-only while the
@@ -227,7 +230,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 049 — 1 011 pass, 38 need a model service (2026-09-12) | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service (2026-09-12) | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here is dated and names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -271,7 +274,7 @@ The full list is [docs/limitations.md](docs/limitations.md). The ones to know fi
 | [docs/limitations.md](docs/limitations.md) | What does not exist yet, by component |
 | [docs/architecture.md](docs/architecture.md) | The services, health, data, audio and the conversation loop |
 | [docs/data-model.md](docs/data-model.md) | The tables, why five columns are JSONB, and the seed contract |
-| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty dated records, each kept as it was written |
+| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-one dated records, each kept as it was written |
 | [docs/changelog.md](docs/changelog.md) | One entry per milestone |
 | [PRD.md](PRD.md) | The product requirements and the measurement model |
 | [IMPLEMENTATION-PLAN.md](speaklab-agent/IMPLEMENTATION-PLAN.md) | How it was built: sixteen milestones, each with what it was expected to prove and what it measured |
@@ -286,9 +289,10 @@ Ollama for conversation.
 
 | | |
 |---|---|
-| API tests, in a container | `make test` — 1 049; 1 011 pass with Postgres alone, the other 38 need a model service |
+| API tests, in a container | `make test` — 1 050; 1 012 pass with Postgres alone, the other 38 need a model service |
 | Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 316 across 49 suites |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
+| Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
 | Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — 16 min 24 s on 2026-09-12 with every service up |
 | Every other target, described | `make help` |
 
@@ -306,7 +310,7 @@ api/            FastAPI. No model weights, no torch.
   scripts/      The seed loader, and the backfill, reparse, rollup and corpus commands
                 behind `make`
   seeds/        The 11 scenarios, 12 passages and 13 answer prompts, as JSON
-frontend/       Next.js 15, React 19, shadcn/ui
+frontend/       Next.js 15, React 19, shadcn/ui, installed with pnpm
   src/app/      Routes. (auth) holds sign-in; (app) is the signed-in shell — home,
                 scenarios, read, sessions, grammar, answers, progress — each page with a
                 loading state of its own
@@ -319,7 +323,7 @@ eval/           The evaluation harness. run.py orchestrates, report.py adjudicat
   golden/       renders, scoring.py is the arithmetic both share with the suites.
                 golden/ holds the fixtures — committed, with a manifest of their hashes,
                 and mounted read-only into the one container that measures
-.github/        CI, and the issue and pull-request templates
+.github/        CI, Dependabot, and the issue and pull-request templates
 docs/           Architecture, data model, decisions, changelog, and the evaluation report
 speaklab-agent/ The implementation plan — how it was built
 ```

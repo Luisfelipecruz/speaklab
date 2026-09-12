@@ -23,9 +23,13 @@ Two ways to read these numbers:
 | First run, from nothing | `make setup` **2 min 33 s**, Whisper loaded at **2 min 43 s** — met against five minutes. The same build on a slower connection: 7 min 12 s and 8 min 58 s | a cold copy and `make setup`, 2026-09-12 and 2026-09-10 |
 | Containers healthy | 5 of 5; 6 of 6 with `pron` | `make health`, 2026-09-12 |
 | Memory, five containers, models loaded | **1.74 GiB**, Ollama excluded; 1.94 GiB on the first run | `docker stats`, 2026-09-12 and 2026-09-10 |
-| Images | api **821 MB** with no torch, asr 751 MB, tts 684 MB, frontend 1.66 GB, `postgres:16` 657 MB | a cold build, 2026-09-12 |
-| … and the optional one | pron **1.78 GB**, the only image with torch in it | its build |
-| API test suite | **1 049** — 1 011 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test`, 2026-09-12 |
+| Images | api **826 MB** with no torch, asr 790 MB, tts 722 MB, frontend 1.05 GB, `postgres:16.15` 657 MB — 4.0 GB | `docker images` after a build, 2026-09-12 |
+| … and the optional one | pron **1.84 GB**, the only image with torch in it | its build, 2026-09-12 |
+| Known vulnerabilities in the images built here | api, asr and tts **0 CRITICAL, 44 HIGH**, none with a fixed release yet; pron 0 and 45, one of them in a library — NLTK, with no fix published; frontend **0** | Trivy 0.74.0 on each image, 2026-09-12 |
+| … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0, 2026-09-12 |
+| The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command, 2026-09-12 |
+| Frontend releases the trust check refuses | **2** of 874 packages — older-line releases by their own maintainers, each excepted by exact version | pnpm 12.4.1 and the npm registry, 2026-09-12 |
+| API test suite | **1 050** — 1 012 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test`, 2026-09-12 |
 | Frontend test suite | **316** across 49 suites, no services needed | `make test-frontend`, 2026-09-12 |
 | API operations | **31** | `app.openapi()`, 2026-09-12 |
 

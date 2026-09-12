@@ -119,6 +119,25 @@ that nothing in the other documents reads as a claim.
 - **A test that runs a deliberately broken suite.** The harness's own tests feed fixtures
   to the adjudicator; nothing runs a suite that lies.
 
+## Dependencies and images
+
+- **The images still carry findings nobody can fix yet.** Trivy reports 44 HIGH in each of
+  the api, asr and tts images and 45 in pron, every one in a Debian package or library with
+  no fixed release published; the build applies each fix as it appears. The one in a
+  library is NLTK's, and pron does not pass NLTK a path from a request.
+- **The database image is upstream's, as it is.** `postgres:16.15` carries 14 CRITICAL and
+  101 HIGH, most in Debian packages and in the `gosu` binary built with an old Go. The
+  Alpine variant carries far fewer, but it sorts text differently, so an existing database
+  would need a dump and a restore to move to it.
+- **The frontend container runs the development server.** It is built for editing, with
+  the source bind-mounted and every dependency installed; there is no production build of
+  it here.
+- **Next.js 15 reaches the end of its support on 2026-10-21.** Next 16, with React 19.3,
+  is not adopted yet.
+- **The model libraries are not at their latest releases.** torch, transformers,
+  onnxruntime and piper-tts each have a newer one; none carries a published vulnerability,
+  and an upgrade changes what the product measures, so each waits for `make eval`.
+
 ## Accounts and data
 
 - **No password reset, email verification or login rate limiting.** Accounts themselves

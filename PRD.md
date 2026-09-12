@@ -421,9 +421,9 @@ graph TB
 
 | Service | Image basis | Port | Profile | Why it is separate |
 |---|---|---|---|---|
-| `postgres` | `postgres:16` | 5433 | default | Plain Postgres. No PostGIS, no pgvector — nothing here needs them |
+| `postgres` | `postgres:16.15` | 5433 | default | Plain Postgres. No PostGIS, no pgvector — nothing here needs them |
 | `api` | python:3.12-slim | 8002 | default | FastAPI + async SQLAlchemy 2.0 + Alembic. Owns all orchestration; holds no model weights |
-| `frontend` | node:22-alpine | 3003 | default | Next.js 15, React 19, shadcn/ui, Tailwind v4 |
+| `frontend` | node:24-alpine | 3003 | default | Next.js 15, React 19, shadcn/ui, Tailwind v4, installed with pnpm |
 | `asr` | python:3.12-slim | 8101 | default *(`speech` until m4)* | faster-whisper on CTranslate2 — no torch. Stays light precisely because it is not in the API image |
 | `tts` | python:3.12-slim | 8102 | default *(`speech` until m5)* | Piper, ONNX runtime, ~60 MB voices. Trivially small |
 | `pron` | python:3.12-slim | 8103 | `pron` | ~2 GB of torch plus wav2vec2. Profiled so the stack is usable without it; read-aloud degrades to WER-only when it is down |

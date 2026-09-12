@@ -30,14 +30,14 @@ together would make the cheapest pay for the most expensive.
 
 | Service | Runtime | Size | Starts |
 |---|---|---|---|
-| `asr` | faster-whisper on CTranslate2 | 751 MB image, no torch; 464 MB of Whisper weights on first start | by default |
-| `tts` | Piper on onnxruntime | 684 MB image, no torch, its 61 MB voice inside | by default |
-| `pron` | wav2vec2 + torch | 1.78 GB image, and 1.2 GB of weights | with `make pron-up` |
+| `asr` | faster-whisper on CTranslate2 | 790 MB image, no torch; 464 MB of Whisper weights on first start | by default |
+| `tts` | Piper on onnxruntime | 722 MB image, no torch, its 61 MB voice inside | by default |
+| `pron` | wav2vec2 + torch | 1.84 GB image, and 1.2 GB of weights | with `make pron-up` |
 
 `pron` has a profile of its own so that someone who wants to try a conversation never
 downloads torch.
 
-**The API image contains no model weights and no torch.** It is 821 MB, about half of it
+**The API image contains no model weights and no torch.** It is 826 MB, about half of it
 the dependency parser and its model, and `api/tests/test_health.py` asserts the absence of
 torch, transformers, faster-whisper and piper rather than trusting a comment. Dependencies
 acquire dependencies; that test turns "the image grew by two gigabytes" into a red test in
@@ -58,13 +58,30 @@ an `ollama` service is declared under the `llm` profile; `make llm-up` starts it
 
 | Profile | Services | Started by |
 |---|---|---|
-| *(default)* | `postgres`, `api`, `frontend`, `asr`, `tts` | `make setup`, `make up` |
+| *(default)* | `postgres`, `api`, `frontend`, `asr`, `tts`, and the `volume-owner` job | `make setup`, `make up` |
 | `pron` | `pron` | `make pron-up` |
 | `llm` | `ollama` | `make llm-up` |
 | `tools` | `test` | `make test` and the measurement targets |
 
 A profiled service is left out of both `up` and `build`, so the default stack never builds
 or downloads what it does not run.
+
+### What every image does the same way
+
+- **An unprivileged account.** The four Python images run as `speaklab`, uid 10001, the
+  same id in each, because `asr`, `tts` and `pron` share the model cache and `api` owns
+  the recordings; the frontend runs as the Node image's own `node`. `volume-owner` runs
+  before them, hands any file on the two named volumes that someone else owns to uid
+  10001, and exits — a volume first written by an image that ran as root would otherwise
+  hold files the services cannot replace.
+- **The security fixes the distribution has published since the base image was built**,
+  applied at build time, on a base pinned to its exact release (`python:3.12.14-slim`,
+  `node:24.21.0-alpine`, `postgres:16.15`). Dependabot proposes each new release as a
+  change to that line.
+- **Its own health check**, in the Dockerfile: a line of Python for the four Python
+  images, busybox `wget` for the frontend. No image installs a package to answer one.
+- **Only what it runs.** The API's test and lint tools are in a separate `test` stage;
+  the frontend image carries pnpm, and not npm or corepack.
 
 ---
 
@@ -325,7 +342,11 @@ a 502, the same shape as `/health` reporting degraded rather than dead.
 
 ## 8. The frontend
 
-Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui. Every signed-in page is
+Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui, installed with pnpm
+at the version `package.json` names. `pnpm-workspace.yaml` holds what pnpm refuses: a
+release less than a day old, a release published with weaker evidence of where it came
+from than an earlier one of the same package — two exact versions are excepted, each
+checked by hand — and any dependency's install script not allowed by name. Every signed-in page is
 a server component that forwards the session cookie to the API (`src/lib/server-api.ts`), so
 a page arrives with its data rather than fetching it after it paints; the microphone, the
 players and the forms are client components inside those pages.
@@ -348,14 +369,17 @@ model service.
 
 Two API base URLs, because there are two callers: a server component resolves `api:8000`
 inside the Compose network, and the browser resolves `localhost:8002` from the host. Using
-one for both works in `npm run dev` and fails the moment it is containerised, or the other
-way round.
+one for both works in `next dev` on a host and fails the moment it is containerised, or the
+other way round.
 
 ---
 
 ## 9. Ports
 
-Offset from the common defaults, so SpeakLab runs beside other stacks.
+Offset from the common defaults, so SpeakLab runs beside other stacks, and published on
+`127.0.0.1` only: the database has a development password and the model services answer
+anyone who reaches them, so none of them is offered to the network the machine is on.
+Inside the Compose network each service is reached by its name and its own port.
 
 | Service | Port |
 |---|---|

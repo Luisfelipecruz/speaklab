@@ -7,6 +7,57 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] · security and dependencies
+
+Every dependency that could be current is, every container runs as an unprivileged
+account on a port bound to the machine itself, the frontend installs with pnpm under a
+supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/0021`.
+
+### Changed
+
+- **The Python web stack in all four services**: FastAPI 0.141.1 with Starlette 1.6.0,
+  uvicorn 0.52.4 and python-multipart 0.0.32; in the API, PyJWT 2.14.0, SQLAlchemy 2.0.52,
+  asyncpg 0.31.0, psycopg2-binary 2.9.13 and Alembic 1.20.0. The API's test and lint tools
+  — pytest 9.1.1, pytest-asyncio 1.4.0, ruff 0.16.7, black 26.5.1 — move to
+  `requirements-dev.txt` and the image's `test` stage.
+- **The app walks its own routers**, `main.ROUTERS`, because FastAPI no longer copies an
+  included router's operations into `app.routes`. The OpenAPI summaries had fallen back to
+  function names without an error, and are back; a test checks the walk against the
+  document.
+- **Every service runs as an unprivileged account** — uid 10001 in the Python images,
+  `node` in the frontend — and a `volume-owner` job hands existing named volumes to it
+  before they start.
+- **Every published port is bound to `127.0.0.1`.**
+- **Base images pinned to exact releases** — `python:3.12.14-slim-trixie`,
+  `node:24.21.0-alpine3.24`, `postgres:16.15` — with the distribution's published fixes
+  applied at build time. curl is gone, and the health checks are in the Dockerfiles.
+- **The frontend installs with pnpm 12.4.1, on Node 24.** A release less than a day old,
+  one published with weaker evidence of its origin than an earlier release of the same
+  package, and any install script not allowed by name are refused; npm and corepack are
+  removed from the image. Next 15.5.25 and React 19.1.9; Next's own copy of PostCSS
+  overridden to the current release; `qs` 6.16.0.
+- **ruff's rules named** — E4, E7, E9 and F — and black 26's style applied.
+- **CI**: a read-only token, every action pinned to a commit at v7, Postgres 16.15.
+
+### Added
+
+- **A Trivy job in CI**, from its image pinned by digest. It fails on a HIGH or CRITICAL
+  vulnerability that has a fixed release, on a Dockerfile misconfiguration, and on a
+  secret.
+- **Dependabot**, weekly: pip in four directories, npm, the base images, Compose's images
+  and the actions.
+
+### Measured
+
+- Trivy, CRITICAL and HIGH: the api, asr and tts images **0 and 44**, from 3 and about
+  100, none with a fix; pron 0 and 45; the frontend **0 and 0**, from 4 and 45;
+  `postgres:16.15`, pulled from upstream, 14 and 101.
+- Images: the frontend **1.05 GB**, from 1.66 GB; api 826 MB, asr 790 MB, tts 722 MB and
+  pron 1.84 GB, each a little larger for the fixes applied at build. `pnpm audit` finds
+  nothing.
+- API suite **1 050** — 1 012 pass, 38 need a model service; frontend 316 across 49
+  suites; `tsc`, ESLint, `next build` and lint clean.
+
 ## [0.16.0] — 2026-09-12 · polish
 
 A stranger can clone the repository, run it and understand the engineering: the first run
