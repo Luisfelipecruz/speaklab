@@ -137,9 +137,6 @@ that nothing in the other documents reads as a claim.
   and they flag 21 places, in the three recorders and six hooks and components. The rules
   of hooks and exhaustive dependencies are on; the two stay off until those places are
   rewritten.
-- **The model libraries are not at their latest releases.** torch, transformers,
-  onnxruntime and piper-tts each have a newer one; none carries a published vulnerability,
-  and an upgrade changes what the product measures, so each waits for `make eval`.
 
 ## Accounts and data
 

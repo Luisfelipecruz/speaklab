@@ -111,7 +111,7 @@ fmt-eval:                          ## ruff --fix + black over eval/, via a writa
 
 # ── Model services ──────────────────────────────────────────────────────────
 
-pron-up:                           ## Start the pronunciation service (1.78 GB image)
+pron-up:                           ## Start the pronunciation service (1.87 GB image)
 	@echo "Not in the default stack: it is the only image with torch in it. The first"
 	@echo "start also downloads 1.2 GB of wav2vec2 weights into the model_cache volume."
 	docker compose --profile pron up -d

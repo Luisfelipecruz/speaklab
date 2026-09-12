@@ -36,7 +36,7 @@ WORKDIR /app
 # 652 MB of Triton that no code in it can ever execute. Measured, not assumed: the first
 # build of this image came out at **8.51 GB**, and `du` inside it named the culprits.
 #
-# `--extra-index-url` does not fix it. Both indexes carry version 2.13.0 and pip is free
+# `--extra-index-url` does not fix it. Both indexes carry version 2.14.0 and pip is free
 # to take either, which makes the image size depend on resolver mood. A separate install
 # from an index that only *has* CPU builds is the version that cannot drift. The second
 # install then finds torch already satisfied and pulls only the rest.
@@ -46,7 +46,7 @@ WORKDIR /app
 # the build fails rather than the image quietly carrying two torches.
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.13.0 torchaudio==2.11.0
+    torch==2.14.0 torchaudio==2.11.0
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && pip check

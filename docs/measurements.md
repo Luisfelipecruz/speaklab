@@ -23,8 +23,8 @@ Two ways to read these numbers:
 | First run, from nothing | `make setup` **2 min 33 s**, Whisper loaded at **2 min 43 s** — met against five minutes. The same build on a slower connection: 7 min 12 s and 8 min 58 s | a cold copy and `make setup`, 2026-09-12 and 2026-09-10 |
 | Containers healthy | 5 of 5; 6 of 6 with `pron` | `make health`, 2026-09-12 |
 | Memory, five containers, models loaded | **1.74 GiB**, Ollama excluded; 1.94 GiB on the first run | `docker stats`, 2026-09-12 and 2026-09-10 |
-| Images | api **826 MB** with no torch, asr 790 MB, tts 722 MB, frontend 1.05 GB, `postgres:16.15` 657 MB — 4.0 GB | `docker images` after a build, 2026-09-12 |
-| … and the optional one | pron **1.84 GB**, the only image with torch in it | its build, 2026-09-12 |
+| Images | api **826 MB** with no torch, asr 790 MB, tts 724 MB, frontend 1.05 GB, `postgres:16.15` 657 MB — 4.0 GB | `docker images` after a build, 2026-09-12; tts 2026-09-13 |
+| … and the optional one | pron **1.87 GB**, the only image with torch in it | its build, 2026-09-13 |
 | Known vulnerabilities in the images built here | api, asr and tts **0 CRITICAL, 44 HIGH**, none with a fixed release yet; pron 0 and 45, one of them in a library — NLTK, with no fix published; frontend **0** | Trivy 0.74.0 on each image, 2026-09-12 |
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0, 2026-09-12 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command, 2026-09-12 |

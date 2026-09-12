@@ -1994,7 +1994,7 @@ figure. Every S-criterion is verified and recorded, and the walkthrough is recor
 
 **Branch** `feature/m16-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
-### m17 — Security and dependencies · **IN PROGRESS** — started 2026-09-12 at the owner's request; items 0–5 in the tree
+### m17 — Security and dependencies · **IN PROGRESS** — started 2026-09-12 at the owner's request; items 0–6 committed, item 7 in the tree
 
 **Goal.** Someone who runs Trivy on the repository, reads its pins or opens its security
 settings finds nothing out of date that could be current, and nothing exposed that need
@@ -2021,7 +2021,7 @@ frontend/{package.json,pnpm-lock.yaml,pnpm-workspace.yaml}   pnpm 12 and its sup
 .github/{workflows/ci.yml,dependabot.yml}   read-only token, pinned actions, Trivy, Dependabot
 api/main.py, api/tests/test_{ownership,openapi}.py   the routers walked explicitly
 ruff.toml, api/ruff.toml               the lint's rules named
-docs/decisions/0021                    what was decided, and measured
+docs/decisions/0021, 0022              what was decided, and measured
 ```
 
 **The items, in the order they are built** *(written 2026-09-12, when the milestone
@@ -2073,12 +2073,25 @@ started)*.
    written.
 7. **The model libraries** — torch 2.14, transformers 5.17, onnxruntime 1.30, piper-tts
    1.8 — one at a time, each with `make eval`, because each changes what is measured.
-   **NOT STARTED.**
-8. **The PR.** `0.17.0`, the changelog, the review re-scored. On GitHub, by the owner:
+   **DONE in the tree** — torch 2.14.0, transformers 5.17.0, huggingface_hub 1.31.0 in
+   pron (torchaudio 2.11.0 is the latest); onnxruntime 1.30.0, piper-tts 1.8.0 in tts; asr
+   already current through faster-whisper's unpinned dependencies. **Each measured alone
+   against an image built from `35d8d94`, side by side, requests alternating**, instead of
+   a `make eval` each (D129, `docs/decisions/0022`): per-phone GOP **identical** after all
+   three pron changes, the golden suite unchanged (9 of 10 detected, 10 of 10 named, 0
+   desyncs), latency the same within noise; synthesis latency and audio length the same;
+   WER 1.72 %, the synthetic-voice figures within one voice's own spread. A cold download
+   with hub 1.31 fills an empty volume as uid 10001. pron 1.87 GB, tts 724 MB; Trivy pron
+   0 / 45, tts 0 / 44, the repository gate 0. **Found:** the 10 s latency test fails at
+   load 25 with either image (4 999 ms at load 10); prepositions said aloud 16 of 20 twice
+   on the unchanged voice, under the published 17–20.
+8. **The PR.** `make eval` on the committed tree, then `0.17.0`, the changelog, the
+   review re-scored; the synthetic-voice ranges the report moves, in `measurements.md` and
+   `limitations.md`. On GitHub, by the owner:
    private vulnerability reporting, Dependabot alerts and security updates, a ruleset on
    `main` that requires CI.
 
-**Decisions.** D122–D127, `docs/decisions/0021`.
+**Decisions.** D122–D129, `docs/decisions/0021` and `0022`.
 
 **Done when.** CI's four jobs green on the PR, the Trivy job among them; items 6 and 7
 done, or deferred by a record that says why; the review re-scored from the live system; the
@@ -2169,10 +2182,10 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**m17, security and dependencies, items 0–5 are committed** on `feature/m17-security` as
-`1128062` and `a303e66` (§A.28, §A.29), stacked on `feature/m16-polish` at `0a58955`.
-Item 6, Next 16 and React 19.3, is done in the tree for §A.30; then item 7, each model
-library with `make eval` on a clean tree; the PR last. m16's own PR, §B.15, is still the owner's to open, and m17 stacks
+**m17, security and dependencies, items 0–6 are committed** on `feature/m17-security` as
+`1128062`, `a303e66` and `35d8d94` (§A.28–§A.30), stacked on `feature/m16-polish` at
+`0a58955`. Item 7, the model libraries, is done in the tree for §A.31; the PR last, with
+`make eval` on the committed tree. m16's own PR, §B.15, is still the owner's to open, and m17 stacks
 on it.
 
 **`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`

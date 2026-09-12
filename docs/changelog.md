@@ -11,7 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Every dependency that could be current is, every container runs as an unprivileged
 account on a port bound to the machine itself, the frontend installs with pnpm under a
-supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/0021`.
+supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/0021` and
+`0022`.
 
 ### Changed
 
@@ -39,6 +40,9 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
   Turbopack builds and serves, and the development server in its container sees an edit
   without polling. ESLint on `eslint-config-next`'s own flat configs, with the two rules
   React Hooks takes from the React Compiler off.
+- **The model libraries**: torch 2.14.0, transformers 5.17.0 and huggingface_hub 1.31.0 in
+  pron; onnxruntime 1.30.0 and piper-tts 1.8.0 in tts. Each was measured alone against
+  the image before it, and nothing the product measures moved.
 - **ruff's rules named** — E4, E7, E9 and F — and black 26's style applied.
 - **CI**: a read-only token, every action pinned to a commit at v7, Postgres 16.15.
 
@@ -55,9 +59,14 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
 - Trivy, CRITICAL and HIGH: the api, asr and tts images **0 and 44**, from 3 and about
   100, none with a fix; pron 0 and 45; the frontend **0 and 0**, from 4 and 45;
   `postgres:16.15`, pulled from upstream, 14 and 101.
-- Images: the frontend **1.05 GB**, from 1.66 GB; api 826 MB, asr 790 MB, tts 722 MB and
-  pron 1.84 GB, each a little larger for the fixes applied at build. `pnpm audit` finds
-  nothing.
+- Images: the frontend **1.05 GB**, from 1.66 GB; api 826 MB, asr 790 MB, tts 724 MB and
+  pron 1.87 GB, each a little larger for the fixes applied at build and pron for torch
+  2.14. `pnpm audit` finds nothing.
+- The model libraries, each against the image before it, side by side: the pronunciation
+  service's per-phone output **identical** after torch, transformers and the hub, and its
+  golden suite unchanged; synthesis as fast, with audio of the same length; the
+  recogniser's word error rate 1.72 %, and its figures on the synthetic voice within that
+  voice's own spread.
 - API suite **1 050** — 1 012 pass, 38 need a model service; frontend 316 across 49
   suites; `tsc`, ESLint, `next build` and lint clean.
 

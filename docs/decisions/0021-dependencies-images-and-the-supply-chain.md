@@ -81,6 +81,9 @@ it was mechanical. These were the choices in fixing it.
     vulnerability, and each changes what the product measures, so each waits for
     `make eval`.
 
+    > **Superseded by [0022](0022-the-model-libraries.md).** Each was upgraded alone and
+    > measured against the image before it; nothing the product measures moved.
+
 ## Measured
 
 | | Before | After |

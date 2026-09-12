@@ -1,6 +1,6 @@
 # SpeakLab TTS service.
 #
-# One package, and that is the argument for it. `piper-tts` 1.7 carries its own
+# One package, and that is the argument for it. `piper-tts` carries its own
 # espeak-ng phonemiser as a compiled extension (`piper.espeakbridge`) and runs the voice
 # on onnxruntime — so this image needs no `espeak-ng` apt package, no `piper-phonemize`
 # wheel (which has no cp312 distribution at all), and no torch. The whole dependency
@@ -10,14 +10,14 @@
 # The alternatives were weighed in docs/decisions/0002. The short version: Bark and
 # Chatterbox need a GPU that Docker Desktop cannot pass into a Linux container on macOS
 # (D14), and Coqui's model size buys nothing an interlocutor voice needs.
-piper-tts==1.7.0
+piper-tts==1.8.0
 
 # Pinned although piper-tts pulls it, because app.py constructs the InferenceSession
 # itself rather than letting PiperVoice.load do it. That is not a stylistic preference:
 # it is the only way to set intra_op_num_threads, and the measurement in
 # docs/decisions/0002 is that onnxruntime's own default is 2.3x slower than 8 threads
 # on this machine — the difference between meeting the 400 ms budget and missing it.
-onnxruntime==1.29.0
+onnxruntime==1.30.0
 
 # Imported directly to concatenate the per-sentence chunks. Arrives through
 # onnxruntime regardless; pinned because it is imported here.

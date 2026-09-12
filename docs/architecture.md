@@ -31,8 +31,8 @@ together would make the cheapest pay for the most expensive.
 | Service | Runtime | Size | Starts |
 |---|---|---|---|
 | `asr` | faster-whisper on CTranslate2 | 790 MB image, no torch; 464 MB of Whisper weights on first start | by default |
-| `tts` | Piper on onnxruntime | 722 MB image, no torch, its 61 MB voice inside | by default |
-| `pron` | wav2vec2 + torch | 1.84 GB image, and 1.2 GB of weights | with `make pron-up` |
+| `tts` | Piper on onnxruntime | 724 MB image, no torch, its 61 MB voice inside | by default |
+| `pron` | wav2vec2 + torch | 1.87 GB image, and 1.2 GB of weights | with `make pron-up` |
 
 `pron` has a profile of its own so that someone who wants to try a conversation never
 downloads torch.

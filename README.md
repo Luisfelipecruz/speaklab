@@ -78,7 +78,7 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
 | **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Measured on 2026-09-12: images of 826 MB (api), 790 MB (asr), 722 MB (tts), 1.05 GB (frontend) and 657 MB (`postgres:16.15`) — 4.0 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.84 GB image and 1.2 GB of weights |
+| **Disk** | Measured on 2026-09-12, tts and pron on 2026-09-13: images of 826 MB (api), 790 MB (asr), 724 MB (tts), 1.05 GB (frontend) and 657 MB (`postgres:16.15`) — 4.0 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
 | **Memory** | **1.74 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` on 2026-09-12 — asr 673 MiB, frontend 613, tts 236, api 190, postgres 72; 1.94 GiB the first time, on 2026-09-10. Ollama is not in either figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
@@ -132,7 +132,7 @@ Every port is bound to `127.0.0.1` anyway, so nothing here answers the network y
 The default stack is **five** containers: postgres, api, frontend, `asr` and `tts` — the
 whole conversational stack — each service running as an unprivileged account, and a job
 that runs first, hands the named volumes to that account, and exits. It does not start
-`pron`, which keeps its profile permanently so that nobody downloads 1.84 GB of torch to
+`pron`, which keeps its profile permanently so that nobody downloads 1.87 GB of torch to
 try a conversation. **`/health` reporting
 `degraded` is the system working correctly** while `pron` is off: it names every service
 it probed, and read-aloud still works in that state — a reading comes back with its
@@ -140,7 +140,7 @@ transcript and its word error rate, and says in words that the phone scores are 
 and how to get them (PRD R6). The Piper voice is inside its image, so the first thing the
 system says out loud does not wait for a download.
 
-For pronunciation scoring, `make pron-up` — 1.84 GB of image and 1.2 GB of weights,
+For pronunciation scoring, `make pron-up` — 1.87 GB of image and 1.2 GB of weights,
 measured at 109 s to first readiness including the download. Readings taken while it was
 off can be scored afterwards without being read again (`FR-16`).
 
@@ -200,8 +200,8 @@ Three separate model services rather than one, and none of them inside the API i
 | | Runtime | Why separate |
 |---|---|---|
 | `asr` | faster-whisper on CTranslate2 | No torch. 790 MB image. Torch is not allowed in the request path |
-| `tts` | Piper on onnxruntime | No torch either. 722 MB image around a 61 MB voice, 50× real time on CPU |
-| `pron` | wav2vec2 + torch | **1.84 GB**. Its own profile, so the stack is usable by someone who never downloads it. torch comes from PyTorch's CPU index — from PyPI it was 8.51 GB, because those wheels pull the NVIDIA stack on arm64 too |
+| `tts` | Piper on onnxruntime | No torch either. 724 MB image around a 61 MB voice, 50× real time on CPU |
+| `pron` | wav2vec2 + torch | **1.87 GB**. Its own profile, so the stack is usable by someone who never downloads it. torch comes from PyTorch's CPU index — from PyPI it was 8.51 GB, because those wheels pull the NVIDIA stack on arm64 too |
 
 Ollama runs on the **host**, not in Compose. Docker Desktop on macOS cannot pass the
 Apple GPU into a Linux container, so a containerised Ollama runs CPU-only while the
@@ -274,7 +274,7 @@ The full list is [docs/limitations.md](docs/limitations.md). The ones to know fi
 | [docs/limitations.md](docs/limitations.md) | What does not exist yet, by component |
 | [docs/architecture.md](docs/architecture.md) | The services, health, data, audio and the conversation loop |
 | [docs/data-model.md](docs/data-model.md) | The tables, why five columns are JSONB, and the seed contract |
-| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-one dated records, each kept as it was written |
+| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-two dated records, each kept as it was written |
 | [docs/changelog.md](docs/changelog.md) | One entry per milestone |
 | [PRD.md](PRD.md) | The product requirements and the measurement model |
 | [IMPLEMENTATION-PLAN.md](speaklab-agent/IMPLEMENTATION-PLAN.md) | How it was built: sixteen milestones, each with what it was expected to prove and what it measured |

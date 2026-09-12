@@ -16,7 +16,7 @@
 # total. See the comment in the Dockerfile — the split install is the fix, and it is
 # there rather than here because a requirements file cannot express "this line from a
 # different index" in a way pip resolves deterministically.
-torch==2.13.0
+torch==2.14.0
 torchaudio==2.11.0
 
 # torch declares setuptools as a dependency, and PyTorch's CPU index serves a release old
@@ -28,13 +28,13 @@ setuptools==84.0.0
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
 # is dead weight — this was found the hard way in m0 and is why vocab.json is read as
 # JSON rather than through a tokenizer class.
-transformers==5.16.1
+transformers==5.17.0
 
 # Pulls the weights down at run time onto the shared model_cache volume, the same
 # arrangement asr and tts use. It arrives transitively through transformers regardless;
 # pinned because the cache layout it writes is a thing this image depends on.
 # It no longer fetches vocab.json — that file is vendored, see the Dockerfile.
-huggingface_hub==1.29.0
+huggingface_hub==1.31.0
 
 # Grapheme-to-phoneme. Emits ARPAbet with stress digits, which is what phone_map.py
 # translates. It needs two NLTK corpora and they are downloaded at BUILD time — a
