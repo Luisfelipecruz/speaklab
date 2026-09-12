@@ -12,6 +12,10 @@ node_modules/
 out/
 *.tsbuildinfo
 
+# The walkthrough recorder, and the takes, voices and soundtracks it makes. It films the
+# product rather than being part of it, and it stays on the machine that records.
+demo/
+
 # Environment
 .env
 .env.local

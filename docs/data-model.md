@@ -151,10 +151,10 @@ queries for again; as a type, `'compelted'` is rejected on the way in.
 Three CHECK constraints instead, where the vocabulary has two members or is expected to
 change: `turns.role`, `language_errors.detector`, `progress_snapshots.period`.
 
-`language_errors.category` has neither. The taxonomy *is* closed — invariant I3 — but it
-is enforced in the application layer at m9, because it will be revised once real
-transcripts have been read, and a revision should be a code change with a test rather
-than an `ALTER TYPE` that cannot run inside a transaction.
+`language_errors.category` has neither. The taxonomy *is* closed, but it is enforced in the
+application layer, because it is revised as real transcripts are read, and a revision
+should be a code change with a test rather than an `ALTER TYPE` that cannot run inside a
+transaction.
 
 `cefr_band` is TEXT in the database and a closed enum at the API edge
 (`api/models/common.py`), which is what makes `?band=B7` a 422 rather than an empty list.
@@ -249,9 +249,9 @@ than surfacing as a 500 a week later. `passages.word_count` is *derived* from th
 rather than stated in the file, so the file cannot disagree with itself.
 
 `phoneme_focus` is validated against the 39 ARPAbet symbols in `api/models/common.py`.
-That tuple and m8's `phone_map.py` are two copies of one phone set, and m8 must assert
-they are equal: a phone missing from one of them is a pronunciation error that is never
-scored and never reported as unscored.
+That tuple and the pronunciation service's `phone_map.py` are two copies of one phone set,
+and `tests/test_phone_map.py` asserts they are equal: a phone missing from one of them is a
+pronunciation error that is never scored and never reported as unscored.
 
 ---
 

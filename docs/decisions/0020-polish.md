@@ -30,6 +30,22 @@ decision. These did.
    third synthetic voice explains, the learner's clips and the persona's replies play when
    they played, and the short cut leaves out what it cannot show in real time rather than
    cutting it.
+8. **The recorder is not in the repository** (D119), at the owner's request. It films the
+   product and is not part of it: it needs Playwright, ffmpeg and two more voices, and
+   nothing in the product or its checks runs it. It stays on the machine that records,
+   ignored by git; the README's still stays in `docs/`.
+9. **The README takes the shape of a large open-source project's** (D120), at the owner's
+   request: badges, the features, the quick start, the architecture, the ten criteria, the
+   known limitations, the documentation, development, contributing and acknowledgements.
+   The long sections move into `docs/`, and the files a contributor looks for are added.
+10. **The reference documents describe the system as it is; decision records are frozen**
+   (D121), at the owner's request. The README, the architecture, how it works, the
+   measurements, the limitations and the data model are organised by component, in the
+   present tense, with no milestone ids and no stories; a figure that moves from run to run
+   on the same code is one range across the runs recorded, with the latest in
+   `docs/evaluation.md`. A decision record is dated and kept as written — a changed decision
+   gets a new record that supersedes it — and chronology goes in the changelog only. This
+   replaces the practice of writing each new run beside the earlier ones in prose.
 
 ## 1. The export
 
@@ -169,6 +185,9 @@ machine does, beside the 7283 ms measured on one before; only a quiet re-run can
 regression out.
 
 ## 7. The walkthrough
+
+**The recorder is kept outside the repository** (decision 8). The paths in this section and
+the next name files on the machine that recorded the takes.
 
 `demo/record.cjs` drives the running stack in a headless Chromium and films it: a
 scenario and its brief, two spoken turns, the report with its corrections marked on the

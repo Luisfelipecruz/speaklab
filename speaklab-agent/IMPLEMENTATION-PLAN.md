@@ -23,11 +23,11 @@ spoken answer to a work prompt, how it is built and how it is delivered counted 
 the model's checked feedback beside the counts, said again side by side; every shown
 measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
 shown, the model's shorter version withheld 2 of 16 held out; CI green on its first run.
-**m16, polish, is in progress** on `feature/m16-polish`, its items written below. Three criteria — S4, S5, S7 — are blocked on speech only
+**m16, polish, is code complete** on `feature/m16-polish`, its PR prepared for the owner. Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; `demo/` out of the repository and the README reshaped; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1837,7 +1837,7 @@ measured and in `docs/evaluation.md`.
 
 ---
 
-### m16 — Polish, documentation, demo · **IN PROGRESS** — started 2026-09-12 at the owner's request *(was m13 until 2026-09-06, m15 until 2026-09-12)*
+### m16 — Polish, documentation, demo · **CODE COMPLETE** — started 2026-09-12 at the owner's request *(was m13 until 2026-09-06, m15 until 2026-09-12)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1861,10 +1861,13 @@ README.md                              (rewritten against measured reality; the 
                                         a picture, three lines, and the Quick start)
 docs/{architecture.md,data-model.md,evaluation.md}   (finalised)
 docs/changelog.md
-demo/{record.cjs,to-mp4.sh,package.json}   the recorder exists, untracked and never run;
-                                        its package.json names a VIDEO-PLAN.md that is not in
-                                        this repository. The .mp4 and the poster go to the
-                                        post and the README, not into git (out/ is ignored)
+demo/                                  the walkthrough recorder — run, and kept out of the
+                                        repository (D119); the .mp4 goes to the post and the
+                                        still to the README
+docs/{how-it-works.md,measurements.md,limitations.md}   the README's long sections, moved
+                                        word for word (D120)
+CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, .github/ISSUE_TEMPLATE/, .github/pull_request_template.md
+                                        the files a contributor looks for (D120)
 eval/golden/pron/RECORD.md             the recording protocol, moved out of gitignored spike/
                                         so a clone can record S4's pairs — read it for
                                         anything personal before it is tracked
@@ -1945,7 +1948,10 @@ started)*.
    not. **Revised again, at the owner's request (D118):** two portrait cuts for LinkedIn,
    1080×1350, narrated by a local Piper voice over the app's own sound — `demo/piper.sh`,
    `demo/narration.cjs`, `demo/mix.cjs`, and `AUDIO=` in `to-mp4.sh`. The short cut is one
-   turn and its report; the full one is every section.
+   turn and its report; the full one is every section. **Taken out of the repository, at
+   the owner's request (D119):** the version commit stops tracking `demo/`, which is
+   ignored from then on; the recorder stays on the machine that records, and the
+   squash-merge never puts it on `main`.
 7. **The README and the docs, against the live system.** The first screen a picture, three
    lines and the Quick start; the status line, the table of what does not exist yet and the
    repository map brought to what is true; `docs/architecture.md` and
@@ -1958,7 +1964,22 @@ started)*.
    and the suites re-measured brought to 2026-09-12. `docs/architecture.md` describes the
    frontend as it is and the export; `docs/data-model.md` says what is not there.
    `docs/decisions/0020`.
+   **Reshaped at the owner's request (D120):** the README in the shape of a large
+   open-source project's — badges, features, known limitations, documentation,
+   development, contributing, acknowledgements — the four feature sections, the measured
+   table with its prose, and the table of what does not exist yet moved word for word into
+   `docs/how-it-works.md`, `docs/measurements.md` and `docs/limitations.md`; CONTRIBUTING,
+   SECURITY, a code of conduct and issue and pull-request templates added.
+   **Rewritten by component, at the owner's request (D121):** the reference documents
+   describe the system as it is — `how-it-works.md`, `limitations.md`, `architecture.md`
+   and `measurements.md` organised by component, in the present tense, with no milestone
+   ids, and a sampled figure as one range across runs; decision records frozen.
 8. **The PR.** `make eval` at the commit holding the code, `0.16.0`, the changelog.
+   **DONE in the tree** — `make eval` at `0174d7f`, all five suites, 16 min 24 s: S4–S7
+   unchanged, and the sampled figures that moved on the same code recorded beside the
+   earlier runs (D102). `0.16.0`; the changelog. Checked in Docker after the bump: API
+   1 049 (1 011 pass, 38 skip), `make lint`, frontend 316 / 49, `tsc`, ESLint, and CI's
+   harness step on a copy. The owner's: §A.27, then §B.15.
 
 **Decisions.**
 - Every number in the README is counted from the live system at write time — operation count from `app.openapi()`, test count from pytest, WER and GOP separation from `make eval`.
@@ -2056,9 +2077,10 @@ Evenings-and-weekends pace, one developer.
 
 **`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
 and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,
-is in progress on `feature/m16-polish`**, cut from `53279df`; its items are in m16 above.
-`demo/` is tracked from m16 — the recorder, `voices.sh`, `to-mp4.sh` and the
-lockfile; its clips, takes and `node_modules` are ignored.
+is code complete on `feature/m16-polish`**, cut from `53279df`; its items are in m16 above.
+`demo/`, the walkthrough recorder, was tracked in `836d430` and `0174d7f` and is kept out
+of the repository from the version commit on (D119): ignored, on the machine that
+records, and never on `main`, because the branch is squash-merged.
 
 **Merged as PR #20, 2026-09-12:**
 - ~~m15's PR, `0.15.0`.~~ `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The
@@ -2155,6 +2177,7 @@ item (2b) rather than a PR of its own.
 7. ~~m15's PR, `0.15.0`.~~ Merged as #20, `53279df`; CI green on all three jobs. On any
    other checkout: `make migrate`, then `make seed`.
 8. **m16, polish** — asked for by the owner on 2026-09-12. Items 0 to 8 are in m16 above.
+   Code complete; §A.27 and §B.15 are the owner's.
 
 **A finding from item 5, not yet a task.** The detector files most article and false-friend
 mistakes under another kind — 8 and 9 of 20 labelled ones, against 6 each filed under

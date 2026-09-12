@@ -67,21 +67,21 @@ The fluency code already said the recogniser drops most fillers. Whether it drop
 twice, or a phrase begun again, decides whether those can be counted at all, so it was
 measured first: the twelve aloud answers spoken by `en_US-lessac-medium`, heard by
 `small.en`. Synthesis is not deterministic, so it was measured four times — the second and
-third by full evaluation runs written to a scratch file, the fourth by the one in
-`docs/evaluation.md`.
+third by full evaluation runs written to a scratch file, the fourth by m15's report — and a
+fifth time by m16's, the one in `docs/evaluation.md`.
 
-| Written down, of those spoken | Run 1 | Run 2 | Run 3 | Run 4, `docs/evaluation.md` |
-|---|---:|---:|---:|---:|
-| Fillers | 21 of 24 | 22 of 24 | 21 of 24 | 21 of 24 |
-| Words said twice | 12 of 13 | 13 of 13 | 13 of 13 | 13 of 13 |
-| Phrases started again | 9 of 9 | 8 of 9 | 8 of 9 | 8 of 9 |
-| Signposts | 52 of 52 | 52 of 52 | 52 of 52 | 52 of 52 |
-| Sentence count within one of the written | 10 of 12 | 11 of 12 | 10 of 12 | 11 of 12 |
+| Written down, of those spoken | Run 1 | Run 2 | Run 3 | Run 4, m15's report | Run 5, `docs/evaluation.md` |
+|---|---:|---:|---:|---:|---:|
+| Fillers | 21 of 24 | 22 of 24 | 21 of 24 | 21 of 24 | 23 of 24 |
+| Words said twice | 12 of 13 | 13 of 13 | 13 of 13 | 13 of 13 | 13 of 13 |
+| Phrases started again | 9 of 9 | 8 of 9 | 8 of 9 | 8 of 9 | 9 of 9 |
+| Signposts | 52 of 52 | 52 of 52 | 52 of 52 | 52 of 52 | 52 of 52 |
+| Sentence count within one of the written | 10 of 12 | 11 of 12 | 10 of 12 | 11 of 12 | 10 of 12 |
 
-Both recogniser bars are met in all four runs. In the first the one repeat lost was *The
+Both recogniser bars are met in all five runs. In the first the one repeat lost was *The
 sprint is, the sprint is*, heard as *The sprint it is, the sprint is*; in the others the one
 restart lost was a different one each time — *we are going to, we are building*, *we write,
-nobody*, and *free for, uh, it costs*. The sentence counts that missed were answers
+nobody*, and *free for, uh, it costs*; the fifth lost no restart, and one filler. The sentence counts that missed were answers
 heard as two long sentences where five and six were written: the recogniser's full stops
 are where the voice fell, and a sentence count is a count of those.
 
