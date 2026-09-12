@@ -53,8 +53,7 @@ def _from_database() -> list[dict]:
     from config import SYNC_DATABASE_URL
 
     engine = create_engine(SYNC_DATABASE_URL)
-    query = text(
-        """
+    query = text("""
         select t.id, t.session_id, t.idx, t.transcript, t.words, t.asr_confidence,
                sc.slug as scenario
         from turns t
@@ -62,8 +61,7 @@ def _from_database() -> list[dict]:
         left join scenarios sc on sc.id = s.scenario_id
         where t.role = 'user'
         order by t.id
-        """
-    )
+        """)
     with engine.connect() as conn:
         return [dict(row._mapping) for row in conn.execute(query)]
 

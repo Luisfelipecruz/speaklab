@@ -72,43 +72,35 @@ class RuleError:
 # why the tests carry a sentence for each group. `_COUNTABLE_ING` runs the other way.
 
 _THIRD_PRONOUNS = frozenset({"he", "she", "it", "this", "that"})
-_INDEFINITE_PRONOUNS = frozenset(
-    """
+_INDEFINITE_PRONOUNS = frozenset("""
     everyone everybody someone somebody anyone anybody nobody everything something
     anything nothing
-    """.split()
-)
+    """.split())
 _PLURAL_PRONOUNS = frozenset({"we", "they", "you", "these", "those"})
 
 # Plural agreement with these is standard British English: "the team are playing".
-_COLLECTIVE = frozenset(
-    """
+_COLLECTIVE = frozenset("""
     team family staff government company class group audience committee crew band
     public police management board jury couple department club army crowd council
     community population personnel faculty firm union party household squad media
     data
-    """.split()
-)
+    """.split())
 
 # The head of "a lot of people", "the majority of voters": the verb agrees with what is
 # measured, not with the word that measures it.
-_PARTITIVE = frozenset(
-    """
+_PARTITIVE = frozenset("""
     lot lots number majority minority most half part rest percent plenty couple kind
     sort type bunch series variety total none all some any each one many few several
     both either neither remainder proportion quarter third set pair range amount
     deal
-    """.split()
-)
+    """.split())
 
 # Nouns that end in s and take a singular verb.
-_SINGULAR_S = frozenset(
-    """
+_SINGULAR_S = frozenset("""
     news series species means physics mathematics maths economics politics athletics
     gymnastics headquarters crossroads whereabouts statistics ethics linguistics
     electronics logistics genetics diabetes
-    """.split()
-)
+    """.split())
 
 # "let him go", "make it work": a bare verb under these is an infinitive, and its
 # subject is the verb's object.
@@ -117,39 +109,32 @@ _CAUSATIVE = frozenset(
 )
 
 # "I suggest that he go": the subjunctive, which is a bare verb on purpose.
-_MANDATIVE = frozenset(
-    """
+_MANDATIVE = frozenset("""
     suggest insist recommend demand require request propose ask order urge advise
     prefer
-    """.split()
-)
+    """.split())
 
 _PAST_WORDS = frozenset({"yesterday", "ago", "earlier", "previously", "formerly"})
 
 # Units a number can make into one amount: "two years is a long time", "ten dollars is
 # enough". A number in front of anything else is a count, and "three people passes" is an
 # agreement error like any other.
-_UNITS = frozenset(
-    """
+_UNITS = frozenset("""
     seconds minutes hours days weeks months years decades dollars euros pounds pesos
     cents miles kilometres kilometers metres meters kilos kilograms litres liters
     percent times
-    """.split()
-)
+    """.split())
 
-_TIME_NOUNS = frozenset(
-    """
+_TIME_NOUNS = frozenset("""
     time moment minute hour day week weekend month year decade century morning
     afternoon evening night today tonight tomorrow yesterday monday tuesday
     wednesday thursday friday saturday sunday spring summer autumn fall winter
     season term semester quarter period
-    """.split()
-)
+    """.split())
 
 # Uncountable, or countable only in a sense a learner rarely means. "It is good news",
 # "it is hard work" and "that is good advice" have no article and need none.
-_UNCOUNTABLE = frozenset(
-    """
+_UNCOUNTABLE = frozenset("""
     information advice news weather work homework housework music furniture
     equipment luggage baggage money cash fun help water food traffic research
     knowledge feedback software hardware experience progress evidence stuff luck
@@ -161,39 +146,32 @@ _UNCOUNTABLE = frozenset(
     mail fruit meat milk paper clothing vocabulary grammar pronunciation behaviour
     behavior patience confidence happiness peace freedom nature nonsense shopping
     cleaning cooking sense use care importance attention respect time
-    """.split()
-)
+    """.split())
 
 # Nouns ending in -ing that are countable things rather than gerunds. Every other -ing noun
 # is treated as a gerund and left alone — "it is good training" needs no article — so a
 # word missing from here costs a missed proposal, never a wrong one.
-_COUNTABLE_ING = frozenset(
-    """
+_COUNTABLE_ING = frozenset("""
     thing king ring wing string spring building meeting wedding ceiling painting
     drawing feeling finding opening ending beginning saying sibling recording
     booking crossing listing offering warning posting outing earring duckling
     darling evening morning
-    """.split()
-)
+    """.split())
 
 # Nouns that go bare after "be" or "as" without being uncountable: a place in "I am
 # home", a share in "part of", an office held by one person at a time.
-_BARE_PREDICATES = frozenset(
-    """
+_BARE_PREDICATES = frozenset("""
     home part enough family friends lunch dinner breakfast school college university
     class bed church hospital town course president chairman chairwoman chairperson
     chair head captain king queen mayor governor
-    """.split()
-)
+    """.split())
 
 # Adjectives that make a noun unique, so the article it lost is "the": "the best
 # option", "the same problem", "the only way".
-_DEFINITE_ADJECTIVES = frozenset(
-    """
+_DEFINITE_ADJECTIVES = frozenset("""
     same only main next last first second third following previous whole entire
     right wrong
-    """.split()
-)
+    """.split())
 
 # Words that already do an article's job, or sit where it would go.
 _ARTICLE_BLOCKERS = frozenset({"such", "what", "quite", "rather", "enough", "own"})

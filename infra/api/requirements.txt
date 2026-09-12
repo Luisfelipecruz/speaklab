@@ -6,18 +6,18 @@
 # has to start fastest. The one model that does live here is spaCy's small English
 # pipeline, ~12 MB of statistical parser with no deep-learning runtime behind it.
 
-fastapi==0.115.8
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
 
 # ── Database ────────────────────────────────────────────────────────────────
 # asyncpg is the request-path driver. psycopg2-binary is here for Alembic (m2), which
 # runs migrations synchronously — `postgresql+asyncpg://` is not a URL psycopg2 can
 # parse, and config.py exposes SYNC_DATABASE_URL for exactly this.
-sqlalchemy[asyncio]==2.0.38
-asyncpg==0.30.0
-psycopg2-binary==2.9.10
-alembic==1.14.1
+sqlalchemy[asyncio]==2.0.52
+asyncpg==0.31.0
+psycopg2-binary==2.9.13
+alembic==1.20.0
 
 # ── Clients ─────────────────────────────────────────────────────────────────
 # One async HTTP client for all four outbound callers: asr, tts, pron and Ollama. It is
@@ -41,7 +41,7 @@ httpx==0.28.1
 # the image. Verified on 2026-08-30 in this image: hashes carry the `$argon2id$` prefix
 # at the library's default parameters (t=3, m=64 MiB, p=4).
 argon2-cffi==25.1.0
-pyjwt==2.10.1
+pyjwt==2.14.0
 
 # Pydantic's EmailStr, which is a FastAPI extra rather than a direct import. Hand-rolling
 # an email regex is a well-known way to reject valid addresses, and the alternative of
@@ -67,10 +67,9 @@ spacy==3.8.16
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 # ── Tests and lint ──────────────────────────────────────────────────────────
-pytest==8.3.4
-pytest-asyncio==0.25.3
-ruff==0.9.6
-black==25.1.0
+#
+# In requirements-dev.txt, installed only into the image's `test` stage. The image the
+# API runs from carries nothing it does not run.
 
 # ── Deliberately absent ─────────────────────────────────────────────────────
 #

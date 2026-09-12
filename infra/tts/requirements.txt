@@ -21,7 +21,7 @@ onnxruntime==1.29.0
 
 # Imported directly to concatenate the per-sentence chunks. Arrives through
 # onnxruntime regardless; pinned because it is imported here.
-numpy==2.5.2
+numpy==2.5.3
 
-fastapi==0.115.8
-uvicorn[standard]==0.34.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4

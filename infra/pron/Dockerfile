@@ -7,13 +7,23 @@
 # The layer order is deliberate and is the difference between a 20-second rebuild and a
 # 12-minute one: torch, then the NLTK corpora, then the vocabulary, then the code. The
 # code is what changes; it is last.
-FROM python:3.12-slim
+FROM python:3.12.14-slim-trixie
 
-# curl is what the compose healthcheck runs. No ffmpeg package: PyAV carries the ffmpeg
-# libraries itself, the same trade infra/asr makes.
+# The security fixes Debian has published since the base image was built, and no package
+# added: the health check is a line of Python, and there is no ffmpeg — PyAV carries the
+# ffmpeg libraries itself, the same trade infra/asr makes.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
+
+# The same unprivileged account, with the same id, in every image that shares the
+# model_cache volume, so a file one service downloads the others can read and replace.
+# /models is created here and owned by that account, so a new volume mounted over it
+# starts out writable.
+RUN groupadd --system --gid 10001 speaklab \
+    && useradd --system --uid 10001 --gid speaklab --create-home speaklab \
+    && mkdir /models \
+    && chown speaklab:speaklab /models
 
 WORKDIR /app
 
@@ -82,7 +92,14 @@ RUN python -c "import phone_map; print(phone_map.summary())"
 # to be rebuilt to change model, and re-downloaded by every developer on every build.
 ENV HF_HOME=/models
 
+USER speaklab
+
 EXPOSE 8103
+
+# /health answers 200 with `model_loaded: false` while the weights download; the start
+# period is for 1.2 GB of weights on a cold cache, not for the load.
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=300s \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8103/health', timeout=4)"]
 
 # One worker. The model is loaded once per process, torch already uses every core it is
 # given, and a second worker would double 1.2 GB of resident weights to halve the

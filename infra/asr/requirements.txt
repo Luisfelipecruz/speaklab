@@ -19,8 +19,8 @@ av==18.1.0
 
 # Imported directly, to hand CTranslate2 the float32 buffer it wants. It arrives
 # transitively through ctranslate2 regardless; pinned because it is imported here.
-numpy==2.5.2
+numpy==2.5.3
 
-fastapi==0.115.8
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32

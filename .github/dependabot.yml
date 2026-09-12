@@ -1,0 +1,88 @@
+# Dependabot opens a pull request when a dependency below has a newer release and, with
+# security updates turned on in the repository's settings, when one has a published
+# vulnerability. CI, the Trivy scan included, runs on every one of them.
+
+version: 2
+
+updates:
+  # The API and the three model services, one requirements file each.
+  - package-ecosystem: pip
+    directories: ["/infra/api", "/infra/asr", "/infra/tts", "/infra/pron"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      web-stack:
+        patterns:
+          - fastapi
+          - uvicorn*
+          - starlette
+          - python-multipart
+          - pydantic*
+          - sqlalchemy*
+          - asyncpg
+          - psycopg2*
+          - alembic
+          - httpx
+          - pyjwt
+          - argon2-cffi
+          - email-validator
+          - numpy
+          - setuptools
+      dev-tools:
+        patterns: [pytest*, ruff, black]
+      # These change what the product measures, and CI runs no measurement suite. A pull
+      # request in this group needs `make eval` before it merges.
+      model-libraries:
+        patterns:
+          - faster-whisper
+          - av
+          - piper-tts
+          - onnxruntime
+          - transformers
+          - huggingface_hub
+          - g2p_en
+          - nltk
+          - spacy
+    ignore:
+      # infra/pron/Dockerfile installs these from PyTorch's CPU index and repeats their
+      # versions, so they are updated by hand, in both places.
+      - dependency-name: torch
+      - dependency-name: torchaudio
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Base images. A new Python minor or Node major is a decision, not an update.
+  - package-ecosystem: docker
+    directories: ["/infra/api", "/infra/asr", "/infra/tts", "/infra/pron", "/infra/frontend"]
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  # Postgres and Ollama, pulled rather than built. A new Postgres major needs a dump and
+  # a restore, so only its minor releases are proposed.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

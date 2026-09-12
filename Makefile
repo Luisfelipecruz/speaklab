@@ -1,8 +1,9 @@
 # SpeakLab. `make help` lists every target.
 #
-# The default stack is five services: postgres, api, frontend, asr and tts. pron is behind
-# a profile because it is the only image with torch in it. The conversation model is
-# Ollama on the host, not a service here.
+# The default stack is five services — postgres, api, frontend, asr and tts — and a job
+# that hands the named volumes to the account the services run as. pron is behind a
+# profile because it is the only image with torch in it. The conversation model is Ollama
+# on the host, not a service here.
 
 .PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
@@ -18,9 +19,11 @@ help:                              ## This list
 
 # Idempotent, so it is also the command to run after a `git pull`. `--wait` waits for
 # healthy processes, not for model weights: asr reports healthy while Whisper downloads.
+# `--renew-anon-volumes` gives the frontend the node_modules of the image just built, not
+# the previous container's.
 setup:                             ## First run, and after every pull: build, start, migrate, seed
 	@test -f .env || { cp .env.example .env && echo "wrote .env from .env.example"; }
-	docker compose up -d --build --wait
+	docker compose up -d --build --wait --renew-anon-volumes
 	docker compose exec api alembic upgrade head
 	docker compose exec api python -m scripts.seed
 	@echo ""
@@ -85,7 +88,7 @@ test:                              ## Run the API suite in a container
 
 # `--no-deps`: these tests never call the API, so they do not wait for it.
 test-frontend:                     ## Run the frontend suite (Jest + RTL) in a container
-	docker compose run --rm --no-deps frontend npm test
+	docker compose run --rm --no-deps frontend pnpm test
 
 # eval/ is mounted read-only inside /app, so it is excluded from the /app pass and checked
 # in its own. The two exclusions differ on purpose: ruff's matches a directory name, while

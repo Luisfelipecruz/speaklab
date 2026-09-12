@@ -19,6 +19,11 @@
 torch==2.13.0
 torchaudio==2.11.0
 
+# torch declares setuptools as a dependency, and PyTorch's CPU index serves a release old
+# enough to carry published vulnerabilities. Pinned here, so the second install replaces
+# it with a current one from PyPI.
+setuptools==84.0.0
+
 # Wav2Vec2ForCTC only. Note what is NOT imported: Wav2Vec2PhonemeCTCTokenizer, which
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
 # is dead weight — this was found the hard way in m0 and is why vocab.json is read as
@@ -37,7 +42,7 @@ huggingface_hub==1.29.0
 g2p_en==2.1.0
 nltk==3.10.3
 
-numpy==2.5.2
+numpy==2.5.3
 
 # Decodes whatever the browser recorded. The m0 spike used `soundfile`, because
 # `torchaudio.load` now requires torchcodec — but soundfile cannot open WebM/Opus or
@@ -46,6 +51,6 @@ numpy==2.5.2
 # need for an ffmpeg binary in this image. See docs/decisions/0005 §4.
 av==18.1.0
 
-fastapi==0.115.8
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32

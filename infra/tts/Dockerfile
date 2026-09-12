@@ -3,15 +3,25 @@
 # Build context is this directory, not the repository root, for the same reason as
 # infra/asr: nothing here needs anything from the rest of the tree, and editing a router
 # in api/ should not invalidate this image's cache.
-FROM python:3.12-slim
+FROM python:3.12.14-slim-trixie
 
-# curl is what the compose healthcheck runs, and it is the only apt package here.
-# There is deliberately no espeak-ng: piper-tts 1.7 carries the phonemiser as a compiled
-# extension and its own data directory, so installing the Debian one would add a second
-# espeak whose version this file does not control.
+# The security fixes Debian has published since the base image was built, and no package
+# added: the health check is a line of Python, and there is deliberately no espeak-ng —
+# piper-tts carries the phonemiser as a compiled extension and its own data directory, so
+# installing the Debian one would add a second espeak whose version this file does not
+# control.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
+
+# The same unprivileged account, with the same id, in every image that shares the
+# model_cache volume, so a file one service downloads the others can read and replace.
+# /models is created here and owned by that account, so a new volume mounted over it
+# starts out writable.
+RUN groupadd --system --gid 10001 speaklab \
+    && useradd --system --uid 10001 --gid speaklab --create-home speaklab \
+    && mkdir /models \
+    && chown speaklab:speaklab /models
 
 WORKDIR /app
 
@@ -34,7 +44,14 @@ RUN python -m piper.download_voices "${PIPER_VOICE}" \
 
 COPY app.py .
 
+USER speaklab
+
 EXPOSE 8102
+
+# The default voice is in the image, so the start period covers process start rather
+# than a download.
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=60s \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8102/health', timeout=4)"]
 
 # One worker, for the same reason as asr: the voice is loaded once per process and
 # onnxruntime is already given every thread it can use. A second worker doubles the

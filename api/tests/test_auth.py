@@ -24,7 +24,6 @@ from config import JWT_ALGORITHM, JWT_SECRET, SESSION_COOKIE_NAME
 from db_models import User
 from services.security import create_access_token
 
-
 # ── Registration ────────────────────────────────────────────────────────────
 
 
@@ -261,7 +260,9 @@ async def test_a_token_signed_with_another_key_is_401(
     """The signature is the whole mechanism. If this passes, the cookie is a claim
     rather than a proof and anyone can write one."""
     forged = jwt.encode(
-        {"sub": str(account["id"])}, "not-the-secret", algorithm="HS256"
+        {"sub": str(account["id"])},
+        "not-the-secret-but-a-key-long-enough-for-hs256",
+        algorithm="HS256",
     )
     client.cookies.set(SESSION_COOKIE_NAME, forged)
     assert (await client.get("/auth/me")).status_code == 401

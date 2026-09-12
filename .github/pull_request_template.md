@@ -9,6 +9,6 @@
 ## Checked
 
 - [ ] `make lint` and `make test` pass
-- [ ] For a frontend change: `make test-frontend`, `npm run typecheck` and `npm run lint` pass
+- [ ] For a frontend change: `make test-frontend`, `pnpm run typecheck` and `pnpm run lint` pass
 - [ ] No audio, model weights or `.env` in the diff
 - [ ] Comments describe what the code does now

@@ -378,12 +378,10 @@ _LAST_WORD = re.compile(r"([A-Za-z]+)[.!?…]+[\"'”’)\]]*\s*$")
 # The cost of being wrong either way is one sentence boundary in the wrong place, which
 # a listener hears as a slightly odd pause and never as a missing word. The list is
 # English-only and incomplete on purpose: it is not trying to be a tokeniser.
-_ABBREVIATIONS = frozenset(
-    """
+_ABBREVIATIONS = frozenset("""
     mr mrs ms dr prof st jr sr vs etc no fig approx inc ltd co dept est
     jan feb mar apr jun jul aug sep sept oct nov dec mon tue wed thu fri sat sun
-    """.split()
-)
+    """.split())
 
 
 def _ends_a_sentence(candidate: str) -> bool:
