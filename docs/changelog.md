@@ -34,8 +34,11 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
 - **The frontend installs with pnpm 12.4.1, on Node 24.** A release less than a day old,
   one published with weaker evidence of its origin than an earlier release of the same
   package, and any install script not allowed by name are refused; npm and corepack are
-  removed from the image. Next 15.5.25 and React 19.1.9; Next's own copy of PostCSS
-  overridden to the current release; `qs` 6.16.0.
+  removed from the image. `qs` 6.16.0.
+- **Next.js 16.3.5 and React 19.3.0**, from Next 15, whose support ends on 2026-10-21.
+  Turbopack builds and serves, and the development server in its container sees an edit
+  without polling. ESLint on `eslint-config-next`'s own flat configs, with the two rules
+  React Hooks takes from the React Compiler off.
 - **ruff's rules named** — E4, E7, E9 and F — and black 26's style applied.
 - **CI**: a read-only token, every action pinned to a commit at v7, Postgres 16.15.
 

@@ -23,7 +23,7 @@ spoken answer to a work prompt, how it is built and how it is delivered counted 
 the model's checked feedback beside the counts, said again side by side; every shown
 measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
 shown, the model's shorter version withheld 2 of 16 held out; CI green on its first run.
-**m16, polish, is committed** on `feature/m16-polish` (`0a58955`), its PR prepared for the owner. **m17, security and dependencies, is in progress** — items 0–5 in the tree for `feature/m17-security` (`docs/decisions/0021`). Three criteria — S4, S5, S7 — are blocked on speech only
+**m16, polish, is committed** on `feature/m16-polish` (`0a58955`), its PR prepared for the owner. **m17, security and dependencies, is in progress** on `feature/m17-security` — items 0–5 committed, item 6 (Next 16) in the tree (`docs/decisions/0021`). Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
@@ -2061,8 +2061,16 @@ started)*.
    **DONE in the tree** — Trivy from its image by digest (D127), its gate command run here:
    exit 0. `dependabot.yml` valid against the published schema. **Never run on GitHub:**
    nothing is pushed.
-6. **Next 16 and React 19.3**, before Next 15's support ends on 2026-10-21. **NOT
-   STARTED.**
+6. **Next 16 and React 19.3**, before Next 15's support ends on 2026-10-21.
+   **DONE in the tree** — Next 16.3.5, React 19.3.0, `eslint-config-next` 16.3.5 and its
+   flat configs; nothing in the code used what Next 16 removes. pnpm held the install until
+   the last of Next's platform binaries was a day old. The PostCSS override is gone (Next 16
+   pins a fixed release); `WATCHPACK_POLLING` is gone (Turbopack in the container sees a
+   host edit and a deletion without it). **Two React Compiler rules off** — `refs` 15,
+   `set-state-in-effect` 6 — for D124's reason (D128). Jest 316 / 49, `tsc`, ESLint, the
+   Turbopack build; every signed-in page rendered with a real session cookie, the account
+   deleted after; `pnpm audit` nothing; the CI Trivy gate 0. No `AGENTS.md` or `CLAUDE.md`
+   written.
 7. **The model libraries** — torch 2.14, transformers 5.17, onnxruntime 1.30, piper-tts
    1.8 — one at a time, each with `make eval`, because each changes what is measured.
    **NOT STARTED.**
@@ -2161,11 +2169,11 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**m17, security and dependencies, items 0–5 are in the tree**, uncommitted, on top of
-`feature/m16-polish` at `0a58955`: `GIT-COMMANDS.md` §A.28 cuts `feature/m17-security`
-from there — `git switch -c` carries the working tree — and §A.29 commits it. Then item 6,
-Next 16, before 2026-10-21; item 7, each model library with `make eval`; the PR last.
-m16's own PR, §B.15, is still the owner's to open, and m17 stacks on it.
+**m17, security and dependencies, items 0–5 are committed** on `feature/m17-security` as
+`1128062` and `a303e66` (§A.28, §A.29), stacked on `feature/m16-polish` at `0a58955`.
+Item 6, Next 16 and React 19.3, is done in the tree for §A.30; then item 7, each model
+library with `make eval` on a clean tree; the PR last. m16's own PR, §B.15, is still the owner's to open, and m17 stacks
+on it.
 
 **`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
 and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,

@@ -157,7 +157,6 @@ services:
       # one for both is the classic Next.js container bug.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8002}
       INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000}
-      WATCHPACK_POLLING: "true"
     volumes:
       - ./frontend:/app
       # Anonymous volumes so the container's own node_modules and .next survive the

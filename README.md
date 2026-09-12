@@ -7,7 +7,7 @@
 [![CI](https://github.com/Luisfelipecruz/speaklab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Luisfelipecruz/speaklab/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Runs locally](https://img.shields.io/badge/runs-locally-2ea44f)
 
@@ -165,7 +165,7 @@ The long way, if you want each step separately: `cp .env.example .env`, `make up
 ```mermaid
 graph LR
     subgraph Browser
-        FE["Next.js 15<br/>:3003"]
+        FE["Next.js 16<br/>:3003"]
     end
     subgraph "Docker Compose"
         API["FastAPI<br/>:8002<br/><i>no model weights</i>"]
@@ -310,7 +310,7 @@ api/            FastAPI. No model weights, no torch.
   scripts/      The seed loader, and the backfill, reparse, rollup and corpus commands
                 behind `make`
   seeds/        The 11 scenarios, 12 passages and 13 answer prompts, as JSON
-frontend/       Next.js 15, React 19, shadcn/ui, installed with pnpm
+frontend/       Next.js 16, React 19, shadcn/ui, installed with pnpm
   src/app/      Routes. (auth) holds sign-in; (app) is the signed-in shell — home,
                 scenarios, read, sessions, grammar, answers, progress — each page with a
                 loading state of its own

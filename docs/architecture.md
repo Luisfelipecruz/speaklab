@@ -342,7 +342,7 @@ a 502, the same shape as `/health` reporting degraded rather than dead.
 
 ## 8. The frontend
 
-Next.js 15 with the App Router, React 19, Tailwind v4 and shadcn/ui, installed with pnpm
+Next.js 16 with the App Router and Turbopack, React 19, Tailwind v4 and shadcn/ui, installed with pnpm
 at the version `package.json` names. `pnpm-workspace.yaml` holds what pnpm refuses: a
 release less than a day old, a release published with weaker evidence of where it came
 from than an earlier one of the same package — two exact versions are excepted, each

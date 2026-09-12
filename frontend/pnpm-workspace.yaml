@@ -27,8 +27,3 @@ trustPolicyExclude:
 allowBuilds:
   "@parcel/watcher": false
   unrs-resolver: false
-
-# Next pins its own copy of PostCSS to a release with published vulnerabilities; this
-# gives it the current one, which the rest of the tree already uses.
-overrides:
-  "next>postcss": ^8.5.26

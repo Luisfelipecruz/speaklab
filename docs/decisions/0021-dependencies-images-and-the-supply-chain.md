@@ -51,10 +51,20 @@ it was mechanical. These were the choices in fixing it.
    two remain in the tree and are excepted by exact version, the third left it with Node
    24's types. npm and corepack are removed from the image, and so are pnpm's store and its
    cache of registry metadata once the install is done: the image is 1.05 GB, from 1.66 GB.
-   Next's own pinned copy of PostCSS is overridden to the current release, and `qs` moves
-   to 6.16.0.
-8. **Node 24, the active LTS, replaces Node 22; Next 15.5.25 and React 19.1.9**, the patch
-   releases of the lines already in use. Next 16 is not adopted in this step.
+   `qs` moves to 6.16.0.
+8. **Node 24, the active LTS, replaces Node 22, and Next 16.3.5 with React 19.3.0 replaces
+   Next 15**, whose support ends on 2026-10-21. Nothing in the code used what Next 16
+   removes — every request API was already awaited, and there is no middleware, image
+   optimisation or runtime config. Turbopack builds and serves. Next 16 pins a PostCSS
+   release past every published advisory, so the override Next 15's copy needed is gone.
+   ESLint moves to `eslint-config-next`'s own flat configs, and **two rules React Hooks'
+   recommended set takes from the React Compiler are off** — refs read or written during
+   render (15 places, all in the three recorders) and state set synchronously in an effect
+   (6) — for decision 3's reason: the code is written to the rules of hooks and
+   exhaustive dependencies, which stay on, and rewriting the recorders and hooks to the
+   compiler's rules is a change of its own. The containerised dev server sees an edit on
+   the host without polling, so Compose's polling variable, which only webpack read, is
+   gone.
 9. **Postgres is pinned to 16.15 and stays on Debian.** The Alpine variant carries far
    fewer findings but sorts text differently, so an existing database would have to be
    dumped and restored to move.
@@ -81,7 +91,7 @@ it was mechanical. These were the choices in fixing it.
 | `postgres` | 19 / 155 (`:16`) | 14 / 101 (`:16.15`), upstream's |
 | The repository, as CI scans it | — | 0 fixable HIGH or CRITICAL, 0 misconfigurations, 0 secrets |
 | API suite | 1 049, 1 011 pass | **1 050, 1 012 pass**, 38 need a model service, no warnings |
-| Frontend | 316 / 49 | 316 / 49; `tsc`, ESLint and `next build` green |
+| Frontend | 316 / 49, Next 15 | 316 / 49 on Next 16.3.5 and React 19.3.0; `tsc`, ESLint and the Turbopack build green; every signed-in page renders with a real session |
 
 All on 2026-09-12, in Docker, with the live stack brought up the way `make setup` brings
 it up: every service healthy, every model loaded under the new account, a recording written
@@ -93,6 +103,12 @@ to the audio volume.
   fonts: Node's fallback between address families times out where `wget` connects. The
   image as it was before this change fails the same way, and the build passes with
   `NODE_OPTIONS=--no-network-family-autoselection`.
+- pnpm refused Next 16.3.5 a day after its release: its Windows x64 binary was published
+  43 minutes after the package itself, and the install waited until that too was a day
+  old.
+- `next dev` writes an `AGENTS.md` and a `CLAUDE.md` into the project when it detects an
+  AI coding agent from its environment. The container is given no such variable, and
+  neither file appeared.
 
 ## Revisit if
 
