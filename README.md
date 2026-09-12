@@ -78,7 +78,7 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
 | **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Measured on 2026-09-12, tts and pron on 2026-09-13: images of 826 MB (api), 790 MB (asr), 724 MB (tts), 1.05 GB (frontend) and 657 MB (`postgres:16.15`) — 4.0 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
+| **Disk** | Measured on 2026-09-12, tts, pron and the frontend on 2026-09-13: images of 826 MB (api), 790 MB (asr), 724 MB (tts), 1.06 GB (frontend) and 657 MB (`postgres:16.15`) — 4.1 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
 | **Memory** | **1.74 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` on 2026-09-12 — asr 673 MiB, frontend 613, tts 236, api 190, postgres 72; 1.94 GiB the first time, on 2026-09-10. Ollama is not in either figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
@@ -230,7 +230,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service (2026-09-12) | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service (2026-09-13) | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here is dated and names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -293,7 +293,7 @@ Ollama for conversation.
 | Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 316 across 49 suites |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
 | Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
-| Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — 16 min 24 s on 2026-09-12 with every service up |
+| Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — 15 min 20 s on 2026-09-13 with every service up |
 | Every other target, described | `make help` |
 
 ### Repository layout

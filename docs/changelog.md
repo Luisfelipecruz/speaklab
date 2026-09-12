@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] · security and dependencies
+## [0.17.0] — 2026-09-13 · security and dependencies
 
 Every dependency that could be current is, every container runs as an unprivileged
 account on a port bound to the machine itself, the frontend installs with pnpm under a
@@ -43,6 +43,9 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
 - **The model libraries**: torch 2.14.0, transformers 5.17.0 and huggingface_hub 1.31.0 in
   pron; onnxruntime 1.30.0 and piper-tts 1.8.0 in tts. Each was measured alone against
   the image before it, and nothing the product measures moved.
+- **The frontend's test and lint tools**: TypeScript 6.0.3, jest-dom 7.0.1, Jest 30.5.1,
+  user-event 14.6.7 and shadcn 4.21.0, and lucide-react 1.45.0. TypeScript 7 and ESLint
+  10 wait, because the lint plugins Next's configuration uses do not accept them yet.
 - **ruff's rules named** — E4, E7, E9 and F — and black 26's style applied.
 - **CI**: a read-only token, every action pinned to a commit at v7, Postgres 16.15.
 
@@ -59,7 +62,7 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
 - Trivy, CRITICAL and HIGH: the api, asr and tts images **0 and 44**, from 3 and about
   100, none with a fix; pron 0 and 45; the frontend **0 and 0**, from 4 and 45;
   `postgres:16.15`, pulled from upstream, 14 and 101.
-- Images: the frontend **1.05 GB**, from 1.66 GB; api 826 MB, asr 790 MB, tts 724 MB and
+- Images: the frontend **1.06 GB**, from 1.66 GB; api 826 MB, asr 790 MB, tts 724 MB and
   pron 1.87 GB, each a little larger for the fixes applied at build and pron for torch
   2.14. `pnpm audit` finds nothing.
 - The model libraries, each against the image before it, side by side: the pronunciation
@@ -67,6 +70,13 @@ supply-chain policy, and CI scans for known vulnerabilities. `docs/decisions/002
   golden suite unchanged; synthesis as fast, with audio of the same length; the
   recogniser's word error rate 1.72 %, and its figures on the synthetic voice within that
   voice's own spread.
+- **`docs/evaluation.md` regenerated** by `make eval` at `08aa0b5`, all five suites, in
+  15 min 20 s. The criteria are unchanged — S4 not run, S5 0.500 over six, S6 1.72 %, S7
+  not met, 7 sessions on 2 days — and so is every figure the pronunciation, rule and form
+  suites produce. Sampled on the synthetic voice, prepositions said with their mistake
+  were heard as said 16 times in 20, one fewer than in any earlier run; the drill's
+  mistakes heard as their correction 2 of 89; the persona gave its instructions away 10
+  times in 150.
 - API suite **1 050** — 1 012 pass, 38 need a model service; frontend 316 across 49
   suites; `tsc`, ESLint, `next build` and lint clean.
 

@@ -1994,7 +1994,7 @@ figure. Every S-criterion is verified and recorded, and the walkthrough is recor
 
 **Branch** `feature/m16-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
-### m17 — Security and dependencies · **IN PROGRESS** — started 2026-09-12 at the owner's request; items 0–6 committed, item 7 in the tree
+### m17 — Security and dependencies · **CODE COMPLETE** — started 2026-09-12 at the owner's request; items 0–7 committed, item 8 in the tree
 
 **Goal.** Someone who runs Trivy on the repository, reads its pins or opens its security
 settings finds nothing out of date that could be current, and nothing exposed that need
@@ -2073,7 +2073,7 @@ started)*.
    written.
 7. **The model libraries** — torch 2.14, transformers 5.17, onnxruntime 1.30, piper-tts
    1.8 — one at a time, each with `make eval`, because each changes what is measured.
-   **DONE in the tree** — torch 2.14.0, transformers 5.17.0, huggingface_hub 1.31.0 in
+   **DONE**, committed as `08aa0b5` — torch 2.14.0, transformers 5.17.0, huggingface_hub 1.31.0 in
    pron (torchaudio 2.11.0 is the latest); onnxruntime 1.30.0, piper-tts 1.8.0 in tts; asr
    already current through faster-whisper's unpinned dependencies. **Each measured alone
    against an image built from `35d8d94`, side by side, requests alternating**, instead of
@@ -2090,8 +2090,20 @@ started)*.
    `limitations.md`. On GitHub, by the owner:
    private vulnerability reporting, Dependabot alerts and security updates, a ruleset on
    `main` that requires CI.
+   **DONE in the tree** — `make eval` at `08aa0b5` on a clean tree, all five suites, 15 min
+   20 s at load 5–19: S4–S7 unchanged, and every pronunciation, rule and form figure the
+   same; sampled on the synthetic voice, prepositions heard as said 16 of 20 (the range is
+   now 16–20), the drill 2 of 89, the instructions given away 10 of 150, every answer's
+   sentence count within one. `0.17.0`; the changelog. **The re-score found the frontend's
+   tools behind** and brought them current (D130): TypeScript 6.0.3, jest-dom 7.0.1, Jest
+   30.5.1, user-event 14.6.7, shadcn 4.21.0, lucide-react 1.45.0 — TypeScript 7 and ESLint
+   10 wait on typescript-eslint and three lint plugins. Every Python pin at PyPI's latest.
+   Trivy unchanged — api, asr, tts 0 / 44, pron 0 / 45, frontend 0 / 0 at 1.06 GB,
+   `postgres:16.15` 14 / 101 — and the gate 0. API 1 050 (1 012 / 38), lint; Jest 316 /
+   49, `tsc`, ESLint, `next build`. Private vulnerability reporting is on; the review scores
+   **89 of 100**, 94 with Dependabot alerts, security updates and a ruleset on `main`.
 
-**Decisions.** D122–D129, `docs/decisions/0021` and `0022`.
+**Decisions.** D122–D130, `docs/decisions/0021` and `0022`.
 
 **Done when.** CI's four jobs green on the PR, the Trivy job among them; items 6 and 7
 done, or deferred by a record that says why; the review re-scored from the live system; the
@@ -2182,11 +2194,11 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**m17, security and dependencies, items 0–6 are committed** on `feature/m17-security` as
-`1128062`, `a303e66` and `35d8d94` (§A.28–§A.30), stacked on `feature/m16-polish` at
-`0a58955`. Item 7, the model libraries, is done in the tree for §A.31; the PR last, with
-`make eval` on the committed tree. m16's own PR, §B.15, is still the owner's to open, and m17 stacks
-on it.
+**m17, security and dependencies, is code complete.** Items 0–7 are committed on
+`feature/m17-security` as `1128062`, `a303e66`, `35d8d94` and `08aa0b5` (§A.28–§A.31),
+stacked on `feature/m16-polish` at `0a58955`; item 8 — `0.17.0`, the report, the frontend's
+tools — is in the tree for §A.32, and §B.16 is the PR. m16's own PR, §B.15, is still the
+owner's to open, and m17 stacks on it.
 
 **`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
 and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,
