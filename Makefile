@@ -9,7 +9,7 @@
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
         persona-adherence answer-feedback corpus analyze analyze-dry reparse error-precision rollup \
-        rollup-dry rollup-force
+        rollup-dry rollup-force fmt-website site site-serve release-notes
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -93,11 +93,13 @@ test-frontend:                     ## Run the frontend suite (Jest + RTL) in a c
 # eval/ is mounted read-only inside /app, so it is excluded from the /app pass and checked
 # in its own. The two exclusions differ on purpose: ruff's matches a directory name, while
 # black's is a regex over the whole path, anchored so it does not also skip
-# tests/eval_out.py and tests/test_eval_harness.py.
+# tests/eval_out.py and tests/test_eval_harness.py. website/ is mounted read-only beside
+# /app and checked against the same rules, named by api/ruff.toml.
 lint:                              ## ruff + black, check only
-	docker compose --profile tools run --rm --entrypoint sh test -c \
+	docker compose --profile tools run --rm -v "$$PWD/website:/website:ro" --entrypoint sh test -c \
 		"ruff check --exclude eval /app && black --check --exclude '^/eval/' /app \
-		 && ruff check /app/eval && black --check /app/eval"
+		 && ruff check /app/eval && black --check /app/eval \
+		 && ruff check --config /app/ruff.toml /website && black --check /website"
 
 fmt:                               ## ruff --fix + black, in place
 	docker compose --profile tools run --rm --entrypoint sh test -c \
@@ -108,6 +110,35 @@ fmt:                               ## ruff --fix + black, in place
 fmt-eval:                          ## ruff --fix + black over eval/, via a writable mount
 	docker compose --profile tools run --rm -v "$$PWD/eval:/eval-rw" \
 		--entrypoint sh test -c "ruff check --fix /eval-rw && black /eval-rw"
+
+fmt-website:                       ## ruff --fix + black over website/, via a writable mount
+	docker compose --profile tools run --rm -v "$$PWD/website:/website-rw" \
+		--entrypoint sh test -c \
+		"ruff check --config /app/ruff.toml --fix /website-rw && black /website-rw"
+
+# ── The project site and releases ───────────────────────────────────────────
+
+# A throwaway container on the Python base the services use. The repository is mounted
+# read-only and only _site/ is written; links to files that are not pages point at the
+# commit checked out here.
+SITE_RUN = docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 \
+	-v "$$PWD:/repo:ro" -v "$$PWD/_site:/repo/_site" -w /repo python:3.12.14-slim-trixie
+
+site:                              ## Build the project site into _site/; a broken link fails it
+	@mkdir -p _site
+	$(SITE_RUN) sh -c "pip install --quiet --no-cache-dir --user --disable-pip-version-check \
+		--no-warn-script-location -r website/requirements.txt -r website/requirements-dev.txt \
+		&& python -m pytest website/tests -q -p no:cacheprovider \
+		&& python website/build.py --out _site --revision $$(git rev-parse HEAD)"
+
+site-serve:                        ## Serve _site/ on http://localhost:8004, after make site
+	docker run --rm -p 127.0.0.1:8004:8004 -v "$$PWD/_site:/site:ro" -w /site \
+		python:3.12.14-slim-trixie python -m http.server 8004
+
+release-notes:                     ## A release's notes from the changelog: make release-notes V=0.18.0
+	@test -n "$(V)" || { echo "usage: make release-notes V=0.18.0" >&2; exit 1; }
+	@docker run --rm -v "$$PWD:/repo:ro" -w /repo python:3.12.14-slim-trixie \
+		python website/release_notes.py $(V)
 
 # ── Model services ──────────────────────────────────────────────────────────
 

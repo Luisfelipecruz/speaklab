@@ -63,6 +63,9 @@ CLAUDE.md
 speaklab-agent/SESSION-HANDOFF.md
 speaklab-agent/GIT-COMMANDS.md
 
+# The project site as `make site` builds it. The Pages workflow builds its own from main.
+/_site/
+
 # Editors
 .idea/
 .vscode/

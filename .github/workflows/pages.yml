@@ -1,0 +1,62 @@
+# Builds the project site from the repository's Markdown and publishes it on GitHub Pages,
+# on every push to main. It is the build CI's Site job runs on every pull request, so a
+# page with a broken link never reaches main; this workflow only publishes.
+#
+# Every action is pinned to a commit, with its release in a comment. The token can write to
+# Pages, and only in the job that publishes.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time. A newer push waits for the one in progress rather than
+# cancelling it halfway through.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Pages — build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.14"
+          cache: pip
+          cache-dependency-path: website/requirements.txt
+
+      - name: Install
+        run: pip install -r website/requirements.txt
+
+      # Links to files that are not pages point at this commit on GitHub.
+      - name: Build
+        run: python website/build.py --out _site --revision "$GITHUB_SHA"
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Pages — publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
