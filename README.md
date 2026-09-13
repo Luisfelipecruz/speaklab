@@ -5,13 +5,14 @@
 **A speaking coach for English that runs entirely on your machine, and counts every number it shows you.**
 
 [![CI](https://github.com/Luisfelipecruz/speaklab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Luisfelipecruz/speaklab/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Luisfelipecruz/speaklab?label=release)](https://github.com/Luisfelipecruz/speaklab/releases/latest)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Runs locally](https://img.shields.io/badge/runs-locally-2ea44f)
 
-[Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Success criteria](#success-criteria) · [Limitations](#known-limitations) · [Docs](#documentation) · [Contributing](#contributing)
+[Site](https://luisfelipecruz.github.io/speaklab/) · [Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Success criteria](#success-criteria) · [Limitations](#known-limitations) · [Docs](#documentation) · [Releases](https://github.com/Luisfelipecruz/speaklab/releases) · [Contributing](#contributing)
 
 </div>
 
@@ -266,6 +267,10 @@ The full list is [docs/limitations.md](docs/limitations.md). The ones to know fi
 
 ## Documentation
 
+The same documents are a site, [luisfelipecruz.github.io/speaklab](https://luisfelipecruz.github.io/speaklab/),
+rebuilt from `main` on every merge. Each [release](https://github.com/Luisfelipecruz/speaklab/releases)
+carries its entry in the changelog as its notes.
+
 | | |
 |---|---|
 | [docs/how-it-works.md](docs/how-it-works.md) | The conversation, corrections and grammar, read aloud, *Make your point*, progress and the evaluation harness — what each does, what it refuses to do, and how well it works |
@@ -274,10 +279,10 @@ The full list is [docs/limitations.md](docs/limitations.md). The ones to know fi
 | [docs/limitations.md](docs/limitations.md) | What does not exist yet, by component |
 | [docs/architecture.md](docs/architecture.md) | The services, health, data, audio and the conversation loop |
 | [docs/data-model.md](docs/data-model.md) | The tables, why five columns are JSONB, and the seed contract |
-| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-two dated records, each kept as it was written |
+| [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-three dated records, each kept as it was written |
 | [docs/changelog.md](docs/changelog.md) | One entry per milestone |
 | [PRD.md](PRD.md) | The product requirements and the measurement model |
-| [IMPLEMENTATION-PLAN.md](speaklab-agent/IMPLEMENTATION-PLAN.md) | How it was built: sixteen milestones, each with what it was expected to prove and what it measured |
+| [IMPLEMENTATION-PLAN.md](speaklab-agent/IMPLEMENTATION-PLAN.md) | How it was built: eighteen milestones, each with what it was expected to prove and what it measured |
 | API reference | <http://localhost:8002/docs> once the stack is up: 31 operations, each with a summary |
 
 ---
@@ -292,8 +297,10 @@ Ollama for conversation.
 | API tests, in a container | `make test` — 1 050; 1 012 pass with Postgres alone, the other 38 need a model service |
 | Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 316 across 49 suites |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
-| Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
+| Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly, for everything but the frontend, which CI audits every Monday; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
 | Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — 15 min 20 s on 2026-09-13 with every service up |
+| The project site, as Pages builds it | `make site` — its tests, then every page into `_site/`; a link to a file or a heading that does not exist fails it. `make site-serve` shows it |
+| A release's notes | `make release-notes V=x.y.z` — that version's entry in the changelog; [CONTRIBUTING.md](CONTRIBUTING.md#releases) has how a release is cut |
 | Every other target, described | `make help` |
 
 ### Repository layout
@@ -323,8 +330,11 @@ eval/           The evaluation harness. run.py orchestrates, report.py adjudicat
   golden/       renders, scoring.py is the arithmetic both share with the suites.
                 golden/ holds the fixtures — committed, with a manifest of their hashes,
                 and mounted read-only into the one container that measures
-.github/        CI, Dependabot, and the issue and pull-request templates
+.github/        CI, the Pages and release workflows, Dependabot, and the issue and
+                pull-request templates
 docs/           Architecture, data model, decisions, changelog, and the evaluation report
+website/        The project site's builder, and the script that cuts a release's notes
+                from the changelog
 speaklab-agent/ The implementation plan — how it was built
 ```
 

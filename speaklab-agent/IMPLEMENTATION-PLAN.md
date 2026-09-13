@@ -1,6 +1,6 @@
 # SpeakLab — Implementation Plan
 
-**Status:** v1.18 — **m0 passed; m1 through m15 are merged into `main`, CI green** (m13 as
+**Status:** v1.19 — **m0 passed; m1 through m17 are merged into `main`, CI green** (m13 as
 PR #15, `537869e`, 2026-09-06), and **three off-milestone PRs are merged**: #16 (`0.13.1`),
 a fresh clone that can hold a conversation; #17 (`0.13.2`), the first cold run of `make
 setup` — **7 min 12 s, against five minutes, missed**; and #18 (`0.13.3`, `49bdeea`), m14's
@@ -23,11 +23,11 @@ spoken answer to a work prompt, how it is built and how it is delivered counted 
 the model's checked feedback beside the counts, said again side by side; every shown
 measure above 0.90 / 0.75 on held-out answers, phrases started again below it and not
 shown, the model's shorter version withheld 2 of 16 held out; CI green on its first run.
-**m16, polish, is committed** on `feature/m16-polish` (`0a58955`), its PR prepared for the owner. **m17, security and dependencies, is in progress** on `feature/m17-security` — items 0–5 committed, item 6 (Next 16) in the tree (`docs/decisions/0021`). Three criteria — S4, S5, S7 — are blocked on speech only
+**m16, polish, is merged as PR #21 (`0.16.0`, `aa403ec`)**, and **m17, security and dependencies, as PR #22 (`0.17.0`, `18abed8`, 2026-09-13)** (`docs/decisions/0020`–`0022`). **m18, releases and the project site, is code complete** in the tree for `feature/m18-releases` (`docs/decisions/0023`). Three criteria — S4, S5, S7 — are blocked on speech only
 a person can produce, and no milestone changes that. The repository is
 `Luisfelipecruz/speaklab`; every git command is prepared in `GIT-COMMANDS.md` for the human
 to run, never by an agent.
-**Date:** 2026-08-29, last revised 2026-09-12 (m15 merged as #20; m16 started and its items written; `demo/` out of the repository and the README reshaped; m17 added at the owner's request and items 0–5 built; §11 rewritten)
+**Date:** 2026-08-29, last revised 2026-09-13 (m16 and m17 merged as #21 and #22; m18 added at the owner's request and built; §11 rewritten)
 **Companion to:** `../PRD.md`
 
 ---
@@ -1837,7 +1837,7 @@ measured and in `docs/evaluation.md`.
 
 ---
 
-### m16 — Polish, documentation, demo · **CODE COMPLETE** — started 2026-09-12 at the owner's request *(was m13 until 2026-09-06, m15 until 2026-09-12)*
+### m16 — Polish, documentation, demo · **MERGED as PR #21** (`aa403ec`, 2026-09-13) — started 2026-09-12 at the owner's request *(was m13 until 2026-09-06, m15 until 2026-09-12)*
 
 **Goal.** A stranger clones the repo, runs it, and understands the engineering.
 
@@ -1994,7 +1994,7 @@ figure. Every S-criterion is verified and recorded, and the walkthrough is recor
 
 **Branch** `feature/m16-polish` · **PR** `feat: finalise documentation, demo and empty states`
 
-### m17 — Security and dependencies · **CODE COMPLETE** — started 2026-09-12 at the owner's request; items 0–7 committed, item 8 in the tree
+### m17 — Security and dependencies · **MERGED as PR #22** (`18abed8`, 2026-09-13) — started 2026-09-12 at the owner's request; items 0–8 in six commits, CI green on all four jobs, the Security job's first run
 
 **Goal.** Someone who runs Trivy on the repository, reads its pins or opens its security
 settings finds nothing out of date that could be current, and nothing exposed that need
@@ -2111,6 +2111,71 @@ GitHub settings on.
 
 **Branch** `feature/m17-security`, stacked on `feature/m16-polish` · **PR** `fix: bring dependencies current, run every service unprivileged, and scan in CI`
 
+### m18 — Releases and the project site · **CODE COMPLETE** — started 2026-09-13 at the owner's request; in the tree for §A.34
+
+**Goal.** Someone who finds the repository finds a release to point at and a site to read,
+and both are made from files the repository already keeps — the changelog and the
+documents — so neither can say something those files do not.
+
+**Why here.** After m17, because of a question: the owner asked whether SpeakLab had a
+GitHub Pages site and releases "like other repos open source", naming OmniRoute and
+archify. It had neither — Pages 404, no tag, no release, no homepage, no topics — and
+scored **55 of 100** on eight parts of a repository's public face, read from GitHub's API,
+against about 95 and 98 for the two. The owner then chose how the site is built (a script
+of our own), which releases exist (0.17.0 after the fact, and every version from here), and
+what to do about the gap in Dependabot that m17's merge had exposed the same day (ignore
+the majors that wait, audit the frontend weekly).
+
+**Deliverables.**
+```
+website/{build,markup,release_notes}.py, templates/, static/, tests/   the site, and a release's notes
+website/requirements{,-dev}.txt        markdown-it-py 4.2.0, mdit-py-plugins 0.6.1, mdurl 0.1.2; pytest
+.github/workflows/{pages,release}.yml  the site published from main; a release from a tag
+.github/workflows/ci.yml               the Site job; every Monday; the frontend's audit
+.github/dependabot.yml                 the waiting majors ignored; website/ updated with the rest
+Makefile                               site, site-serve, release-notes, fmt-website; lint covers website/
+README, CONTRIBUTING, SECURITY, docs/{architecture,limitations,measurements,changelog}.md
+docs/decisions/0023                    what was decided
+```
+
+**The items, in the order they are built** *(written 2026-09-13, when the milestone
+started)*.
+
+0. **The record.** This milestone, and `docs/decisions/0023`. **DONE.**
+1. **A release's notes from the changelog, and a workflow that publishes them from a
+   tag.** **DONE** — `website/release_notes.py`, standard library only; `release.yml`
+   refuses a tag off `main` or on a commit carrying another version; the Site job fails a
+   version with no entry. 0.17.0's notes cut, 74 lines, for §B.18.
+2. **The site.** **DONE** — the README as the home page, a hero in place of GitHub's header;
+   the documents, 23 decision records and their index: **35 pages**, 175 links, every one
+   resolved — 133 to pages, 8 to headings, 8 to files on GitHub at the commit, 26
+   elsewhere. Relative links only, so it works under `/speaklab/` and at `/`; raw HTML
+   limited to eleven tags; Mermaid 12.0.0 fetched as the diagram nears the viewport,
+   checked against its hash. Seen in headless Chromium at 1440 and 390, light and dark,
+   the diagram drawn. 41 tests; built with git as CI does and without it as `make site`
+   does, the same figures
+3. **CI and publishing.** **DONE in the tree** — the Site job, `pages.yml`, the Monday run;
+   actionlint 1.7.12 finds nothing in the three workflows. Never run on GitHub: nothing is
+   pushed.
+4. **Dependabot's gap.** **DONE** — the next majors of TypeScript, ESLint and Node's types
+   ignored; `pnpm audit --audit-level high` and `pnpm outdated --format list` run in the
+   frontend container on pnpm 12.4.1 — no known vulnerability, exit 0; ESLint 10.10.0 and
+   TypeScript 7.0.2 listed, exit 1.
+5. **The docs and the version.** **DONE** — README, CONTRIBUTING (how a release is cut),
+   SECURITY (the latest release is supported), `architecture.md`, `limitations.md`,
+   `measurements.md`; `0.18.0`; the changelog.
+6. **On GitHub, by the owner.** 0.17.0's release by hand (§B.18); Pages from GitHub
+   Actions before the merge, so the first publish has somewhere to go; after it, the tag
+   `v0.18.0`, the homepage, and the Site job in the ruleset (§B.19).
+
+**Decisions.** D131–D135, `docs/decisions/0023`.
+
+**Done when.** CI's five jobs green on the PR; the site published from `main` and
+answering at its address; releases `v0.17.0` and `v0.18.0`, the second made by the
+workflow; the ruleset requiring the Site job.
+
+**Branch** `feature/m18-releases`, cut from `main` at `18abed8` · **PR** `feat: publish releases from the changelog and the documents as a site`
+
 ---
 
 ## 8. Dependency graph
@@ -2133,6 +2198,7 @@ m1 scaffold
                                                                                       └─ m15 articulation
                                                                                           └─ m16 polish
                                                                                               └─ m17 security and dependencies
+                                                                                                  └─ m18 releases and the project site
 ```
 
 m4 and m5 are genuinely independent and could be worked in either order. Everything else
@@ -2152,7 +2218,7 @@ at `main` except m1.
 | R5 GOP varies with hardware | m10 | Within-user z-score, device fingerprint, sample gate |
 | R6 `pron` memory pressure | m1, m8 | Profiled service, graceful degradation tested |
 | R7 Persona drift | m6, m11 | Per-turn re-anchoring, summarised history, adherence suite |
-| R8 Scope creep | this document | m1–m16 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled. m15, articulation, was added on 2026-09-12 at the owner's request the same way — PRD §15.1 first — and placed before polish, now m16. m17, security and dependencies, was added on 2026-09-12 at the owner's request after a scored review, for m12's reason: an unmet bar on work already delivered |
+| R8 Scope creep | this document | m1–m16 fixed; new ideas go to PRD §15. m12 was added after m11 and the reason is recorded in it: an unmet quality bar on work already delivered is not a new idea. m13 and m14 were added on 2026-09-06 at the owner's request: m13 is the stated purpose of two columns that already existed, and m14 is a new idea that was recorded in PRD §15.1 before it was scheduled. m15, articulation, was added on 2026-09-12 at the owner's request the same way — PRD §15.1 first — and placed before polish, now m16. m17, security and dependencies, was added on 2026-09-12 at the owner's request after a scored review, for m12's reason: an unmet bar on work already delivered. m18, releases and the project site, was added on 2026-09-13 at the owner's request, after a scored comparison with two published projects |
 
 ---
 
@@ -2180,7 +2246,8 @@ Evenings-and-weekends pace, one developer.
 | m15 | 4–5 | The labelled answers and the parse's reading of the signposts are most of it |
 | m16 | 3 | |
 | m17 | 2–3 | Mostly mechanical; a framework's changed internals and the trust policy were not |
-| **Total** | **~52–59** | |
+| m18 | 1 | A site builder is a few hundred lines; checking every link it writes is what makes it worth having |
+| **Total** | **~53–60** | |
 
 ---
 
@@ -2194,18 +2261,19 @@ Evenings-and-weekends pace, one developer.
 
 ### The next actions
 
-**m17, security and dependencies, is code complete.** Items 0–7 are committed on
-`feature/m17-security` as `1128062`, `a303e66`, `35d8d94` and `08aa0b5` (§A.28–§A.31),
-stacked on `feature/m16-polish` at `0a58955`; item 8 — `0.17.0`, the report, the frontend's
-tools — is in the tree for §A.32, and §B.16 is the PR. m16's own PR, §B.15, is still the
-owner's to open, and m17 stacks on it.
+**m18, releases and the project site, is code complete** in the tree for §A.34, on
+`feature/m18-releases`, cut from `main` at `18abed8` by §A.33; §B.19 is its PR. Before
+it, by the owner: 0.17.0's release by hand (§B.18), and Pages turned on for GitHub
+Actions, so the first publish on the merge has somewhere to go. After it: the tag
+`v0.18.0`, which the new workflow turns into a release, the homepage, and the Site job in
+the ruleset.
 
-**`main` is PR #20 (`0.15.0`, `53279df`)**: all of m15 — `d75accb`, `f7f1a59`, `9a1d04c`
-and `8b1dd50` — squash-merged on 2026-09-12, CI green on all three jobs. **m16, polish,
-is code complete on `feature/m16-polish`**, cut from `53279df`; its items are in m16 above.
-`demo/`, the walkthrough recorder, was tracked in `836d430` and `0174d7f` and is kept out
-of the repository from the version commit on (D119): ignored, on the machine that
-records, and never on `main`, because the branch is squash-merged.
+**`main` is PR #22 (`0.17.0`, `18abed8`)**: m16 as #21 (`aa403ec`) and m17 as #22,
+squash-merged on 2026-09-13, CI green on every job — m17's Security job for the first
+time. On GitHub, by the owner (§B.17): a ruleset on `main` — a pull request, squash only,
+the four jobs green, no force push, no deletion — Dependabot alerts and security updates,
+and nine topics. `demo/`, the walkthrough recorder, is kept out of the repository (D119):
+ignored, on the machine that records, and never on `main`.
 
 **Merged as PR #20, 2026-09-12:**
 - ~~m15's PR, `0.15.0`.~~ `make eval` with all five suites, 15 min 36 s, at `9a1d04c`. The

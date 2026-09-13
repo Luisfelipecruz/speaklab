@@ -1,0 +1,9 @@
+# The project site's builder: Markdown to HTML, and nothing else.
+#
+# Installed by CI's Site job, the Pages workflow and `make site`. Never into an image the
+# product runs from. mdurl is markdown-it-py's own dependency, pinned so a build is the
+# same build wherever it runs.
+
+markdown-it-py==4.2.0
+mdit-py-plugins==0.6.1
+mdurl==0.1.2

@@ -7,7 +7,7 @@ version: 2
 updates:
   # The API and the three model services, one requirements file each.
   - package-ecosystem: pip
-    directories: ["/infra/api", "/infra/asr", "/infra/tts", "/infra/pron"]
+    directories: ["/infra/api", "/infra/asr", "/infra/tts", "/infra/pron", "/website"]
     schedule:
       interval: weekly
     cooldown:
@@ -32,6 +32,9 @@ updates:
           - setuptools
       dev-tools:
         patterns: [pytest*, ruff, black]
+      # The project site's builder.
+      site:
+        patterns: [markdown-it-py, mdit-py-plugins, mdurl]
       # These change what the product measures, and CI runs no measurement suite. A pull
       # request in this group needs `make eval` before it merges.
       model-libraries:
@@ -51,6 +54,11 @@ updates:
       - dependency-name: torch
       - dependency-name: torchaudio
 
+  # Dependabot's updater cannot yet run the pnpm release `packageManager` names, so an
+  # update it finds here fails at the lockfile; CI's weekly run audits the frontend and lists
+  # what is behind instead. The majors below wait on a decision, not on Dependabot:
+  # TypeScript 7 and ESLint 10 until the lint plugins Next's configuration uses accept them,
+  # and Node's types until the runtime moves past Node 24.
   - package-ecosystem: npm
     directory: /frontend
     schedule:
@@ -60,6 +68,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Base images. A new Python minor or Node major is a decision, not an update.
   - package-ecosystem: docker

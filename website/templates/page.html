@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title</title>
+<meta name="description" content="$description">
+<meta name="color-scheme" content="light dark">
+$head_extra
+<link rel="canonical" href="$canonical">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SpeakLab">
+<meta property="og:title" content="$title">
+<meta property="og:description" content="$description">
+<meta property="og:url" content="$canonical">
+<meta property="og:image" content="$og_image">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="${root}favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="${root}style.css">
+<script src="${root}site.js" defer></script>
+</head>
+<body class="$body_class">
+<a class="skip" href="#content">Skip to the content</a>
+<header class="topbar">
+  <a class="brand" href="${root}index.html"><img src="${root}favicon.svg" alt="" width="22" height="22">SpeakLab</a>
+  <nav class="toplinks" aria-label="Project">
+    <a href="$releases_url">Releases</a>
+    <a href="$repository_url">GitHub</a>
+  </nav>
+  <button class="menu" type="button" aria-controls="sidebar" aria-expanded="false">Menu</button>
+</header>
+<div class="layout">
+  <nav id="sidebar" class="sidebar" aria-label="Documentation">
+$nav
+  </nav>
+  <main id="content" class="content">
+$hero
+    <article class="prose">
+$content
+    </article>
+$pager
+  </main>
+$toc
+</div>
+<footer class="footer">$footer</footer>
+</body>
+</html>

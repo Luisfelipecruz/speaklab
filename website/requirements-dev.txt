@@ -1,0 +1,4 @@
+# The project site's tests. Installed on top of requirements.txt by CI's Site job and
+# `make site`.
+
+pytest==9.1.1

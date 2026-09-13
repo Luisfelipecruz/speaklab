@@ -1,0 +1,51 @@
+# Publishes a release when a version tag is pushed — `git tag -a v0.18.0 -m v0.18.0 <commit>`
+# and `git push origin v0.18.0`. The notes are that version's entry in docs/changelog.md,
+# with its links pointed at the tag. The job refuses a tag that is not on main, and one whose
+# commit carries a different version in api/config.py, so a release can only say what its
+# own commit says.
+#
+# Every action is pinned to a commit, with its release in a comment. This is the one job in
+# the repository whose token can write to it, and only to create the release.
+
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release — notes from the changelog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: The tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.14"
+
+      # Standard library only, so there is nothing to install.
+      - name: Notes, and the tag checked against the code
+        run: >-
+          python website/release_notes.py "${GITHUB_REF_NAME#v}" --check-version
+          --notes-file "$RUNNER_TEMP/notes.md" --title-file "$RUNNER_TEMP/title.txt"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --verify-tag
+          --title "$(cat "$RUNNER_TEMP/title.txt")"
+          --notes-file "$RUNNER_TEMP/notes.md"

@@ -39,11 +39,15 @@ Everything runs in containers, as CI runs it:
 | `make test-frontend` | Jest and React Testing Library |
 | `docker compose run --rm --no-deps frontend pnpm run typecheck` | TypeScript |
 | `docker compose run --rm --no-deps frontend pnpm run lint` | ESLint |
+| `make site` | The project site, built as the Pages workflow builds it, with its tests. A link to a file or a heading that does not exist fails it; `make site-serve` shows it on <http://localhost:8004> |
 
-CI runs four jobs on every pull request: the API's lint and tests with the evaluation
-harness's own tests, the frontend's lint, types, tests and build, a check that the Compose
-file parses with every profile, and a Trivy scan that fails on a HIGH or CRITICAL
-vulnerability with a fixed release, a Dockerfile that runs as root, or a secret.
+CI runs five jobs on every pull request: the API's lint and tests with the evaluation
+harness's own tests; the frontend's lint, types, tests and build; a check that the Compose
+file parses with every profile; a Trivy scan that fails on a HIGH or CRITICAL
+vulnerability with a fixed release, a Dockerfile that runs as root, or a secret; and the
+project site's tests and build. `main` takes a change only when all five pass. CI runs
+again every Monday on `main`, and then the frontend job also audits the installed packages
+and lists what has a newer release.
 
 If your change moves a measured figure, run what measures it — `make eval` runs every
 suite into [docs/evaluation.md](docs/evaluation.md) — and update the figure wherever it is
@@ -60,9 +64,12 @@ quoted, with its date. `docs/evaluation.md` is never edited by hand.
   `frontend/pnpm-lock.yaml` with it. pnpm refuses a release less than a day old, and runs
   no dependency's install script unless `frontend/pnpm-workspace.yaml` allows it; allowing
   one is a change to review, not a default.
-- **Dependabot proposes updates weekly.** An update to a model library — faster-whisper,
-  Piper, onnxruntime, transformers, torch — changes what the product measures, and needs
-  `make eval` before it merges.
+- **Dependabot proposes updates weekly** for the Python requirements, the base images,
+  Compose's images and the actions. It cannot yet update the frontend's lockfile — its
+  updater does not run the pnpm release `packageManager` names — so CI's Monday run lists
+  what is behind in its summary, and those updates are made by hand with `pnpm update`.
+  An update to a model library — faster-whisper, Piper, onnxruntime, transformers, torch —
+  changes what the product measures, and needs `make eval` before it merges.
 - **Every service runs as an unprivileged account**, and every published port is bound to
   `127.0.0.1`. Keep both.
 
@@ -90,6 +97,22 @@ quoted, with its date. `docs/evaluation.md` is never edited by hand.
 - A choice that cost time to learn gets a record in [docs/decisions/](docs/decisions/):
   what was decided, why, and what would reopen it.
 - Say in the pull request what you measured, and how.
+
+## Releases
+
+A release is one version's entry in [docs/changelog.md](docs/changelog.md), published from
+the commit that carries it.
+
+1. The pull request that finishes a version sets `VERSION` in `api/config.py` and adds
+   the changelog's entry for it, `## [x.y.z] — date · name`. CI's Site job fails when the
+   version in the code has no entry.
+2. Once it is merged, the maintainer tags the merge commit on `main` —
+   `git tag -a vx.y.z -m vx.y.z <commit>`, then `git push origin vx.y.z`.
+3. The Release workflow checks that the tag is on `main` and that its commit carries that
+   version, and publishes the release with the entry as its notes. `make release-notes
+   V=x.y.z` prints the same notes.
+
+The project site is rebuilt from `main` on every merge.
 
 ## Conduct and security
 
