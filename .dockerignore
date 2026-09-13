@@ -7,13 +7,13 @@
 .github
 .pr-bodies
 
-# 875 MB of throwaway m0 spike, including its virtualenv and its wav files.
+# A local throwaway spike, where one exists: 875 MB of virtualenv and wav files.
 spike
 
 # Its own build context, with its own .dockerignore.
 frontend
 
-# Graded before the run, mounted read-only into the test service only (invariant I7).
+# Graded before the run, mounted read-only into the test service only.
 eval
 
 speaklab-agent

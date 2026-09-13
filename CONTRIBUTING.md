@@ -1,8 +1,7 @@
 # Contributing to SpeakLab
 
 Thank you for looking. SpeakLab is a small project, and one rule shapes every change to it:
-**a figure is measured, dated and named with what produced it, or it is not written
-down.** A number in a README, a pull request or a code comment that nobody re-ran reads
+**a figure is measured and named with what produced it, or it is not written down.** A number in a README, a pull request or a code comment that nobody re-ran reads
 exactly like one somebody did, and this is a project about measuring honestly.
 
 ## What helps most
@@ -51,7 +50,8 @@ and lists what has a newer release.
 
 If your change moves a measured figure, run what measures it — `make eval` runs every
 suite into [docs/evaluation.md](docs/evaluation.md) — and update the figure wherever it is
-quoted, with its date. `docs/evaluation.md` is never edited by hand.
+quoted. `docs/evaluation.md` is never edited by hand. Dates belong in the changelog and
+nowhere else: the documents and the comments describe the system as it is.
 
 ## Dependencies
 
@@ -65,7 +65,7 @@ quoted, with its date. `docs/evaluation.md` is never edited by hand.
   no dependency's install script unless `frontend/pnpm-workspace.yaml` allows it; allowing
   one is a change to review, not a default.
 - **Dependabot proposes updates weekly** for the Python requirements, the base images,
-  Compose's images and the actions. It cannot yet update the frontend's lockfile — its
+  Compose's images and the actions. It cannot update the frontend's lockfile — its
   updater does not run the pnpm release `packageManager` names — so CI's Monday run lists
   what is behind in its summary, and those updates are made by hand with `pnpm update`.
   An update to a model library — faster-whisper, Piper, onnxruntime, transformers, torch —

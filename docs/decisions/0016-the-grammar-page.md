@@ -1,19 +1,18 @@
 # 0016 — The grammar page
 
-Status: accepted · 2026-09-11
+Status: accepted
 
-Grammar practice needed a place where a learner sees which grammar they get wrong, in their
-own sentences, and what to practise. The plan listed it as a section with the learner's
-categories and sentences, the forms they use and how correctly, and the scenario that draws
-out the weakest one — and left three questions open on purpose: whether it is a tab of the
-progress page or a section of its own; whether it shows a percentage at all while the
-detector's precision is 0.500; and what floor naming the weakest form needs. Decision 0015
-§6 is the background to all three: on the live corpus the only two corrections that joined
-a verb form are the model's false positives.
+Grammar practice needs a place where a learner sees which grammar they get wrong, in their
+own sentences, and what to practise: their categories and sentences, the forms they use and
+how correctly, and the scenario that draws out the weakest one. Three questions decide its
+shape: whether it is a tab of the progress page or a section of its own; whether it shows a
+percentage at all while the detector's precision is 0.500; and what floor naming the
+weakest form needs. Decision 0015 §6 is the background to all three: on the live corpus the
+only two corrections that joined a verb form are the model's false positives.
 
-It was built after a fix it depends on. Every correction a learner is shown comes from the
-session report, and until the same branch fixed it, ending a session straight after
-speaking wrote that report without the last turn (0014 §7).
+It depends on a fix. Every correction a learner is shown comes from the session report, and
+ending a session straight after speaking waits for the last turn before it writes that
+report (0014 §7).
 
 ## What was decided
 
@@ -22,7 +21,7 @@ speaking wrote that report without the last turn (0014 §7).
 2. **Evidence first.** Every correction in the sentence it was said in, marked on the
    transcript's own words, with what was proposed instead, which detector proposed it, and
    a link to the conversation.
-3. **No percentage on any screen.** Not here, and no longer beside the tenses on the
+3. **No percentage on any screen.** Not here, and not beside the tenses on the
    progress page either. Counts, with the corrections behind them.
 4. **A form is named for practice at ten contexts and five corrections**, the one right
    least often among those, with a scenario at the learner's level that asks for it.
@@ -84,8 +83,8 @@ perfect *needed 3, never said*, and every one of those seven figures moved for t
 detector's mistake rather than the speaker's. As counts, with the corrections listed under
 them, a learner can see that and disagree. As *50 %*, they cannot.
 
-So the pages show counts. **The progress page changes with this one**: *right 9 of 13* is
-now what the repertoire shows too, rather than *right 9 of 13 · 69 %*, because the same
+So the pages show counts. **The progress page shows the same**: *right 9 of 13* is what the
+repertoire shows too, not *right 9 of 13 · 69 %*, because the same
 figure presented two ways on two pages is worse than either. The API still sends the
 proportion above its floor, in the report's `form_accuracy` and in every snapshot; no
 screen renders it. It comes back when detection precision is measured at or above the
@@ -119,9 +118,9 @@ it is: *the form with the most corrections so far is the future will: 2 correcti
 the 2 times it was said or needed* — and what the floor is and why. An empty card would read
 as *nothing to work on*, which nothing measured.
 
-The progress page's own recommendations do not use this yet. They rank corrected
-categories, unused forms and weak sounds; a fourth source with its own floor is a change to
-that ranking and is not made here.
+The progress page's own recommendations do not use this. They rank corrected categories,
+unused forms and weak sounds; a fourth source with its own floor would be a change to that
+ranking.
 
 ## 5. On the live corpus
 
@@ -152,8 +151,8 @@ where a learner meets them:
 - **The agreement rule proposed `she says` for `she say`** in a narrative whose past is set
   a sentence earlier (`Yesterday I finished…`); `she said` was needed. The rule's silence on
   a past context reads only the sentence it is in. It is the first rule proposal on speech
-  a person could have said, and it is a wrong fix; `tests/test_rules.py` does not yet hold
-  the shape.
+  a person could have said, and it is a wrong fix; `tests/test_rules.py` does not hold the
+  shape.
 - **The recogniser heard `I fix two bugs` as `I fixed two bugs`** — the language prior
   0014 §8 warned would erase errors before any detector sees them.
 
@@ -162,7 +161,7 @@ eleven learner turns, as before.
 
 ## 7. What is not settled
 
-- **When the percentage comes back** — §3 names the condition; nothing measures it yet.
+- **When the percentage comes back** — §3 names the condition, and it is not met.
 - **Both floors are reasoned, not measured.** Five corrections is an argument from a
   precision measured on six proposals.
 - **The rule layer's past context is one sentence wide** (§6). Widening it spends the

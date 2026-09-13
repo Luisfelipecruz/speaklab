@@ -13,7 +13,6 @@ is cleared rather than cascaded when that answer goes.
 
 Revision ID: 0007
 Revises: 0006
-Created: 2026-09-12
 """
 
 from collections.abc import Sequence

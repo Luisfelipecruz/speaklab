@@ -1,14 +1,13 @@
 # 0019 — Make your point: a spoken answer, counted
 
-Status: accepted · 2026-09-12
+Status: accepted
 
-The owner asked for training in articulating ideas clearly, and chose both halves when
-asked: how an idea is built when it is spoken, and how it is delivered. The plan turned that
-into a drill — one spoken answer to a work prompt, no persona — with how the answer is built
-and how it was said counted by code, a language model's feedback beside the counts, and a
-second attempt to compare. It left four questions open: the feature's name on screen, a
-session mode or tables of its own, prompts as a table or as scenarios, and which measures
-reach `/progress`.
+This is training in articulating ideas clearly, in both halves the owner chose: how an idea
+is built when it is spoken, and how it is delivered. It is a drill — one spoken answer to a
+work prompt, no persona — with how the answer is built and how it was said counted by code,
+a language model's feedback beside the counts, and a second attempt to compare. Four
+questions decide its shape: the feature's name on screen, a session mode or tables of its
+own, prompts as a table or as scenarios, and which measures reach `/progress`.
 
 ## What was decided
 
@@ -17,7 +16,7 @@ reach `/progress`.
    page that said "articulation" about two different things would be read as one.
 2. **Tables of their own, not a session mode.** `answer_prompts` (seeded, 13 prompts) and
    `answers`, migration `0007`. No change to `sessions`.
-3. **Two operations**, `GET` and `POST /answers` — 30 of the 30 forecast.
+3. **Two operations**, `GET` and `POST /answers`.
 4. **How an answer is built is counted by `services/structure.py`**, and each measure was
    scored against answers labelled by hand and held out from the writing of the code, before
    any screen showed it. **Restarts are counted and stored and not shown**: they fell below
@@ -66,11 +65,11 @@ teacher would mark it, and the counter never counts it.
 The fluency code already said the recogniser drops most fillers. Whether it drops a word said
 twice, or a phrase begun again, decides whether those can be counted at all, so it was
 measured first: the twelve aloud answers spoken by `en_US-lessac-medium`, heard by
-`small.en`. Synthesis is not deterministic, so it was measured four times — the second and
-third by full evaluation runs written to a scratch file, the fourth by m15's report — and a
-fifth time by m16's, the one in `docs/evaluation.md`.
+`small.en`. Synthesis is not deterministic, so it was measured five times — the second and
+third by full evaluation runs written to a scratch file, the fourth by the `make eval` of
+`0.15.0` and the fifth by that of `0.16.0`.
 
-| Written down, of those spoken | Run 1 | Run 2 | Run 3 | Run 4, m15's report | Run 5, `docs/evaluation.md` |
+| Written down, of those spoken | Run 1 | Run 2 | Run 3 | Run 4, `0.15.0` | Run 5, `0.16.0` |
 |---|---:|---:|---:|---:|---:|
 | Fillers | 21 of 24 | 22 of 24 | 21 of 24 | 21 of 24 | 23 of 24 |
 | Words said twice | 12 of 13 | 13 of 13 | 13 of 13 | 13 of 13 | 13 of 13 |
@@ -125,8 +124,8 @@ preposition at the end of a clause (*what we do,*; *are asking for,*) and *all i
 they can be shown the day a counter clears the bar, and `structure.SHOWN` is what decides:
 `tests/test_answer_measures.py` asserts on every run, in CI, that every measure it names
 clears its bar on the held-out answers. The held-out set is unspent — nothing in the counter
-was changed after it was scored — and trap 75's rule holds for it: fixing a restart to pass
-one of its cases spends it.
+was changed after it was scored — and fixing a restart to pass one of its cases would spend
+it.
 
 **One limit to state.** The same author wrote the labels and the counter. The held-out set
 was written before the code and not read while it was written, which is the protection this
@@ -217,15 +216,15 @@ The first answer came back 3.9 s after the recording stopped — transcription, 
 the model's feedback together — with 55 words, two reasons, two steps, a contrast and a
 summing up, each marked on its words, and a shorter version in two sentences that passed
 the check. One thing the counts could not see: *we we rolled back*, spoken with the repeat,
-came back from the recogniser as *we rerolled back* — the first repeat this project has seen
-lost in a live check, one of the kind §2 measured at 12 of 13. The second answer was stored
+came back from the recogniser as *we rerolled back* — a repeat lost in a live check, of the
+kind §2 measured at 12 of 13. The second answer was stored
 as saying the first again, and the two were shown side by side: 55 words and 34, 19 seconds
 and 13, four sentences and two. No horizontal scroll at either width.
 
-**It found one defect, fixed before this was written.** The history drew each answer with
-the progress page's chart, which keys its points by date; two answers on one day share a
-date, and React warned eight times. The chart now keys by position, and says "one answer"
-rather than "one week" when it is drawing answers. The account and its two answers were
+**It found one defect, which is fixed.** The history draws each answer with the progress
+page's chart, which keyed its points by date; two answers on one day share a date, and React
+warned eight times. The chart keys by position, and says "one answer" rather than "one
+week" when it is drawing answers. The account and its two answers were
 deleted afterwards.
 
 ## 9. What is not settled

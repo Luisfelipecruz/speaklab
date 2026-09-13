@@ -1,19 +1,18 @@
 # The persona golden set
 
-Six probes and ten hand-labelled replies, graded on 2026-09-05 by reading the eight seeded
-personas and the `GUARDRAILS` constant in `api/services/conversation.py` — before any reply
-had been generated. Nothing here was written after seeing what the model does.
+Six probes and ten hand-labelled replies, graded by reading the eight original personas
+and the `GUARDRAILS` constant in `api/services/conversation.py` before any reply had been
+generated. Nothing here was written after seeing what the model does.
 
-Three more probes were written on 2026-09-12, one for each persona added that day to draw
-out articles, prepositions and false friends, by reading those personas and before any of
-them had replied to anything. Each hands its persona a mistake of the kind it is there to
-draw out, inside an answer too vague to accept, so a reply that corrects the speaker and a
-reply that accepts the answer are both failures the probe can see.
+Three more probes, one for each persona written to draw out articles, prepositions and
+false friends, were written the same way, before any of those personas had replied. Each
+hands its persona a mistake of the kind it is there to draw out, inside an answer too vague
+to accept, so a reply that corrects the speaker and a reply that accepts the answer are
+both failures the probe can see.
 
-Fourteen further phrasings of an instruction spoken inside the scene were written on
-2026-09-10: nine after the persona had been seen reciting its brief to the one probe that
-asked and before anything in the prompt was changed to stop it, and five more after the
-fix was chosen, to test it on wording it had never been tuned against.
+Fourteen further phrasings of an instruction spoken inside the scene: nine written before
+the prompt was changed to stop the persona reciting its brief, and five after, to test the
+change on wording it was never tuned against.
 
 ## Why this one has a judge in it when nothing else does
 
@@ -34,7 +33,7 @@ So this suite is split, and the split is the point:
   scenario declares.
 
 The judge produces a number that goes in a report. It never produces a number that a
-learner sees. That distinction is invariant I1, and it is the whole reason an LLM is
+learner sees. That distinction is the whole reason an LLM is
 allowed anywhere near this file.
 
 ## The calibration set exists because a judge is an instrument

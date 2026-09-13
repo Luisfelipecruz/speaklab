@@ -1,22 +1,21 @@
 # 0018 — Scenarios for articles, prepositions and false friends
 
-Status: accepted · 2026-09-12
+Status: accepted
 
-Every scenario the product shipped with was written around a tense, a modal or a
-conditional, and nothing in the catalogue was written to draw out articles, prepositions or
-false friends — the last of which the taxonomy gives a subcategory of its own because, for
-a Spanish first language, it is the signal most worth surfacing. The plan asked for two or
-three scenarios that do, each with a band, and set the test: the new seeds exist and elicit
-what they declare. Two things stood between that sentence and a scenario file. A scenario had no way to declare a kind of mistake at
-all. And whether a scenario draws a mistake out is shown, as far as this product can see,
-only by the corrections it produces — which need the mistake to survive the recogniser and
-then to be found and filed under its kind by the detector (0017 §6).
+The first eight scenarios are written around a tense, a modal or a conditional, and none
+is written to draw out articles, prepositions or false friends — the last of which the
+taxonomy gives a subcategory of its own because, for a Spanish first language, it is the
+signal most worth surfacing. Three scenarios do, each with a band, and the test is that
+they elicit what they declare. That needs a way for a scenario to declare a kind of
+mistake. And whether a scenario draws a mistake out is shown, as far as this product can
+see, only by the corrections it produces — which need the mistake to survive the
+recogniser and then to be found and filed under its kind by the detector (0017 §6).
 
 ## What was decided
 
 1. **A second declaration, `target_errors`**, in the error taxonomy's category names,
-   required on every scenario like `target_grammar`. The eight scenarios there were
-   declare `VERB_TENSE`.
+   required on every scenario like `target_grammar`. The first eight scenarios declare
+   `VERB_TENSE`.
 2. **Three scenarios**, one per kind, at three bands: *Lost property office* (A2,
    articles), *A courier who cannot find your door* (B1, prepositions) and *Applying for a
    training programme* (B2, false friends, which the taxonomy files under
@@ -67,7 +66,7 @@ Each is built so the thing it draws out is the thing the speaker cannot avoid sa
 who hands one over only when the description fits no other. Describing an object means a
 string of single countable things — *a black backpack, a laptop, a sticker* — and telling it
 apart from the others means *the one with the*: the choice between *a* and *the* is the whole
-task. It is the catalogue's first A2 scenario; describing an object is an A2 task.
+task. Describing an object is an A2 task.
 
 **A courier who cannot find your door** (B1, prepositions). A driver on your street who
 cannot see the entrance, who says what they can see whenever a direction is vague, and then
@@ -103,9 +102,8 @@ persona that answers *a black backpack, you mean?* has corrected the speaker.
   the learner's own band where one does, as the named verb form already did — as *Practise
   these in A courier who cannot find your door*. It is a way to practise, not a claim
   about weakness, so it has no floor. A kind no scenario declares links nowhere.
-- **The recommendation.** An error category is ranked as it was, and now carries a scenario
-  that declares it, so *What to practise next* offers *Practise this* on it — until now only
-  forms and sounds had somewhere to go.
+- **The recommendation.** An error category carries a scenario that declares it, so *What
+  to practise next* offers *Practise this* on it, as it does on forms and sounds.
 - **The catalogue and the scenario page** show the kinds of mistake, dashed, beside the
   forms.
 
@@ -134,10 +132,10 @@ sentences of 0017 §6, and subject to the same limit on who wrote them.
 
 In the speech recognition suite, beside the drill's measurement and by the same comparison:
 each sentence spoken by the `tts` voice with its mistake and corrected, heard by
-`small.en`, and read where the correction belongs. Four runs here, because synthesis is not
-deterministic, the fourth by the `make eval` of `0.14.0`; then three after m15, after the
-first semicolon in each cell, the last by the `make eval` of `0.15.0`; and m16's, after the
-second, by the `make eval` that wrote the `docs/evaluation.md` there is now:
+`small.en`, and read where the correction belongs. Eight runs, because synthesis is not
+deterministic: four, the fourth by the `make eval` of `0.14.0`; three more after the first
+semicolon in each cell, the last by the `make eval` of `0.15.0`; and the `make eval` of
+`0.16.0` after the second:
 
 | Kind | Mistake heard as said | Heard as the correction | Something else | Corrected heard as corrected |
 |---|---|---|---|---|
@@ -153,10 +151,10 @@ repaired again in the live session of §6. **No false friend came back as its co
 in 80 tries, as expected of a whole word with its own sound. **An article did, once**: in
 the fourth run *It is small suitcase* came back as *in a small suitcase* — 1 of 80, 0.013
 [0.002, 0.067]. In the first three runs a dropped or wrong *a* survived every time, and it
-was the fourth that showed it need not. The three runs after m15 repaired *next of* each
-time and *depends of* in the first two — prepositions 11 of 140 over all seven — and the
-last heard *It is small suitcase* as *in a small suitcase* again: articles 2 of 140, false
-friends still never. m16's run, the one in `docs/evaluation.md`, repaired *next of* again,
+was the fourth that showed it need not. The next three runs repaired *next of* each time and
+*depends of* in the first two — prepositions 11 of 140 over all seven — and the last heard
+*It is small suitcase* as *in a small suitcase* again: articles 2 of 140, false friends
+still never. The eighth repaired *next of* again,
 heard *before of that* as *before a vet* again, and *It is small suitcase* as *in a small
 suitcase* a third time: prepositions 13 of 160 over all eight, articles 3 of 160, false
 friends never.
@@ -174,8 +172,7 @@ Tring*.
 In the error detection suite: each sentence handed to both detectors as written, then the
 corrected sentence. Found means a proposal on the mistake's words filed under its kind;
 the labelled correction is counted apart, because a proposal on the right words can put
-the wrong words in. Eight runs — four here, three after m15 and m16's, the one in
-`docs/evaluation.md` — identical to the line; the labelling call runs at temperature zero:
+the wrong words in. The same eight runs as §4.1, identical to the line; the labelling call runs at temperature zero:
 
 | Kind | Found and filed under it | With the labelled correction | Under another kind | Missed | Proposed on the corrected sentence |
 |---|---|---|---:|---:|---:|
@@ -210,7 +207,8 @@ intake, as the product counts, mostly cannot** — not because of the scenario, 
 of the detector the corrections come from. Their declared kind on the grammar page will be
 sparse, and some of what appears there wrong.
 
-That is what can be measured without a person, and it is not the question the plan asked.
+That is what can be measured without a person, and it is not the question the scenarios
+are for.
 Whether a learner makes more article mistakes describing a bag than giving a stand-up
 update needs a learner holding both conversations.
 
@@ -218,8 +216,7 @@ update needs a learner holding both conversations.
 
 Three probes, one per new persona, written by reading those personas before any had
 replied (`eval/golden/personas`), each handing its persona a mistake of the kind it is
-there for, inside an answer too vague to accept. One run of the whole suite, now nine
-probes:
+there for, inside an answer too vague to accept. One run of the whole suite, nine probes:
 
 - the clerk asked what makes the bag different from the others and let *black backpack*
   pass — in three sentences against its cap of two;
@@ -231,15 +228,15 @@ probes:
 
 Across the nine, 6 of 9 replies were clean of the deterministic rules — 4 of the first six,
 where the three runs before this one had 4 or 5, and 2 of the new three — and the judge
-placed all nine in character. The fifteen spoken instructions gave the instructions away 6 times in
-150; nothing in this change touched the prompt they measure.
+placed all nine in character. The fifteen spoken instructions gave the instructions away 6
+times in 150; nothing in these scenarios touches the prompt they measure.
 
-In m14's report, 8 of 9 were clean — all three new probes, and every
+In the `make eval` of `0.14.0`, 8 of 9 were clean — all three new probes, and every
 one of the first six but `instruction-inside-a-turn`, which ran over its cap and said *my
 instructions* — the judge again placed all nine in character, and the spoken instructions
 were given away 5 times in 150. The clerk again said *a black backpack* back, and the
-coordinator *attended*: the recasts of §6 are not one run's. m16's report, the one in
-`docs/evaluation.md`, on the same prompt as m15's: 7 of 9 clean, both failures over the
+coordinator *attended*: the recasts of §6 are not one run's. In the `make eval` of
+`0.16.0`, on the same prompt as `0.15.0`'s: 7 of 9 clean, both failures over the
 cap, the judge again placing all nine in character, and the spoken instructions given away
 12 times in 150.
 
@@ -322,6 +319,6 @@ six accounts, eleven sessions and eleven learner turns, as before.
   recast from a persona using a word it was always going to use.
 - **The session report does not check the declaration** (§3), and cannot until a kind of
   mistake has something like a form's count of times it could have been made.
-- **A lexical verb that inverts** — *here come the bus* — is no longer proposed by the rules
+- **A lexical verb that inverts** — *here come the bus* — is not proposed by the rules
   (§5).
 

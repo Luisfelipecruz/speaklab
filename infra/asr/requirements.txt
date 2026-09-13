@@ -3,7 +3,7 @@
 # faster-whisper runs Whisper on CTranslate2, which is a C++ inference engine, not a
 # training framework. That is the whole reason it is here: `openai-whisper` pulls torch
 # and lands around 2.5 GB, and torch belongs in exactly one image in this system (pron,
-# m8, where forced alignment genuinely needs it). Note that faster-whisper's only
+# where forced alignment genuinely needs it). Note that faster-whisper's only
 # reference to transformers/torch is inside its `conversion` extra, which is not
 # installed here — this image converts nothing, it loads a pre-converted model.
 
@@ -13,8 +13,7 @@ faster-whisper==1.2.1
 # extension, so this image needs no ffmpeg *binary*, no subprocess and no temp file —
 # and it is already a faster-whisper dependency, so pinning it costs nothing and gains
 # the source metadata (container format, sample rate, channels) that the API stores on
-# the audio_assets row. See docs/decisions/0001 for the deviation this represents from
-# the plan's wording.
+# the audio_assets row.
 av==18.1.0
 
 # Imported directly, to hand CTranslate2 the float32 buffer it wants. It arrives

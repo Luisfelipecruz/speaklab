@@ -131,10 +131,10 @@ def analyse(words: list[dict] | None) -> Fluency:
 def _timed(word: object) -> bool:
     """Whether a stored word carries usable timings.
 
-    The column is JSONB and rows written by earlier versions of this system are still in
-    it, so a missing key is a real possibility rather than a defensive habit. A word with
-    an end before its start is discarded too: the recogniser corrects those itself and
-    counts the corrections, but nothing guarantees a row written before it did.
+    The column is JSONB and a stored row may lack a key, so a missing one is a real
+    possibility rather than a defensive habit. A word with an end before its start is
+    discarded too: the recogniser corrects those itself and counts the corrections, but a
+    stored row may predate that.
     """
     if not isinstance(word, dict):
         return False

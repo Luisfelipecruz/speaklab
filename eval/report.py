@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -278,7 +277,7 @@ ELSEWHERE = (
     (
         "S10",
         "Every claim in the README is counted, not recalled",
-        "this document, and m12",
+        "this document",
     ),
 )
 
@@ -302,12 +301,10 @@ def _suite_heading(name: str, title: str, results: dict, skips: dict) -> list[st
             f"**Not run.** {skips.get(name, 'no result was produced')}",
             "",
             "No figure is reported for a suite that did not run, and none is carried "
-            "forward from a previous run. A stale number under a fresh date is worse "
-            "than no number.",
+            "forward from a previous run. A stale number under a fresh revision is "
+            "worse than no number.",
             "",
         ]
-        return lines
-    lines += [f"Measured {result['measured_at']}.", ""]
     return lines
 
 
@@ -348,7 +345,7 @@ def _answers_aloud(aloud: dict | None) -> list[str]:
     lines = [
         "#### A spoken answer: what reaches the transcript",
         "",
-        f"Measured {aloud['measured_at']}, `{aloud['model']}` hearing the voice "
+        f"Measured with `{aloud['model']}` hearing the voice "
         f"`{aloud['voice']}`: {aloud['answers']} answers to the answer drill's prompts, "
         "written with fillers, words said twice and phrases started again, and spoken by "
         "the voice. Whatever the recogniser leaves out cannot be counted.",
@@ -391,7 +388,7 @@ def _drill(drill: dict | None) -> list[str]:
     lines = [
         "#### A mistake said aloud: heard, or repaired",
         "",
-        f"Measured {drill['measured_at']}, `{drill['model']}` hearing the voice "
+        f"Measured with `{drill['model']}` hearing the voice "
         f"`{drill['voice']}`: {sentences} hand-labelled learner sentences, each spoken as "
         "the learner said it and as corrected, and compared the way the spoken drill "
         "compares a learner saying it again — what was heard where the correction belongs.",
@@ -440,7 +437,7 @@ def _kinds_aloud(aloud: dict | None) -> list[str]:
     lines = [
         "#### Articles, prepositions and false friends said aloud",
         "",
-        f"Measured {aloud['measured_at']}, `{aloud['model']}` hearing the voice "
+        f"Measured with `{aloud['model']}` hearing the voice "
         f"`{aloud['voice']}`: hand-labelled sentences written for the three scenarios that "
         "draw these mistakes out, one mistake in each, spoken with it and corrected, and "
         "compared the same way.",
@@ -606,7 +603,7 @@ def _planted_errors(rules: dict | None) -> list[str]:
     lines = [
         "#### The rule layer on planted errors",
         "",
-        f"Measured {rules['measured_at']}, with no model: the repository's native "
+        "Measured with no model: the repository's native "
         f"English — {rules['texts']} texts, {rules['words']} words — with one verb put "
         "out of agreement or one indefinite article removed at a time, and each copy "
         "given to the rules.",
@@ -649,7 +646,7 @@ def _form_join(forms: dict | None) -> list[str]:
     lines = [
         "#### Which verb form a correction was made in",
         "",
-        f"Measured {forms['measured_at']}, with no model: hand-labelled corrections, each "
+        "Measured with no model: hand-labelled corrections, each "
         "with the form its words were said in and the form it needs, given to the join "
         "that accuracy per form is computed from.",
         "",
@@ -681,7 +678,7 @@ def _kinds_found(found: dict | None) -> list[str]:
     lines = [
         "#### Articles, prepositions and false friends, found",
         "",
-        f"Measured {found['measured_at']}, `{found['model']}` and the rule layer: the "
+        f"Measured with `{found['model']}` and the rule layer: the "
         "sentences written for the three scenarios that draw these mistakes out, one "
         "mistake in each and nothing else wrong, then each sentence corrected.",
         "",
@@ -793,7 +790,7 @@ def _structure(structure: dict | None) -> list[str]:
     lines = [
         "#### How an answer is built, against answers labelled by hand",
         "",
-        f"Measured {structure['measured_at']}, with no model: "
+        "Measured with no model: "
         f"{structure['answers']['development']} answers the counter was written against "
         f"and {structure['answers']['held_out']} held out from it, each with its "
         "signposts, repeats and restarts marked by a person. A measure is shown to a "
@@ -856,7 +853,7 @@ def _rewrite_check(check: dict | None) -> list[str]:
     lines = [
         "#### The check on the model's shorter version",
         "",
-        f"Measured {check['measured_at']}, with no model: rewrites of labelled answers, "
+        "Measured with no model: rewrites of labelled answers, "
         "each written to keep to the answer or to add a fact, given to the check that "
         f"withholds a rewrite with more than {check['limit']} content words the speaker "
         "never said.",
@@ -1017,7 +1014,7 @@ def _corpus_section(results: dict, skips: dict) -> list[str]:
         return lines
     busiest = corpus.get("busiest_account") or {}
     lines += [
-        f"Counted {corpus['counted_at']}, across every account.",
+        "Counted across every account.",
         "",
         "| | |",
         "|---|---|",
@@ -1034,8 +1031,6 @@ def _corpus_section(results: dict, skips: dict) -> list[str]:
         f"| Busiest single account | {busiest.get('sessions', 0)} sessions on "
         f"{busiest.get('days_with_practice', 0)} "
         f"{'day' if busiest.get('days_with_practice') == 1 else 'days'} |",
-        f"| First / last session | {corpus['first_session']} / "
-        f"{corpus['last_session']} |",
         "",
         "Every undecidable and unmet verdict above traces back to this table. The "
         "instruments are built and tested; what does not exist is speech to point them "
@@ -1050,22 +1045,20 @@ def render(
     verdicts: list[Verdict],
     skips: dict | None = None,
     failures: dict | None = None,
-    generated_at: datetime | None = None,
     revision: str = "unknown",
 ) -> str:
     """The whole document. Deterministic given its inputs, so it can be tested."""
     skips = skips or {}
     failures = failures or {}
-    stamp = (generated_at or datetime.now()).strftime("%Y-%m-%d %H:%M")
     ran = [name for name in SUITE_NAMES if name in results]
 
     lines = [
         "# Evaluation",
         "",
-        f"Generated by `make eval` on **{stamp}**, at revision `{revision}`.",
+        f"Generated by `make eval` at revision `{revision}`.",
         "",
         "**Do not edit this file by hand.** Every number in it was produced by a command "
-        "on the date above, and a hand-edited figure is indistinguishable from a "
+        "at the revision above, and a hand-edited figure is indistinguishable from a "
         "measured one. Re-run `make eval` instead.",
         "",
         f"{len(SUITE_NAMES)} suites, one census. Suites that ran: "

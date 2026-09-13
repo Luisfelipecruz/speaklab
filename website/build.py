@@ -6,8 +6,9 @@ The README is the home page, and every document under docs/ a page of its own, e
 decision record included. Every link is checked as it is written: a link to another
 document becomes a relative link to its page, so the site works at any address; a link to a
 file that is not a page becomes a link to that file on GitHub, at the revision the site was
-built from; and a link to a file or a heading that does not exist fails the build, as does
-raw HTML that GitHub would not show. Exits 1 and names each problem.
+built from; and a link to a file or a heading that does not exist fails the build, as do
+raw HTML that GitHub would not show and a date anywhere but the changelog. Exits 1 and
+names each problem.
 """
 
 from __future__ import annotations
@@ -35,7 +36,9 @@ SITE_URL = "https://luisfelipecruz.github.io/speaklab/"
 SOCIAL_IMAGE = "docs/walkthrough.png"
 MARKER = ".speaklab-site"
 SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
-ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# Dates belong in the changelog. Every other document describes the system as it is.
+DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+CHANGELOG = "docs/changelog.md"
 
 # The sidebar, in order. The decision records sit under "Decisions" and are not listed one
 # by one; their index is.
@@ -187,11 +190,9 @@ def decisions_index(root: Path, records: list[Page]) -> str:
             (p for p in text.split("\n\n") if re.match(r"\s*(\*\*)?Status:", p)),
             "",
         )
-        date = ISO_DATE.search(status)
+        state = re.sub(r"^(\*\*)?Status:(\*\*)?\s*", "", " ".join(status.split()))
         name = posixpath.basename(record.source)
-        rows.append(
-            f"| {number} | [{title or number}]({name}) | {date[0] if date else ''} |"
-        )
+        rows.append(f"| {number} | [{title or number}]({name}) | {state} |")
     return "\n".join(
         [
             "# Decisions",
@@ -199,12 +200,23 @@ def decisions_index(root: Path, records: list[Page]) -> str:
             "Why each choice was made. A record is dated and kept as it was written: a",
             "decision that changed has a newer record that supersedes it, and says so.",
             "",
-            "| | Decision | Date |",
+            "| | Decision | Status |",
             "|---|---|---|",
             *rows,
             "",
         ]
     )
+
+
+def dates_in(root: Path, page: Page) -> list[str]:
+    """Every line of a page's source that carries a date, as a problem."""
+    path = root / page.source
+    text = path.read_text(encoding="utf-8") if path.is_file() else page.text
+    return [
+        f"{page.source}:{number}: a date outside the changelog"
+        for number, line in enumerate(text.splitlines(), start=1)
+        if DATE.search(line)
+    ]
 
 
 # ── Links ─────────────────────────────────────────────────────────────────────
@@ -457,6 +469,8 @@ def build(root: Path, out: Path, revision: str) -> Result:
         load(root, page, records)
         page.document = markup.parse(md, page.text, page.source)
         result.problems += page.document.problems
+        if page.source != CHANGELOG:
+            result.problems += dates_in(root, page)
     all_pages = [p for p in all_pages if p.document is not None]
     records = [p for p in records if p.document is not None]
 

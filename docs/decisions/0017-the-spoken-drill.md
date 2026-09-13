@@ -1,13 +1,13 @@
 # 0017 — The spoken drill
 
-Status: accepted · 2026-09-11
+Status: accepted
 
-Grammar practice needed one exercise, and the plan named it: given one of the learner's own
-corrected sentences, record it, transcribe it, and score it against the correction with the
-word error rate code that exists — deterministic, no model call, measurable. It left two
-questions open on purpose: where the drill lives, and what its pass mark is, if it has one.
-And 0016 §3 set a condition on it: a drill on a correction that was wrong teaches the wrong
-thing, so the learner must be able to see the correction and skip it.
+Grammar practice has one exercise: given one of the learner's own corrected sentences,
+record it, transcribe it, and compare it with the correction using the word error rate
+code — deterministic, no model call, measurable. Two questions decide its shape: where the
+drill lives, and what its pass mark is, if it has one. And 0016 §3 sets a condition on it:
+a drill on a correction that was wrong teaches the wrong thing, so the learner must be able
+to see the correction and skip it.
 
 ## What was decided
 
@@ -70,14 +70,13 @@ recording of somebody speaking cannot show. The `POST` refuses both with a 409.
 
 ## 3. What is compared, and why not the sentence's word error rate
 
-The plan said to score the recording against the correction with the word error rate code.
-The rate itself is the wrong number. A thirteen-word sentence said again with its one mistake
+The sentence's word error rate is the wrong number. A thirteen-word sentence said again with its one mistake
 intact has a word error rate of one in thirteen — which reads as nearly right, while the
 drill's one question went unanswered.
 
-So what is compared is the alignment behind the rate. `services/wer.py` now exposes it —
-`align`, which heard word stood for which reference word — and `wer()` counts from it; its
-figures are unchanged, and its tests say so. The drill aligns the recogniser's words
+So what is compared is the alignment behind the rate. `services/wer.py` exposes it —
+`align`, which heard word stood for which reference word — and `wer()` counts from it, with
+its tests holding its figures. The drill aligns the recogniser's words
 against the sentence's, normalised exactly as the word error rate normalises them, and for
 each correction reads what stood where its words belong:
 
@@ -146,19 +145,19 @@ would be. No model is asked anything. It runs in the speech recognition suite �
 
 **Results.** Synthesis is not deterministic, so the same sentences were measured four
 times, the third through the evaluation harness (`eval/run.py --only asr`) and the fourth
-by the `make eval` that wrote `docs/evaluation.md`:
+by a full `make eval`:
 
 | Run | Mistake heard as the correction | Mistake heard as said | Something else | Correct heard as corrected | Correct heard as the mistake |
 |---|---:|---:|---:|---:|---:|
 | 1 | 2 | 81 | 6 | 88 | 0 |
 | 2 | 3 | 78 | 8 | 87 | 0 |
 | 3, the harness | 2 | 81 | 6 | 88 | 0 |
-| 4, the report | 1 | 77 | 11 | 89 | 0 |
+| 4, `make eval` | 1 | 77 | 11 | 89 | 0 |
 
 **What it means for the page.** *Heard the way you first said it* is strong evidence: no
 correct sentence was heard as the mistake, in 356 tries — 0.000 [0.000, 0.041] over each
 run's 89. *Heard as corrected* is weaker: a few mistakes in a hundred were heard that way —
-0.022 [0.006, 0.078] on the first harness run, 0.011 [0.002, 0.061] on the report's, 8 of 356
+0.022 [0.006, 0.078] on the first harness run, 0.011 [0.002, 0.061] on the fourth, 8 of 356
 over all four. The page says both, with the figures, and says the voice was synthetic.
 
 **The mistakes that did not come back as said**, from the second run, read one by one:
@@ -178,8 +177,8 @@ came back as *Is she going…?* and *We waiting* as *We're waiting*.
 **It is a finding beyond the drill.** In the second run 7 of 89 mistakes came back from the
 recogniser as grammatical English — 3 as the correction, 4 another way — and in the third
 6, 2 and 4. Those never reach
-the detector at all. It is one reason detection finds a third of what a person marks, and
-the first time this project has measured it; it belongs to the recogniser, and no change to
+the detector at all. It is one reason detection finds a third of what a person marks; it
+belongs to the recogniser, and no change to
 the detector can recover it.
 
 **What it is not.** One clear, native, synthetic voice gives the recogniser the most to go
@@ -200,9 +199,8 @@ as corrected, 4 of 4 words; said as first said, heard the way it was first said,
 one not heard. The long sentence carried three corrections, and each drill on it applied
 all three.
 
-**In a browser.** Chromium with a synthesised WAV standing in for the microphone — the
-first automated check here to drive the browser's recorder; until now only a person holding
-the button had. From the grammar page's *Say it again* to a result, four times, at 1440 and
+**In a browser.** Chromium with a synthesised WAV standing in for the microphone, driving
+the browser's own recorder. From the grammar page's *Say it again* to a result, four times, at 1440 and
 375 px in light and dark: the short sentence heard as corrected, and as first said; the long
 one said corrected, where the recogniser heard *why sister works* for *my sister works*,
 marked it as unsure, and the page said *something else — may be a mishearing*; and the long
@@ -217,10 +215,10 @@ sessions and eleven learner turns, as before.
 - **The rate for a learner's voice** (§6). It needs recordings of a person.
 - **Contractions.** *he's* for *he is* reads as something else. Expanding contractions would
   change the word error rate's normalisation, which is a published figure's; the drill could
-  expand them on its own, and has not, because *he's* is also *he has*.
+  expand them on its own, and does not, because *he's* is also *he has*.
 - **A wrong correction elsewhere in the sentence is in the sentence to say** (§2). The page
   lists it; it does not let the learner leave it out.
 - **Nothing is stored** (§5). Revisit if a drill should reach the progress page, and then with
   the recogniser's rate for learner speech in hand.
-- **The read-aloud page's button still says *Sending your turn*.** The drill names what it
-  sends; the reading was left as it was.
+- **The read-aloud page's button says *Sending your turn*.** The drill names what it sends;
+  the reading does not.

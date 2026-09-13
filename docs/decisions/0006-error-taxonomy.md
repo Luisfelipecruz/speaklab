@@ -1,6 +1,6 @@
 # 0006 — Grammar analysis and the closed error taxonomy
 
-**Status:** accepted · **Date:** 2026-09-05 · **Milestone:** m9
+Status: accepted
 
 Read this before changing the taxonomy, the labelling prompt, the confidence gate, or
 anything that turns a model's opinion into a row a learner is shown.
@@ -14,19 +14,18 @@ anything that turns a model's opinion into a row a learner is shown.
    the second is what gets read.
 2. **Every model proposal passes a gate before it becomes a row**, and the refusals are
    counted rather than dropped. The rejection *rate* is the measurement that answers
-   whether the model is strong enough (Q4).
+   whether the model is strong enough.
 3. **The model quotes; this system locates.** A proposal names the words it thinks are
    wrong and the transcript is searched for them. It never supplies an offset.
-4. **The confidence gate is per word, not per turn** — Q11, and it is resolved against
-   real speech rather than reasoned about.
+4. **The confidence gate is per word, not per turn**, settled against real speech rather
+   than reasoned about.
 5. **Labelling runs at temperature 0.** It is a measurement, and a measurement that
    answers differently on a second run cannot be re-derived.
-6. **Analysis is a background job** (Q3, confirmed), and ending a session waits for its
-   own turns.
+6. **Analysis is a background job**, and ending a session waits for its own turns.
 7. **Criterion S5 is not met, and on this corpus it is not decidable.** Detection
    precision measures **0.500**; the bar is 0.70; the sample is six scored proposals.
-8. **Q4 is answered: `gemma3:4b` is not strong enough for this**, and a 7B alternative
-   measured worse rather than better.
+8. **`gemma3:4b` is not strong enough for this**, and a 7B alternative measures worse
+   rather than better.
 
 ---
 
@@ -57,20 +56,20 @@ counted, the scenario would still report it missing, and nothing would look wron
 
 ### What the parser gets wrong, and what was done about it
 
-Four rules were changed after running against the real corpus rather than against
-fixtures, and each was a wrong answer that looked right:
+Four rules exist because the real corpus, not a fixture, showed a wrong answer that looked
+right:
 
-- **`going to` was invisible** because the pipeline was loaded with the lemmatizer
-  excluded to save parse time. Without it, `going` never reaches `go`, and every rule that
-  names a verb silently stops firing. `I'm going to work in the 565` was being counted as
-  a present continuous. The lemmatizer stays; only the entity recogniser is excluded.
-- **`more` was counted as a comparative** in *"I want to know more about the price"*. It
-  carries `Degree=Cmp` and compares nothing. Comparatives now require the token to be
-  modifying something.
-- **`at least` was counted as a superlative.** `least` is `JJS`. It is a fixed phrase.
-- **Every `to`-infinitive was counted as a subordinate clause.** The subordination index
-  is a ratio, and both halves have to mean the same thing, so a clause here is a verb
-  phrase that carries tense. *"It is difficult to have a really good unit"* is one clause.
+- **`going to` is invisible without the lemmatizer.** Loaded with it excluded to save
+  parse time, `going` never reaches `go`, and every rule that names a verb silently stops
+  firing — `I'm going to work in the 565` counts as a present continuous. The lemmatizer
+  stays; only the entity recogniser is excluded.
+- **`more` is not a comparative** in *"I want to know more about the price"*. It carries
+  `Degree=Cmp` and compares nothing. Comparatives require the token to be modifying
+  something.
+- **`at least` is not a superlative.** `least` is `JJS`. It is a fixed phrase.
+- **A `to`-infinitive is not a subordinate clause.** The subordination index is a ratio,
+  and both halves have to mean the same thing, so a clause here is a verb phrase that
+  carries tense. *"It is difficult to have a really good unit"* is one clause.
 
 The two features that are about intent rather than form — a polite request, and duration
 with `for`/`since` — are deliberately narrow. They fire on a specific shape and miss the
@@ -91,12 +90,12 @@ proposal for one of eleven reasons. Four of them earn their place on real output
 | `original_not_in_transcript` | quoted words nobody said |
 | `punctuation_only` | "corrected" `also?` to `also,` |
 
-**`punctuation_only` exists because of what the model actually did.** The transcript is
-speech recognition output: the speaker never produced a capital letter or a comma. A first
-run against real turns produced *"Add a comma after 'also' for clarity"*, filed under
+**`punctuation_only` exists because of what the model does.** The transcript is speech
+recognition output: the speaker never produced a capital letter or a comma. Run against
+real turns, the model produces *"Add a comma after 'also' for clarity"*, filed under
 `PREPOSITION / missing`. That is a correction of the recogniser, delivered to somebody who
-cannot act on it. The rule is now deterministic: strip everything but letters and digits
-from both sides, and if they match, refuse.
+cannot act on it. The rule is deterministic: strip everything but letters and digits from
+both sides, and if they match, refuse.
 
 **A refusal is counted, not dropped.** It goes onto `turns.analysis_rejects` with its
 reason and the text the model wanted to use. The reason answers *how often*, which is the
@@ -139,9 +138,9 @@ of the four refusals in the run below.
 
 ---
 
-## 4. The confidence gate is per word (Q11)
+## 4. The confidence gate is per word
 
-The turn-level gate was aimed at the wrong number, and one stored turn settles it.
+A turn-level gate is aimed at the wrong number, and one stored turn settles it.
 
 Session 3, turn 6, `asr_confidence` **0.899** — comfortably above the 0.60 floor:
 
@@ -153,21 +152,21 @@ Session 3, turn 6, `asr_confidence` **0.899** — comfortably above the 0.60 flo
 per-word scores, so a locally wrong word is averaged away by its confident neighbours and
 **no turn-level threshold can reach it**.
 
-So the gate reads `turns.words`, which has stored the log-probabilities since m4. An error
-whose span overlaps a word below the floor is stored, shown, and marked `asr_suspect` —
-and excluded from every rate. Deleting it would leave the transcript with a hole in it;
-counting it would let a mishearing move a number about the speaker.
+So the gate reads `turns.words`, which stores the log-probabilities. An error whose span
+overlaps a word below the floor is stored, shown, and marked `asr_suspect` — and excluded
+from every rate. Deleting it would leave the transcript with a hole in it; counting it
+would let a mishearing move a number about the speaker.
 
-**A property that made this exact:** for all seven stored turns, joining `words` with
+**A property that makes this exact:** for all seven stored turns, joining `words` with
 single spaces reproduces `transcript` character for character. The implementation does not
 rely on it — it searches forward for each token, so a recogniser that stops holding that
 property costs a missed marker rather than a set of spans silently off by one word.
 
-**0.60 is still a placeholder and now there is a number for how wide a net it is.** Across
-the whole stored corpus it marks **28 of 272 words, 10.3 %**, and most of those are
-transcribed correctly. Q11's original note — that it "flags exactly the two suspect words
-and nothing else" — held for one turn and does not hold for the corpus. Calibrating it
-needs learner speech with a reference transcript, which this project still does not have.
+**0.60 is a placeholder, and there is a number for how wide a net it is.** Across the whole
+stored corpus it marks **28 of 272 words, 10.3 %**, and most of those are transcribed
+correctly. On one turn it flags exactly the two suspect words and nothing else; across the
+corpus it does not. Calibrating it needs learner speech with a reference transcript, which
+this project does not have.
 
 The cost is real and visible: two of the eleven labelled gold errors sit under flagged
 words. *"or is not possible"* is a genuine omitted subject and `is` scores 0.59; *"any
@@ -177,11 +176,11 @@ blocker"* is a genuine plural error and `blocker` scores 0.51.
 
 ## 5. Temperature 0
 
-The provider gained a `temperature` argument, passed through only when a caller sets one,
+The provider takes a `temperature` argument, passed through only when a caller sets one,
 so conversation keeps Ollama's default where variety is the point.
 
 Labelling sets it to zero, and not as tuning. **A backfill re-run must not rewrite a
-learner's history.** At Ollama's default of 0.8 the same turn produced different errors on
+learner's history.** At Ollama's default of 0.8 the same turn produces different errors on
 consecutive runs, and one turn came back as unparseable JSON on one run and valid on the
 next. Two runs of the measurement suite at temperature 0 produce identical output.
 
@@ -228,7 +227,7 @@ is the machinery — every accepted error points at text really in the transcrip
 rejection carries a reason from the closed list, and the one turn with nothing wrong in it
 produces nothing.
 
-### Comparison arms (Q4)
+### Comparison arms
 
 Same prompt, same gate, same golden set.
 
@@ -240,22 +239,22 @@ Same prompt, same gate, same golden set.
 
 **`mistral:7b` is worse, not better.** It proposes twice as much and half of it is
 refused; it produced *"Thank you"* → *"Thanked you"* on the one turn with nothing wrong in
-it. So the answer to Q4 is not "use a bigger model" in the general case — it is that this
-task is hard for a local instruct model of this size, and a 7B one is not the fix.
+it. So the answer is not "use a bigger model" in the general case — it is that this task
+is hard for a local instruct model of this size, and a 7B one is not the fix.
 
-**`gpt-oss:20b` could not be measured at all, for a reason worth recording.** It returned
+**`gpt-oss:20b` cannot be measured at all, for a reason worth recording.** It returns
 `message.content` as the empty string with all 800 completion tokens spent: it is a
 reasoning model and Ollama puts its answer in `message.thinking`. `services/llm/ollama.py`
-reads `message.content` and nothing else, so **this system cannot currently use a
-reasoning model as a provider**. That is a real limitation with a small fix, and it is not
-a statement about the model's ability.
+reads `message.content` and nothing else, so **this system cannot use a reasoning model as
+a provider**. That is a real limitation with a small fix, and it is not a statement about
+the model's ability.
 
 ---
 
 ## 7. What is stored, and where
 
 Migration `0003` adds five columns and one enum type. **No tables** — `fluency_metrics`,
-`grammar_usage` and `language_errors` were created complete by `0001`.
+`grammar_usage` and `language_errors` are created complete by `0001`.
 
 - `turns.analysis_status` — `pending | analyzing | analyzed | failed`, **nullable**, and
   NULL is a fact: only user turns are analysed. It separates "analysed, and there were no
@@ -273,19 +272,13 @@ way, with the reason in `analysis_error`. Calling the whole turn `failed` would 
 that had already succeeded and invite a retry that recomputes it. `failed` is reserved for
 a turn with nothing on it.
 
-**Ending a session waits for its own analysis** (Q3, confirmed as background). Analysis
-runs behind each turn, so the only one usually outstanding when somebody stops talking is
-the last thing they said. It is waited for because the report is stored once: written a
-turn early, it would be missing that turn for ever. The wait is bounded — 60 s by default,
-against a measured median of **4.9 s per turn** — and a report written short says how many
-turns it is missing. Opening the session again finishes them and rebuilds the counts,
-keeping the stored prose.
-
-> **Corrected later.** As built here, ending skipped a turn the live job had already
-> claimed — the usual state of the last one — and opening a session only read it back, so
-> neither sentence above was true. Both are now: ending waits for a claimed turn, and the
-> session page finishes a short report when it is opened. `0014` §7 records how it was
-> found, and the changelog how it was measured.
+**Ending a session waits for its own analysis.** Analysis runs behind each turn, so the
+only one usually outstanding when somebody stops talking is the last thing they said —
+often already claimed by the live job, and ending waits for a claimed turn too. It is
+waited for because the report is stored once: written a turn early, it would be missing
+that turn for ever. The wait is bounded — 60 s by default, against a measured median of
+**4.9 s per turn** — and a report written short says how many turns it is missing. Opening
+the session again finishes them and rebuilds the counts, keeping the stored prose.
 
 ---
 
@@ -300,14 +293,14 @@ role-play and one closing line — four turns, 123 words, five labelled errors.
 `labels.local.json` and `manifest.local.json` carry the rest and are gitignored;
 `build.py` writes them when the labels are there, and the measurement suite prefers them
 and prints which set it read. Both numbers are in §6; the seven-turn one is the one this
-document quotes, and a clone reproduces the four-turn one.
+record quotes, and a clone reproduces the four-turn one.
 
 ---
 
 ## 9. The cost of the parse
 
-**The API image went from 425 MB to 811 MB.** In `site-packages`: spaCy 134 MB, numpy
-68 MB, thinc 16 MB, `en_core_web_sm` 15 MB, blis 10 MB.
+**The API image is 425 MB without the parse and 811 MB with it.** In `site-packages`:
+spaCy 134 MB, numpy 68 MB, thinc 16 MB, `en_core_web_sm` 15 MB, blis 10 MB.
 
 That is a lot for a 12 MB model, and it nearly doubles the image that is meant to start
 fastest. Two alternatives were weighed. A fourth service holding the parser keeps the API
@@ -315,31 +308,30 @@ small and adds a container and an HTTP hop for a dependency parse that takes 40 
 rolled morphology over the tag set avoids the dependency and cannot do clause structure at
 all, which is half of what the requirement asks for.
 
-The image still contains **no torch and no speech model weights**, which is the property
-the health suite asserts. It is now the only image in the system carrying a statistical
-model that is not a speech model, and that is worth revisiting if start-up time ever
-becomes the constraint.
+The image contains **no torch and no speech model weights**, which is the property the
+health suite asserts. It is the only image in the system carrying a statistical model that
+is not a speech model, and that is worth revisiting if start-up time ever becomes the
+constraint.
 
 ---
 
 ## 10. What is not settled
 
-- **S5, still.** The instrument exists and runs; the corpus does not support a
-  conclusion. It grows by somebody using the product.
+- **S5.** The instrument exists and runs; the corpus does not support a conclusion. It
+  grows by somebody using the product.
 - **The golden labels are not independent.** They were written by the same agent that
   wrote the detector's prompt, in one pass, before any detector existed — that ordering is
   the only thing keeping them from being a description of what the detector does. A second
   annotator is the missing piece.
-- **`ASR_CONFIDENCE_FLOOR = 0.60` is uncalibrated**, and §4 now says how wide a net it is.
+- **`ASR_CONFIDENCE_FLOOR = 0.60` is uncalibrated**, and §4 says how wide a net it is.
 - **`ERROR_CONFIDENCE_FLOOR = 0.50` is uncalibrated too**, and the model's self-reported
-  confidence did not discriminate on this corpus: it answers 0.9 to most things.
-- **A rule layer was not built.** `language_errors.detector` allows `'rule'` and every row
-  so far is `'llm'`. Subject–verb agreement and article omission are the two categories
-  where the parse is reliable enough to propose errors on its own, and they are the
-  obvious way to raise precision without a bigger model.
+  confidence does not discriminate on this corpus: it answers 0.9 to most things.
+- **The rule layer is [0014](0014-the-rule-layer.md)'s**: subject–verb agreement and a
+  missing article, proposed from the parse, the two categories where it is reliable enough
+  to propose errors on its own.
 - **Response latency is a floor, not the measurement.** `fluency_metrics.response_latency_ms`
   holds the silence before the first word of the recording. The real measure starts when
   the persona stops speaking, and needs the browser to timestamp the button.
 - **Fillers are undercounted twice over.** The recogniser drops most of them before this
-  code sees them — the whole corpus contains none — and bare `like` is not counted at all,
-  because *"like a dog or a cat"* is an ordinary preposition.
+  code sees them, and bare `like` is not counted at all, because *"like a dog or a cat"* is
+  an ordinary preposition.

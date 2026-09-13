@@ -1,8 +1,6 @@
 # 0003 — The conversation loop: context, anchoring, and where a turn's time goes
 
-**Status:** accepted · **Date:** 2026-08-30 · **Milestone:** m6
-**Supersedes:** nothing · **Related:** [0001 — ASR model choice](0001-asr-model-choice.md),
-[0002 — TTS model choice](0002-tts-model-choice.md)
+Status: accepted
 
 ---
 
@@ -12,23 +10,21 @@ A thin provider interface over local Ollama; the persona re-anchored twice per t
 history bounded in tokens with the overflow summarised into a running digest; and each
 finished sentence handed to the voice while the model is still writing the next one.
 
-Four of those five were in the plan before this milestone started. What this document is
-actually for is the two things measurement changed, the question it closed, and the
-several ways it was measured wrongly first.
+This record is about what measurement changed in those choices, the question it closes,
+and the ways it can be measured wrongly.
 
 **The headline: the turn budget is met.** p95 **2684 ms** against PRD §9.1's 3000 ms, on
-a quiet target machine, with `small.en` still in the pipeline. That answers Q8 — no, the
-recogniser does not have to be downgraded — and it confirms D26's bet rather than
-reopening it.
+a quiet target machine, with `small.en` still in the pipeline. The recogniser does not
+have to be downgraded, and [0001](0001-asr-model-choice.md)'s bet holds.
 
 ---
 
 ## 1. Ollama does not refuse a prompt that does not fit. It deletes half of it.
 
-This is the most expensive thing m6 learned, and it is the reason the token budget in
-this system is a correctness mechanism rather than a cost control.
+This is the most expensive fact in the conversation loop, and it is the reason the token
+budget in this system is a correctness mechanism rather than a cost control.
 
-Measured against Ollama 0.33.1 and `gemma3:4b` on 2026-08-30:
+Measured against Ollama 0.33.1 and `gemma3:4b`:
 
 | prompt | `num_ctx` | `prompt_eval_count` | outcome |
 |---|---|---|---|
@@ -43,7 +39,7 @@ oldest turn — it costs you **half the window**, rounded to `num_ctx / 2`. Ther
 error, no warning, and no field in the response that records it. The reply comes back
 200 and reads perfectly well.
 
-A second probe established what gets discarded. With two unique markers, one at the head
+A second probe establishes what gets discarded. With two unique markers, one at the head
 of a long prompt and one at the tail, and `num_ctx` set below the prompt size, the model
 could report neither: 1027 of 5655 tokens were evaluated and the answer was confident
 nonsense. Whatever llama.cpp keeps, it is not the beginning — and the beginning is where
@@ -56,14 +52,13 @@ none.
 
 Three things follow.
 
-**`num_ctx` is stated on every request.** Never inherited. This Ollama's default happened
-to be large enough; that is a property of one version on one host, and `OLLAMA_CONTEXT_LENGTH`
-is a documented environment variable that anyone may have set.
+**`num_ctx` is stated on every request.** Never inherited. An Ollama default large enough
+is a property of one version on one host, and `OLLAMA_CONTEXT_LENGTH` is a documented
+environment variable that anyone may have set.
 
 **The prompt is sized before it is sent.** There is no Gemma tokenizer in the API image
 and there will not be one: it means `transformers`, which means torch, which is precisely
-what invariant I5 keeps out of this container. So the estimate is characters divided by a
-constant.
+what the API image is built without. So the estimate is characters divided by a constant.
 
 **The estimate is allowed to be wrong by a stated amount.** This is the part worth
 copying elsewhere. Characters-per-token is not a property of the language, it is a
@@ -82,13 +77,13 @@ property of the text — repeated instructions tokenise near 3.7, ordinary prose
 under-count still fits inside the margin. The margin is not a fudge factor; it is what
 turns a heuristic into a bound.
 
-The first version of the estimator under-counted the one-line greeting by **41 %**,
-because it counted per-message template overhead but not the per-request kind — the BOS
-token and the `<start_of_turn>model` the template opens for the reply. Seven tokens,
-irrelevant at that size, and a clear sign the model of the thing was wrong. A per-request
-constant of 8 fixed it and improved every other row.
+The estimate counts a per-request constant of 8 tokens as well as the per-message
+template overhead — the BOS token and the `<start_of_turn>model` the template opens for
+the reply. Without it the one-line greeting is under-counted by **41 %**: seven tokens,
+irrelevant at that size, and a sign that the model of the thing was wrong. With it every
+other row improves too.
 
-Finally, the estimate only ever decides **what to send**. What is reported is
+The estimate only ever decides **what to send**. What is reported is
 `turns.prompt_tokens`, which is Ollama's own count. A drifting constant therefore shows up
 as a widening gap between two stored numbers rather than as a context that quietly
 overflows.
@@ -97,8 +92,8 @@ overflows.
 
 ## 2. Gemma 3 has no system role, so "anchor the persona in the system message" is not the instruction it looks like
 
-PRD R7 and the plan both say the persona is re-anchored in the system message every turn.
-Reading Ollama's template for `gemma3:4b` before implementing that turned out to matter:
+PRD R7 says the persona is re-anchored in the system message every turn. Ollama's template
+for `gemma3:4b` says what that means:
 
 ```
 {{- range $i, $_ := .Messages }}
@@ -119,11 +114,10 @@ occupies. Gemma 3 has no privileged channel at all. So on this model:
 The assembly therefore anchors twice: the full brief at the front, and a ~30-token
 reminder of identity and the reply constraints immediately before the latest utterance.
 
-**Whether the second anchor helps is unresolved, and the honest answer is that m6's
-instruments cannot tell.** It was measured with two deterministic proxies — never an LLM
-judging an LLM, which is the shape invariant I1 forbids — chosen because the seeded
-personas make them checkable: replies within their sentence cap, and replies that end
-with a question.
+**Whether the second anchor helps is unresolved, and these instruments cannot tell.** It
+was measured with two deterministic proxies — never an LLM judging an LLM — chosen
+because the seeded personas make them checkable: replies within their sentence cap, and
+replies that end with a question.
 
 | arm | ≤ 4 sentences | ends with `?` |
 |---|---|---|
@@ -133,16 +127,16 @@ with a question.
 30 turns of history, n = 25 replies per arm, `gemma3:4b`.
 
 Both proxies saturate. At 30 turns this model holds its format constraints perfectly with
-or without the tail anchor, so the measurement distinguishes nothing. An earlier run at
-n = 10 showed 80 % versus 100 % on the question proxy and would have supported the
-opposite conclusion; it was two replies, and it was noise. That is recorded here because
-it is exactly how a fourteen-token difference becomes a finding in a document.
+or without the tail anchor, so the measurement distinguishes nothing. A run at n = 10
+showed 80 % versus 100 % on the question proxy and would have supported the opposite
+conclusion; it was two replies, and it was noise — which is how a fourteen-token
+difference becomes a finding in a document.
 
 **The anchor stays**, on the mechanistic argument in the template above rather than on
 evidence that it helps, and because 30 tokens against a 1278-token prompt is 2 %. What
 these proxies test is *format* compliance, not staying in character — not commenting on
-the speaker's English, pushing back on a vague claim, keeping the scene. m11 evaluates
-persona adherence properly, and that is where this gets decided. Logged as **Q12**.
+the speaker's English, pushing back on a vague claim, keeping the scene. That is measured
+by the evaluation harness's persona suite ([0008](0008-evaluation-harness.md)).
 
 ---
 
@@ -151,7 +145,7 @@ persona adherence properly, and that is where this gets decided. Logged as **Q12
 ### The measurement
 
 Twenty turns through the real recogniser, the real model and the real voice, against
-`POST /sessions/{id}/turns`. Audio is the four shortest clips of the m4 golden set,
+`POST /sessions/{id}/turns`. Audio is the four shortest clips of the ASR golden set,
 4.45 s to 6.82 s, cycled — LibriSpeech read speech rather than conversational speech,
 which is a substitution worth naming, but the durations land where §9.1's budget assumes.
 
@@ -159,7 +153,7 @@ Run at **load 1.74 rising to 5.04** on the target machine (M4 Max, 16 cores, 128
 
 | stage | §9.1 budget | median | p95 | verdict |
 |---|---|---|---|---|
-| ASR (~5.25 s audio) | 700 ms | 1146 | 1341 | missed, as m4 said it would be (D26) |
+| ASR (~5.25 s audio) | 700 ms | 1146 | 1341 | missed, as [0001](0001-asr-model-choice.md) expects |
 | generation (~53 tokens) | 1500 ms | 872 | 1249 | **met** |
 | synthesis, tail | 400 ms | 235 | 399 | **met** |
 | reply (generation + synthesis) | — | 1132 | 1447 | — |
@@ -168,14 +162,14 @@ Run at **load 1.74 rising to 5.04** on the target machine (M4 Max, 16 cores, 128
 Prompt 1258 tokens median (budget 4000), reply 53 tokens median (cap 400), 2 sentences
 per reply, zero cold model loads.
 
-**The turn budget is met.** The one stage that misses is ASR, which m4 measured, reported
-and deliberately did not engineer away — and the turn absorbs it, which is the outcome D26
-was betting on.
+**The turn budget is met.** The one stage that misses is ASR, which
+[0001](0001-asr-model-choice.md) measures and deliberately does not engineer away — and the
+turn absorbs it.
 
 ### The same measurement on a contended machine, because that matters too
 
-The first three attempts at this ran while the machine was also hosting a second Docker
-VM, an Android emulator and two other Compose stacks. At load 10–16:
+The same code while the machine also hosts a second Docker VM, an Android emulator and
+two other Compose stacks. At load 10–16:
 
 | | quiet (load ~2–5) | contended (load ~10–16) |
 |---|---|---|
@@ -186,9 +180,8 @@ VM, an Android emulator and two other Compose stacks. At load 10–16:
 | synthesis tail, median | 235 ms | 1526 ms |
 
 **Nearly 3× on the same code.** This is recorded rather than discarded because it is the
-honest range a developer will actually see, and because for several hours it was the only
-measurement available and it said the opposite thing. The rule m5 wrote down still holds:
-a latency taken without its load average beside it is not a measurement.
+honest range a developer will actually see. A latency taken without its load average
+beside it is not a measurement.
 
 ### PRD §9.1's first fallback, measured against its own control
 
@@ -212,75 +205,64 @@ larger than the effect being measured. **Do not read the MET/MISSED line as the 
 doing.** It is on the right side of the budget in these two runs, and the honest claim is
 that overlapping buys about a twentieth of the turn.
 
-That is a smaller number than this project assumed. m5 built the streaming endpoint
-expecting it to hand back ~242 ms of m4's overspend, which turns out to be about right —
-and about right is also about 6 % of a turn. The ceiling is arithmetic: a two-to-three
-sentence reply is ~500 ms of synthesis work (measured directly against the voice: 508 ms
-as one call, 472 ms as three concurrent calls, 517 ms as three serial calls, so splitting
-is cost-neutral at the service), and overlapping can hide at most all-but-the-last sentence.
+The streaming endpoint of [0002](0002-tts-model-choice.md) is expected to hand back
+~242 ms of the recogniser's overspend, which is about right — and about 6 % of a turn. The
+ceiling is arithmetic: a two-to-three sentence reply is ~500 ms of synthesis work
+(measured directly against the voice: 508 ms as one call, 472 ms as three concurrent
+calls, 517 ms as three serial calls, so splitting is cost-neutral at the service), and
+overlapping can hide at most all-but-the-last sentence.
 
-> **Added 2026-08-30, after m7: the paragraph below is wrong about m7 and is left as
-> written.** The turn endpoint returns one concatenated WAV after the whole turn
-> completes, so the browser's first audio arrives at *turn* latency and the 78 ms is a
-> boundary nothing downstream can observe. See
-> [0004 §3](0004-browser-recording-and-playback.md). The rest of this section stands:
-> the overlap shortens the turn, which is what the budget measures.
-
-**It stays on.** It is free, it is bounded-correct, and its real payoff is m7: when the
-browser plays sentence one while sentence two is still being synthesised, the number that
-matters stops being turn latency and becomes time-to-first-audio, where m5 measured 78 ms
-against 320 ms.
+**It stays on.** It is free, it is bounded-correct, and it shortens the turn, which is what
+the budget measures. It does not bring the first sound forward in the browser: the turn
+endpoint returns one concatenated WAV after the whole turn, so the browser's first audio
+arrives at turn latency ([0004 §3](0004-browser-recording-and-playback.md)).
 
 ### Two measurements of the overlap were wrong before this one, and both are recorded
 
-Because both were plausible and both would have been published.
+Both are plausible, and both are wrong.
 
 **The sum of per-sentence latencies.** The sentences are dispatched concurrently and the
 tts service serialises them behind its own semaphore, so each sentence's reported latency
 includes waiting for the ones before it. Summing them counts the queue once per sentence
-and reported 5690 ms of "voice work" for a reply that takes about 500 ms to synthesise.
+and reports 5690 ms of "voice work" for a reply that takes about 500 ms to synthesise.
 
 **The makespan from first dispatch to last completion.** Worse, because it looks right: it
 necessarily spans the generation it is overlapping, so on the streaming arm it measures the
-overlap window and not the work. It reported "60 % of synthesis hidden inside generation" —
-a number that was really a description of when generation finished, and one that was in a
-draft of this document.
+overlap window and not the work. It reports "60 % of synthesis hidden inside generation" —
+a number that is really a description of when generation finished.
 
 The tail is the only quantity that means the same thing in both configurations, which is
-why `synthesis_ms` is what the API reports and why the A/B is the instrument. See trap 33.
+why `synthesis_ms` is what the API reports and why the A/B is the instrument.
 
 ---
 
-## 4. Q8, answered
+## 4. The recogniser stays
 
-> **Q8.** Does the measured end-to-end turn latency force the ASR down to `base.en`?
+> Does the measured end-to-end turn latency force the recogniser down to `base.en`?
 
 **No. The turn meets its budget with `small.en` in it.**
 
 p95 is **2684 ms against 3000 ms** on a quiet target machine. ASR is 1146 ms of that — it
-misses its own 700 ms stage budget, exactly as m4 measured and deliberately did not fix
-(D26) — and the turn absorbs the overspend because generation came in at 872 ms against a
-1500 ms budget and synthesis at 235 ms against 400 ms.
+misses its own 700 ms stage budget, as [0001](0001-asr-model-choice.md) measures — and the
+turn absorbs the overspend because generation comes in at 872 ms against a 1500 ms budget
+and synthesis at 235 ms against 400 ms.
 
 Dropping to `base.en` would buy roughly 620 ms and cost **2.6× the word error rate**
-(m4's numbers), which is the input to every metric downstream. There is no reason to pay
-that: the requirement is a turn at p95 ≤ 3000 ms, and it is met.
-
-**D26 is confirmed rather than reopened.** Its bet was that a stage-level miss would be
-survivable at the turn level, and the turn-level measurement it asked for now exists and
-says so.
+([0001](0001-asr-model-choice.md)'s numbers), which is the input to every metric
+downstream. There is no reason to pay that: the requirement is a turn at p95 ≤ 3000 ms,
+and it is met. [0001](0001-asr-model-choice.md)'s bet — that a stage-level miss is
+survivable at the turn level — holds.
 
 Two things worth carrying forward:
 
 - **The margin is 316 ms, which is not much.** The control arm — the same system with
-  §9.1's first fallback switched off — came in at 3043 ms. This budget is met, not met
+  §9.1's first fallback switched off — comes in at 3043 ms. This budget is met, not met
   comfortably, and anything that lengthens replies will be the first thing to break it.
-- **§9.1's fallback order looks wrong for this stack, and nothing is being changed on the
+- **§9.1's fallback order looks wrong for this stack, and nothing is changed on the
   strength of it.** The order is stream TTS (worth ~140 ms), drop ASR (~620 ms, costs
   accuracy), shorten the reply cap (untested, listed last). Reply length drives generation
   *and* synthesis, so it is plausibly the largest lever of the three and it is the one the
-  PRD reaches for last. That is a hypothesis with no measurement behind it and it stays a
-  hypothesis until somebody runs it.
+  PRD reaches for last. That is a hypothesis with no measurement behind it.
 
 ---
 
@@ -301,9 +283,10 @@ advance, the turns are still rows, and the next turn over the mark tries again.
 
 It is awaited rather than fired into a background task. That costs the caller a few hundred
 milliseconds on roughly one turn in ten, visibly, in a number the endpoint returns.
-`BackgroundTasks` would hide both the cost and the failure, and m9 is where this project's
-background-job machinery is actually designed (Q3) — two answers to that question in one
-codebase is worse than one answer that is honest about its price.
+`BackgroundTasks` would hide both the cost and the failure, and the analysis job
+([0006](0006-error-taxonomy.md)) is this project's one design for background work — two
+answers to that question in one codebase is worse than one answer that is honest about its
+price.
 
 ---
 
@@ -333,16 +316,17 @@ codebase is worse than one answer that is honest about its price.
 - **Replies get longer.** The turn passes at p95 2684 ms with 316 ms of margin, and reply
   length drives both generation and synthesis. It is the most likely thing to break this
   and the least tested lever in §9.1's list.
-- **The client streams audio** (m7). Time-to-first-audio becomes the number that matters
-  and the overlap in §3 stops being worth 140 ms of turn latency and starts being worth
-  most of a second of *perceived* latency — m5 measured 78 ms to the first sentence
-  against 320 ms for a whole reply.
-- **m11 evaluates persona adherence.** Q12 — whether the tail anchor earns its 30 tokens —
-  is decided there, with an instrument that measures character rather than format.
+- **The client streams audio.** Time-to-first-audio becomes the number that matters and
+  the overlap in §3 stops being worth 140 ms of turn latency and starts being worth most of
+  a second of *perceived* latency — [0002](0002-tts-model-choice.md) measures 78 ms to the
+  first sentence against 320 ms for a whole reply.
+- **Whether the tail anchor earns its 30 tokens needs an instrument that measures character
+  rather than format.** The persona suite ([0008](0008-evaluation-harness.md)) is that
+  instrument.
 - **A model with a real system role is configured.** Everything in §2 is specific to
   Gemma 3's template. `ChatMessage` already carries the distinction, so the request would
   say what was meant the day it stops being folded into a user turn.
 - **`gemma3:4b` is swapped for something larger.** Generation has 628 ms of headroom
   against its stage budget and the turn has 316 ms overall; a 12b model would consume both.
-  Q4 asks that question for a different reason (error labelling at m9) and the two should
-  be decided together.
+  [0006](0006-error-taxonomy.md) asks the model-size question for error labelling, and the
+  two should be decided together.

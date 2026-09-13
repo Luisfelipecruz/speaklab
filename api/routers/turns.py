@@ -30,7 +30,7 @@ the same bytes produce the same asset when the turn is retried.
 reply to; generation failing means there is no reply; but synthesis failing means there is
 a perfectly good reply that cannot be spoken, and 502-ing it would be the API deciding
 that no answer is better than a silent one. The turn returns 200 with `speech.status`
-saying what happened, the same way `/health` reports degraded rather than dead (I6).
+saying what happened, the same way `/health` reports degraded rather than dead.
 """
 
 import logging
@@ -310,11 +310,10 @@ async def _fold_digest(
     covered are still rows, and the next turn that crosses the high-water mark tries
     again. A failure here costs a little context later. It must never cost a reply now.
 
-    **On the request's session, not a new one.** An earlier version opened its own
-    session from the module-level factory, which pointed at whatever database
-    `config.DATABASE_URL` names — the *production* one, even under a test that had
-    overridden `get_db`. It worked in production and was silently untestable, which is
-    the worse of the two failure modes.
+    **On the request's session, not a new one.** A session from the module-level factory
+    would point at whatever database `config.DATABASE_URL` names — the *production* one,
+    even under a test that overrides `get_db` — so the fold would work in production and
+    be silently untestable, the worse of the two failure modes.
 
     **In the same three phases as the endpoint.** Read, release, summarise, re-acquire.
     The model call in the middle takes about as long as the reply did, and holding a

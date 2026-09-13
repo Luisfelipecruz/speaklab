@@ -1,14 +1,13 @@
 # 0015 — Accuracy per form
 
-Status: accepted · 2026-09-11 · **the percentage in §7 superseded by
-[0016](0016-the-grammar-page.md)**: no screen shows one; the counts stay
+Status: accepted · the percentage in §7 superseded by [0016](0016-the-grammar-page.md)
 
 Decision 0007 said there was no accuracy figure per grammatical form, and why: errors are
 filed under a taxonomy category, forms are counted by a parser, and nothing in the schema
 linked one to the other. "Your present perfect is right seven times in ten" could not be
-computed from anything stored. The grammar section m14 is building needs that sentence, so
-the join had to exist first — and the plan called it a design decision rather than a
-formality, because a join done carelessly is an invented number with decimal places on it.
+computed from anything stored. The grammar page needs that sentence, so the join has to
+exist first — and it is a design decision rather than a formality, because a join done
+carelessly is an invented number with decimal places on it.
 
 This records how a correction is joined to a verb form, what accuracy per form is computed
 as, what the parser had to be fixed for before either could be trusted, what it was
@@ -48,8 +47,7 @@ whose words are the same on both sides is struck out. What is left is what the c
 changed: `went` on one side and `have been` on the other, so `past_simple` said and
 `present_perfect` needed.
 
-The plan named the join as the error's span against the parser's verb-phrase spans. Overlap
-alone is not enough: it would file `think that she go` under the present simple twice, once
+Overlap alone — the error's span against the parser's verb-phrase spans — is not enough: it would file `think that she go` under the present simple twice, once
 for a verb that was right, and `enjoy to swim` under the present simple once, for a verb
 nothing corrected. Both are in the development set.
 
@@ -87,8 +85,7 @@ said is five of seven.
 
 ## 3. Which categories join
 
-The plan said verb tense only. That was changed on reading what the other two categories
-are:
+Not only verb tense: the other two categories are about a verb's form too.
 
 - **Agreement.** `she work` is a present simple built wrongly. Leaving it out would let a
   learner who drops the third-person *-s* in every sentence read *present simple: right
@@ -103,7 +100,7 @@ simple is exactly the invented join 0007 warned against.
 ## 4. The parser, fixed first
 
 Writing the dev set turned up three places where the counter of forms was wrong, and a
-join to a wrongly counted form is a wrong join. All three predate m14.
+join to a wrongly counted form is a wrong join.
 
 | What it did | Example | Now |
 |---|---|---|
@@ -112,7 +109,7 @@ join to a wrongly counted form is a wrong join. All three predate m14.
 | Called `had been waiting` a *present* perfect continuous | — | `past_perfect_continuous`, a new name in the closed vocabulary |
 
 And three narrower ones: a perfect or continuous with no tense (`having finished`, `being
-told`) is no longer counted as one; `been` is never a finite verb, whatever the tagger says
+told`) is not counted as one; `been` is never a finite verb, whatever the tagger says
 (`I been to Paris` was a present simple); and a lexical verb the tagger labels an auxiliary
 (`enjoy` in `I enjoy swimming`) still heads its own phrase.
 
@@ -191,7 +188,7 @@ counts against a form used correctly, and a missed one counts as right.
 ## 7. What a learner sees
 
 On the progress page, under *How much you reach for*, each tense and modal in the
-repertoire now carries a line beside its count:
+repertoire carries a line beside its count:
 
 - **right 3 of 5** — below the floor, a count and nothing else;
 - **right 9 of 13 · 69 %** — from ten times said or needed in the period

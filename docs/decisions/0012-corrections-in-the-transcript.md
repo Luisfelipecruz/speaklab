@@ -1,14 +1,13 @@
 # 0012 — Corrections in the transcript
 
-Status: accepted · 2026-09-06
+Status: accepted
 
-Every correction the analysis stores has carried character offsets into its turn's
-transcript since the table was designed, with a column comment saying they exist so the
-interface can underline the words rather than restate them. No screen read them. The
-end-of-session report listed the corrections in a block under the conversation, and a
-learner who read "look department → look at the apartment" had to scroll up and find the
-turn by eye. This records how the offsets are finally used, and the four ways the marking
-can go wrong that the design refuses.
+Every correction the analysis stores carries character offsets into its turn's
+transcript, with a column comment saying they exist so the interface can underline the
+words rather than restate them. Listed in a block under the conversation, a correction
+such as "look department → look at the apartment" leaves the learner to scroll up and find
+the turn by eye. This records how the offsets are used, and the four ways the marking can
+go wrong that the design refuses.
 
 ## What was decided
 
@@ -103,8 +102,3 @@ corrections: two counted, two on the misheard words and marked as possible mishe
 one of those filed under word order — the category error decision 0006 §6 describes. All
 four were marked on the words they quoted, at 1440 and 375 px, in both modes. The session
 was then deleted so the corpus the evaluation reads is unchanged.
-
-Not seen: the build. The container the checks run in had no outbound network during this
-session, and `next/font` fetches its family at build time. Lint, typecheck and 202 tests
-across 30 suites ran in the same container and passed; nothing in this change touches the
-layout or its configuration.

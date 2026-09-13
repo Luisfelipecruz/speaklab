@@ -1,8 +1,8 @@
 # 0021 — Dependencies, images and the supply chain
 
-Status: accepted · 2026-09-12
+Status: accepted
 
-A review on 2026-09-12 scored the project's security 41 of 100. Trivy found 3 CRITICAL
+A security review scored the project 41 of 100. Trivy found 3 CRITICAL
 and about 100 HIGH findings in each Python image and 4 and 45 in the frontend's; the
 Python web stack was months behind with reachable advisories (python-multipart and
 Starlette's form parsing, Starlette's Range handling); every container ran as root and
@@ -53,7 +53,7 @@ it was mechanical. These were the choices in fixing it.
    cache of registry metadata once the install is done: the image is 1.05 GB, from 1.66 GB.
    `qs` moves to 6.16.0.
 8. **Node 24, the active LTS, replaces Node 22, and Next 16.3.5 with React 19.3.0 replaces
-   Next 15**, whose support ends on 2026-10-21. Nothing in the code used what Next 16
+   Next 15**, whose support was ending. Nothing in the code used what Next 16
    removes — every request API was already awaited, and there is no middleware, image
    optimisation or runtime config. Turbopack builds and serves. Next 16 pins a PostCSS
    release past every published advisory, so the override Next 15's copy needed is gone.
@@ -75,7 +75,7 @@ it was mechanical. These were the choices in fixing it.
     secret. Dependabot proposes updates weekly for pip in four directories, npm, the base
     images, Compose's images and the actions; torch and torchaudio are left to hand,
     because the pron Dockerfile repeats their versions.
-11. **Python stays at 3.12.** It has security releases until 2028-10, and a current 3.14
+11. **Python stays at 3.12.** It is inside its security-support window, and a current 3.14
     base scans the same.
 12. **The model libraries are not upgraded here.** None carries a published
     vulnerability, and each changes what the product measures, so each waits for
@@ -96,8 +96,7 @@ it was mechanical. These were the choices in fixing it.
 | API suite | 1 049, 1 011 pass | **1 050, 1 012 pass**, 38 need a model service, no warnings |
 | Frontend | 316 / 49, Next 15 | 316 / 49 on Next 16.3.5 and React 19.3.0; `tsc`, ESLint and the Turbopack build green; every signed-in page renders with a real session |
 
-All on 2026-09-12, in Docker, with the live stack brought up the way `make setup` brings
-it up: every service healthy, every model loaded under the new account, a recording written
+All in Docker, with the live stack brought up the way `make setup` brings it up: every service healthy, every model loaded under the new account, a recording written
 to the audio volume.
 
 ## Found on the way
@@ -116,6 +115,7 @@ to the audio volume.
 ## Revisit if
 
 - a package excepted from the trust check publishes a release with provenance on its line;
-- Dependabot cannot update a lockfile written by pnpm 12;
+- Dependabot cannot update a lockfile written by pnpm 12 — it cannot, and
+  [0023](0023-releases-and-the-project-site.md) says what watches the frontend instead;
 - a service has to be reached from another machine — then it needs authentication, not a
   wider port.

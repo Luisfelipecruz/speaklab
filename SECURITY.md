@@ -37,7 +37,7 @@ for that and wrong anywhere else:
   nothing it does not run.
 - **Dependencies.** Python requirements are pinned exactly and the frontend's lockfile is
   committed. Dependabot proposes updates weekly, and a security update for each published
-  vulnerability, for everything but the frontend, whose lockfile its updater cannot yet
+  vulnerability, for everything but the frontend, whose lockfile its updater cannot
   write; CI audits the frontend's packages every week instead. pnpm installs no release
   less than a day old, none published with weaker evidence of its origin than an earlier
   release of the same package, and runs no dependency's install script unless it is

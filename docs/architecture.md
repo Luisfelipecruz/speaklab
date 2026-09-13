@@ -405,4 +405,3 @@ Inside the Compose network each service is reached by its name and its own port.
 | Why a choice was made — dated records, kept as written | [decisions/](decisions/) |
 | All of the above as one site, rebuilt from `main` on every merge | [luisfelipecruz.github.io/speaklab](https://luisfelipecruz.github.io/speaklab/) |
 | The product requirements and the measurement model | `../PRD.md` |
-| How it was built, milestone by milestone | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |

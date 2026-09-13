@@ -32,9 +32,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
     The trade-off worth naming: the pooled connection is held for the whole request, so
     a slow non-database step inside an endpoint keeps it checked out. Under load that is
-    how a pool of 5-10 connections is exhausted. The turn endpoint in m6 calls three
-    model services and an LLM inside one request, so it will need a narrower `async with`
-    around just its queries rather than this dependency.
+    how a pool of 5-10 connections is exhausted. The turn endpoint, which calls three
+    model services and an LLM in one request, therefore holds a connection only around
+    its queries and releases it across the model calls.
     """
     async with async_session() as session:
         try:

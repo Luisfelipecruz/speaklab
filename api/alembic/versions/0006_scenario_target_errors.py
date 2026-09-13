@@ -15,7 +15,6 @@ other one.
 
 Revision ID: 0006
 Revises: 0005
-Created: 2026-09-12
 """
 
 from collections.abc import Sequence
