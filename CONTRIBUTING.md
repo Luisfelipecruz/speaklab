@@ -36,8 +36,8 @@ Everything runs in containers, as CI runs it:
 | `make lint` | ruff and black over the API, check only; `make fmt` fixes in place |
 | `make test` | The API suite against Postgres. Tests that need a model service skip when it is not up |
 | `make test-frontend` | Jest and React Testing Library |
-| `docker compose run --rm --no-deps frontend pnpm run typecheck` | TypeScript |
-| `docker compose run --rm --no-deps frontend pnpm run lint` | ESLint |
+| `docker compose run --rm --no-deps frontend-dev pnpm run typecheck` | TypeScript |
+| `docker compose run --rm --no-deps frontend-dev pnpm run lint` | ESLint |
 | `make site` | The project site, built as the Pages workflow builds it, with its tests. A link to a file or a heading that does not exist fails it; `make site-serve` shows it on <http://localhost:8004> |
 
 CI runs five jobs on every pull request: the API's lint and tests with the evaluation
@@ -60,7 +60,7 @@ nowhere else: the documents and the comments describe the system as it is.
   the API runs from.
 - **The frontend uses pnpm**, at the version `packageManager` names in
   `frontend/package.json`. Add a package with
-  `docker compose run --rm --no-deps frontend pnpm add <name>` and commit
+  `docker compose run --rm --no-deps frontend-dev pnpm add <name>` and commit
   `frontend/pnpm-lock.yaml` with it. pnpm refuses a release less than a day old, and runs
   no dependency's install script unless `frontend/pnpm-workspace.yaml` allows it; allowing
   one is a change to review, not a default.

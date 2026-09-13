@@ -188,7 +188,7 @@ jobs:
 
       - name: Validate every profile
         run: >-
-          docker compose --profile pron --profile llm --profile tools config --quiet
+          docker compose --profile pron --profile llm --profile tools --profile dev config --quiet
 
   site:
     name: Site — tests, and every link resolved

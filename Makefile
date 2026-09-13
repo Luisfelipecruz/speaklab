@@ -5,7 +5,7 @@
 # profile because it is the only image with torch in it. The conversation model is Ollama
 # on the host, not a service here.
 
-.PHONY: help setup up down restart logs ps health test test-frontend lint fmt fmt-eval clean \
+.PHONY: help setup up down restart dev logs ps health test test-frontend lint fmt fmt-eval clean \
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
         persona-adherence answer-feedback corpus analyze analyze-dry reparse error-precision rollup \
@@ -19,11 +19,9 @@ help:                              ## This list
 
 # Idempotent, so it is also the command to run after a `git pull`. `--wait` waits for
 # healthy processes, not for model weights: asr reports healthy while Whisper downloads.
-# `--renew-anon-volumes` gives the frontend the node_modules of the image just built, not
-# the previous container's.
 setup:                             ## First run, and after every pull: build, start, migrate, seed
 	@test -f .env || { cp .env.example .env && echo "wrote .env from .env.example"; }
-	docker compose up -d --build --wait --renew-anon-volumes
+	docker compose up -d --build --wait
 	docker compose exec api alembic upgrade head
 	docker compose exec api python -m scripts.seed
 	@echo ""
@@ -61,16 +59,26 @@ llm-check:                         ## Can the API reach Ollama, with the model p
 
 # ── Everyday ────────────────────────────────────────────────────────────────
 
+# The development frontend, if `make dev` started it, gives port 3003 back first.
 up:                                ## Start the default stack (5 services)
+	docker compose --profile dev stop frontend-dev
 	docker compose up -d
 
-# Both profiles, so pron and ollama are removed too; otherwise a stopped pron container
-# outlives the network and the next `make pron-up` fails. Naming a profile starts nothing.
+# Every profile, so pron, ollama and the development frontend are removed too; otherwise a
+# stopped pron container outlives the network and the next `make pron-up` fails. Naming a
+# profile starts nothing.
 down:                              ## Stop everything, pron and ollama included. Volumes survive.
-	docker compose --profile pron --profile llm down
+	docker compose --profile pron --profile llm --profile dev down
 
 restart:                           ## Recreate the api container (after a dependency change)
 	docker compose up -d --build api
+
+# The development server over the source, on the same port, in place of the built
+# frontend. `--renew-anon-volumes` gives it the node_modules of the image just built, not
+# the previous container's. `make up` puts the built frontend back.
+dev:                               ## Serve the frontend from the development server, over the source
+	docker compose stop frontend
+	docker compose --profile dev up -d --build --wait --renew-anon-volumes frontend-dev
 
 logs:                              ## Tail all logs
 	docker compose logs -f
@@ -86,9 +94,10 @@ health:                            ## The API's own account of what is degraded
 test:                              ## Run the API suite in a container
 	docker compose --profile tools run --rm test
 
-# `--no-deps`: these tests never call the API, so they do not wait for it.
+# In the development image, because the built one carries no test tools. `--no-deps`:
+# these tests never call the API, so they do not wait for it.
 test-frontend:                     ## Run the frontend suite (Jest + RTL) in a container
-	docker compose run --rm --no-deps frontend pnpm test
+	docker compose run --rm --no-deps frontend-dev pnpm test
 
 # eval/ is mounted read-only inside /app, so it is excluded from the /app pass and checked
 # in its own. The two exclusions differ on purpose: ruff's matches a directory name, while

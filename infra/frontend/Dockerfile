@@ -1,6 +1,11 @@
-# The frontend, served by the Next.js development server with the source bind-mounted
-# over /app (docker-compose.yml). Build context is frontend/.
-FROM node:24.21.0-alpine3.24
+# The frontend, in two shapes built from one install. Build context is frontend/.
+#
+#   runner  the default stack's: `next build`'s standalone server, and nothing else — no
+#           source, no build or test tools, no package manager
+#   dev     the development server over the bind-mounted source (the `dev` profile in
+#           docker-compose.yml); the frontend's tests, types and lint run in it too
+
+FROM node:24.21.0-alpine3.24 AS base
 
 # The security fixes Alpine has published since the base image was built.
 RUN apk upgrade --no-cache
@@ -33,6 +38,9 @@ RUN pnpm install --frozen-lockfile \
 
 COPY --chown=node:node . .
 
+
+FROM base AS dev
+
 # .next exists in the image so the anonymous volume mounted over it starts out owned by
 # the same account.
 RUN mkdir -p .next
@@ -46,3 +54,45 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=60s \
     CMD wget -q --spider http://localhost:3000 || exit 1
 
 CMD ["pnpm", "run", "dev"]
+
+
+FROM base AS build
+
+# The browser's address for the API is compiled into the client bundle by `next build`,
+# so it is a build argument; the server's address (INTERNAL_API_URL) is read at runtime.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8002
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS=--no-network-family-autoselection
+
+# The fonts are fetched here, once; NODE_OPTIONS stops Node racing IPv4 against IPv6 for
+# them, which fails on networks with no IPv6 route.
+RUN pnpm run build
+
+
+FROM node:24.21.0-alpine3.24 AS runner
+
+# Alpine's fixes, and no package manager at all: the standalone server needs none.
+RUN apk upgrade --no-cache \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+              /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /root/.npm
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+# The traced server with the modules it imports, and the static assets it serves.
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+
+USER node
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=20s \
+    CMD wget -q --spider http://localhost:3000 || exit 1
+
+CMD ["node", "server.js"]

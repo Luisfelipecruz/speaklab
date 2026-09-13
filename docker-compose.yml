@@ -144,17 +144,41 @@ services:
       - speaklab
 
   # ── Frontend ───────────────────────────────────────────────────────────────
+  #
+  # Two URLs because there are two callers. The browser resolves localhost:8002 from the
+  # host; a server component resolves api:8000 inside the compose network. Using one for
+  # both is the classic Next.js container bug. `next build` compiles the browser's into
+  # the bundle, so the built frontend takes it as a build argument.
   frontend:
     build:
       context: ./frontend
       dockerfile: ../infra/frontend/Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8002}
     depends_on:
       api:
         condition: service_healthy
     environment:
-      # Two URLs because there are two callers. The browser resolves localhost:8002 from
-      # the host; a server component resolves api:8000 inside the compose network. Using
-      # one for both is the classic Next.js container bug.
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000}
+    ports:
+      - "127.0.0.1:3003:3000"
+    networks:
+      - speaklab
+
+  # The development server over the source, on the same port. `make dev` stops the built
+  # frontend and starts this; `make up` swaps them back. The frontend's checks run in its
+  # image, because the built one carries no test tools.
+  frontend-dev:
+    profiles: [dev]
+    build:
+      context: ./frontend
+      dockerfile: ../infra/frontend/Dockerfile
+      target: dev
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8002}
       INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000}
     volumes:
