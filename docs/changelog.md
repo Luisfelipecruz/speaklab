@@ -7,6 +7,52 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.19.0] — 2026-09-13 · every recording's length, and a built frontend
+
+The players on a transcript show every recording's length, and the default stack serves the
+frontend from a production build, with the development server one command away.
+
+### Fixed
+
+- **Every player shows its recording's length.** The learner's recordings — WebM, which
+  Chrome writes with no length in its header — and any player rendered on the server with
+  the transcript read `0:00 / 0:00`. The player now reads the length the element has when
+  it mounts, listens for a length that arrives later, and makes the browser work out one
+  its file does not declare. [Decision 0024](decisions/0024-every-recordings-length-and-a-built-frontend.md).
+
+### Changed
+
+- **The frontend container runs `next build`'s standalone server**: 299 MB against 1.06 GB,
+  93 MiB idle against 339, with no source, no build or test tools and no package manager,
+  as `node`. The browser's address for the API is a build argument.
+- **The development server is `frontend-dev`, in the `dev` profile.** `make dev` swaps it
+  in on the same port and `make up` swaps it back; `make test-frontend` and the frontend's
+  checks in CONTRIBUTING run in its image. `make setup` no longer renews anonymous
+  volumes, because only `make dev` has any. CI validates the `dev` profile with the others.
+
+### Measured
+
+- `make eval` at `6cf51e0`, all five suites: the criteria unchanged — S5 0.500 over six
+  proposals, S6 1.72 %, S7 7 sessions on 2 days. The sampled figures that moved, each now a
+  range across the runs: the persona gave its instructions away 2 of 150 (2–14 over seven
+  runs); replies clean on every rule 8 of 9 (6–8 over eight); an answer's sentence count
+  heard within one 8 of 12 (8–12 over seven); prepositions repaired by the recogniser 2 of
+  20, 18 of 200 tries in all.
+- The players, one turn in headless Chromium: before, `0:00 / 0:00` on the opening, the
+  learner's turn and a reloaded reply; after, `0:15`, `0:06` and `0:18`, live and
+  reloaded, on the development server and the built frontend alike.
+- The narrated portrait cuts re-recorded on the built frontend, every player on their
+  posters timed: short 77.1 s (a turn in 2.6 s, the report in 1.3 s), full 286.3 s (turns
+  in 2.4 and 2.8 s, the reading in 7.3 s, the answer in 4.3 s).
+- `make turn-latency` for S2: p95 5330 ms at a load of 3.6–7.0 with another project's
+  containers working on the same machine — missed. The quiet 2684 ms stands, and has not
+  been reproduced since.
+- The five default containers: 1.02 GiB after a conversation, a reading and an answer. A
+  page's first visit 0.03–0.21 s. Trivy on the built image: 0 HIGH, 0 CRITICAL.
+- Jest 319 across 49 suites; `tsc` and ESLint clean.
+
+---
+
 ## [0.18.1] — 2026-09-13 · dates only in the changelog
 
 Every document but this one describes the system as it is: no dates, no milestone ids, no

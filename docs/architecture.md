@@ -62,6 +62,7 @@ an `ollama` service is declared under the `llm` profile; `make llm-up` starts it
 | `pron` | `pron` | `make pron-up` |
 | `llm` | `ollama` | `make llm-up` |
 | `tools` | `test` | `make test` and the measurement targets |
+| `dev` | `frontend-dev`, the development server over the source, on the frontend's port | `make dev`; `make test-frontend` runs in its image |
 
 A profiled service is left out of both `up` and `build`, so the default stack never builds
 or downloads what it does not run.
@@ -80,8 +81,10 @@ or downloads what it does not run.
   change to that line.
 - **Its own health check**, in the Dockerfile: a line of Python for the four Python
   images, busybox `wget` for the frontend. No image installs a package to answer one.
-- **Only what it runs.** The API's test and lint tools are in a separate `test` stage;
-  the frontend image carries pnpm, and not npm or corepack.
+- **Only what it runs.** The API's test and lint tools are in a separate `test` stage. The
+  frontend's default image is `next build`'s standalone server — no source, no build or
+  test tools, no package manager; its `dev` stage carries pnpm, and not npm or corepack,
+  for the development server and the checks.
 
 ---
 

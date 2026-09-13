@@ -22,15 +22,17 @@ Two ways to read these numbers:
 |---|---|---|
 | First run, from nothing | `make setup` **2 min 33 s**, Whisper loaded at **2 min 43 s** — met against five minutes. The same build on a slower connection: 7 min 12 s and 8 min 58 s | a cold copy and `make setup` |
 | Containers healthy | 5 of 5; 6 of 6 with `pron` | `make health` |
-| Memory, five containers, models loaded | **1.74 GiB**, Ollama excluded; 1.94 GiB on the first run | `docker stats` |
-| Images | api **826 MB** with no torch, asr 790 MB, tts 724 MB, frontend 1.06 GB, `postgres:16.15` 657 MB — 4.1 GB | `docker images` after a build |
+| Memory, five containers, models loaded | **1.02 GiB** after a conversation, a reading and an answer, Ollama excluded; the frontend 79 MiB of it | `docker stats` |
+| Images | api **826 MB** with no torch, asr 790 MB, tts 724 MB, frontend **299 MB**, `postgres:16.15` 657 MB — 3.3 GB | `docker images` after a build |
+| … and the development frontend | 1.06 GB, the `dev` profile's, with the source and every tool | its build |
+| A page's first visit | **0.03–0.21 s** from the built frontend, against 0.63 s for a route the development server had not yet compiled | `curl` against the running frontend |
 | … and the optional one | pron **1.87 GB**, the only image with torch in it | its build |
 | Known vulnerabilities in the images built here | api, asr and tts **0 CRITICAL, 44 HIGH**, none with a fixed release yet; pron 0 and 45, one of them in a library — NLTK, with no fix published; frontend **0** | Trivy 0.74.0 on each image |
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command |
 | Frontend releases the trust check refuses | **2** — older-line releases by their own maintainers, each excepted by exact version; every other package in the lockfile passes | pnpm 12.4.1's install; each checked against the npm registry |
 | API test suite | **1 050** — 1 012 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test` |
-| Frontend test suite | **316** across 49 suites, no services needed | `make test-frontend` |
+| Frontend test suite | **319** across 49 suites, no services needed | `make test-frontend` |
 | API operations | **31** | `app.openapi()` |
 | The project site | **35 pages**; 220 links, every one resolved — 177 to other pages, 8 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.1 s | `make site` |
 
@@ -50,17 +52,17 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Measure | Figure | Source |
 |---|---|---|
 | **A whole spoken turn, p95 over 20** | **2684 ms** against 3000 ms — met, at a load average of 1.7–5.0 | `make turn-latency` |
-| … on a busy machine | 7283 ms at load 10–16 and 5356 ms at load 16.7–18.0 — the same code | `make turn-latency` |
+| … on a busy machine | 7283 ms at load 10–16, 5356 ms at load 16.7–18.0, and 5330 ms at load 3.6–7.0 with another stack's containers working beside it — the same code; the quiet figure has not been reproduced since | `make turn-latency` |
 | Turn stages, median | recognition 1146 ms · generation 872 ms · synthesis tail 235 ms | `make turn-latency` |
 | Speaking while writing, against its control | 235 ms of synthesis left to wait for, against 375 ms in series | `make turn-latency-noflow` |
 | Recognition, about six seconds of audio | **1231 ms** against a 700 ms stage budget — missed, deliberately; `base.en` meets it at 525 ms and 2.6× the word error | [decision 0001](decisions/0001-asr-model-choice.md) |
 | Synthesis, an 80-token reply | **320 ms** whole against 400 ms, **78 ms** to the first sentence; 771 ms and 135 ms on a busy machine | `make tts-latency`, [decision 0002](decisions/0002-tts-model-choice.md) |
 | Synthesis throughput | 50× real time on the CPU | `make tts-latency` |
 | The prompt-size estimate against Ollama's own count | −6.4 % to +6.2 % across three prompt shapes | [decision 0003](decisions/0003-conversation-context-strategy.md) |
-| **Persona replies clean of every deterministic rule** | **6 to 8 of 9** across seven runs, 7 in the latest; what fails is the sentence cap the persona itself states | `make persona-adherence`, [evaluation.md](evaluation.md) |
+| **Persona replies clean of every deterministic rule** | **6 to 8 of 9** across eight runs, 8 in the latest; what fails is the sentence cap the persona itself states | `make persona-adherence`, [evaluation.md](evaluation.md) |
 | The persona judge, against hand labels | **0.800** over ten replies; it misses the same two, the two the rules catch, in every run | [evaluation.md](evaluation.md) |
 | **An instruction spoken inside the scene** | the persona gave its instructions away **16 of 200** times over ten phrasings, against **59 of 200** before the speaker's words were quoted; on five phrasings written afterwards, 1 of 100 against 26 | [decision 0013](decisions/0013-an-instruction-spoken-in-the-scene.md) |
-| … in the suite `make eval` runs | fifteen phrasings, ten times each: **4 to 14 of 150** across six runs, 10 in the latest | [evaluation.md](evaluation.md) |
+| … in the suite `make eval` runs | fifteen phrasings, ten times each: **2 to 14 of 150** across seven runs, 2 in the latest | [evaluation.md](evaluation.md) |
 
 ## Corrections and grammar
 
@@ -70,8 +72,8 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Proposals refused by the gate | **25 %**, each with a reason | [decision 0006](decisions/0006-error-taxonomy.md) |
 | **Grammar rules, on planted errors** | **130 of 172** agreement errors caught — 0.756 [0.686, 0.814] — and **2 of 129** missing articles, with no wrong fix and no stray proposal; nothing proposed on 3 111 words of native English. No model involved | [evaluation.md](evaluation.md), [decision 0014](decisions/0014-the-rule-layer.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 real turns, where the parse of unpunctuated speech loses the verb; none joined to a wrong form | [evaluation.md](evaluation.md), [decision 0015](decisions/0015-accuracy-per-form.md) |
-| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across nine runs, 2 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
-| Articles, prepositions and false friends, said aloud | **16 to 20 of 20** of each kind heard as said across nine runs; repaired by the recogniser, prepositions 16 of 180 tries, articles 4 of 180, false friends never | [evaluation.md](evaluation.md), [decision 0018](decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
+| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across ten runs, 2 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
+| Articles, prepositions and false friends, said aloud | **16 to 20 of 20** of each kind heard as said across ten runs; repaired by the recogniser, prepositions 18 of 200 tries, articles 4 of 200, false friends never | [evaluation.md](evaluation.md), [decision 0018](decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | … found and filed under their kind | articles **6 of 20**, prepositions **12 of 20**, false friends **6 of 20** — identical in every run; 22 of the 60 corrected sentences drew a proposal | [evaluation.md](evaluation.md) |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path | [decision 0006](decisions/0006-error-taxonomy.md) |
 | Ending straight after speaking | the report holds the last turn in **3 of 3** runs, the end taking 4.15–4.80 s | [decision 0014](decisions/0014-the-rule-layer.md) |
@@ -95,7 +97,7 @@ learner's speech will be worse by an amount that set cannot estimate.
 | Measure | Figure | Source |
 |---|---|---|
 | **The counter, on 16 held-out answers** | precision / recall: reasons **0.957 / 1.000**, examples 1.000 / 0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, a word said twice 0.923 / 1.000. **A phrase started again 0.636 / 0.636 — below the bar, so counted and not shown.** No model involved | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
-| A spoken answer, as the recogniser writes it | twelve answers spoken by the `tts` voice, six runs: fillers **21 to 23 of 24**, words said twice 12 to 13 of 13, phrases started again 8 to 9 of 9, signposts 52 of 52 every time; the sentence count within one of the written in 10 to 12 of 12 | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
+| A spoken answer, as the recogniser writes it | twelve answers spoken by the `tts` voice, seven runs: fillers **21 to 23 of 24**, words said twice 12 to 13 of 13, phrases started again 8 to 9 of 9, signposts 52 of 52 every time; the sentence count within one of the written in 8 to 12 of 12 | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
 | **The model's shorter version** | on 40 labelled answers, a content word the speaker never said in 26, and **9 withheld** for more than two — **2 of 16** held out — in every run; every one shorter than the answer | [evaluation.md](evaluation.md) |
 | The check on a shorter version | withholds **6 of 6** rewrites written to add a fact, and shows 6 of 6 faithful ones | [evaluation.md](evaluation.md) |
 
