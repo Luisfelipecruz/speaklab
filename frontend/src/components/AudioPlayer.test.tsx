@@ -53,6 +53,61 @@ test("a headerless file reporting an infinite duration does not render Infinity"
   expect(screen.getByText("0:00 / 0:04")).toBeInTheDocument();
 });
 
+test("a player that read its file before it mounted still shows the length", () => {
+  // A server-rendered page loads the header before React attaches a handler, so
+  // loadedmetadata has already fired by the time the component could hear it.
+  const duration = jest
+    .spyOn(window.HTMLMediaElement.prototype, "duration", "get")
+    .mockReturnValue(15.17);
+  const readyState = jest
+    .spyOn(window.HTMLMediaElement.prototype, "readyState", "get")
+    .mockReturnValue(4);
+
+  render(<AudioPlayer src="/audio/129" />);
+
+  expect(screen.getByText("0:00 / 0:15")).toBeInTheDocument();
+  duration.mockRestore();
+  readyState.mockRestore();
+});
+
+test("a length that arrives after the metadata is shown", () => {
+  render(<AudioPlayer src="/audio/131" />);
+
+  const audio = document.querySelector("audio")!;
+  Object.defineProperty(audio, "duration", { configurable: true, value: 16.07 });
+  fireEvent.durationChange(audio);
+
+  expect(screen.getByText("0:00 / 0:16")).toBeInTheDocument();
+});
+
+test("an infinite length is worked out by seeking to the end, then back to the start unshown", () => {
+  render(<AudioPlayer src="/audio/130" />);
+
+  const audio = document.querySelector("audio")!;
+  let length = Infinity;
+  let time = 0;
+  Object.defineProperty(audio, "duration", { configurable: true, get: () => length });
+  Object.defineProperty(audio, "currentTime", {
+    configurable: true,
+    get: () => time,
+    set: (value: number) => {
+      time = value;
+    },
+  });
+
+  fireEvent.loadedMetadata(audio);
+  // Chrome's MediaRecorder WebM declares no length; a seek past the end makes it read one.
+  expect(time).toBe(Number.MAX_SAFE_INTEGER);
+  fireEvent.timeUpdate(audio);
+  expect(screen.getByText("0:00 / 0:00")).toBeInTheDocument();
+
+  length = 19.44;
+  fireEvent.durationChange(audio);
+
+  expect(time).toBe(0);
+  expect(screen.getByText("0:00 / 0:19")).toBeInTheDocument();
+});
+
 test("autoPlay speaks on mount and reports that it is playing", () => {
   const onPlayingChange = jest.fn();
   render(<AudioPlayer src="/audio/7" autoPlay onPlayingChange={onPlayingChange} />);
