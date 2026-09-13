@@ -2,7 +2,8 @@
 
 ## Supported versions
 
-Only the latest commit on `main`. SpeakLab has no tagged releases.
+The latest release, and `main`. A fix lands on `main` and ships in the next release; an
+older release is not patched.
 
 ## Reporting a vulnerability
 
@@ -35,9 +36,16 @@ for that and wrong anywhere else:
   security fixes its distribution has published since its base was built, and carries
   nothing it does not run.
 - **Dependencies.** Python requirements are pinned exactly and the frontend's lockfile is
-  committed. Dependabot proposes updates weekly. pnpm installs no release less than a day
-  old, none published with weaker evidence of its origin than an earlier release of the
-  same package, and runs no dependency's install script unless it is allowed by name.
+  committed. Dependabot proposes updates weekly, and a security update for each published
+  vulnerability, for everything but the frontend, whose lockfile its updater cannot yet
+  write; CI audits the frontend's packages every week instead. pnpm installs no release
+  less than a day old, none published with weaker evidence of its origin than an earlier
+  release of the same package, and runs no dependency's install script unless it is
+  allowed by name.
 - **CI.** A Trivy scan fails a pull request on a HIGH or CRITICAL vulnerability that has
-  a fixed release, on a Dockerfile that runs as root, and on a secret in the tree. Every
-  action is pinned to a commit, and the workflow's token is read-only.
+  a fixed release, on a Dockerfile that runs as root, and on a secret in the tree, and
+  runs again every Monday on `main`, so a vulnerability published since the last change
+  fails it with nobody pushing. Every action is pinned to a commit. Every workflow's token
+  is read-only but two jobs': the release job can create a release, and the Pages job can
+  publish the site. `main` takes a change only through a pull request, squash-merged, with
+  every check green, and cannot be force-pushed.

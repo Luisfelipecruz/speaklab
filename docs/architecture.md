@@ -403,5 +403,6 @@ Inside the Compose network each service is reached by its name and its own port.
 | What does not exist yet | [limitations.md](limitations.md) |
 | The tables, the enums, the seed contract | [data-model.md](data-model.md) |
 | Why a choice was made — dated records, kept as written | [decisions/](decisions/) |
+| All of the above as one site, rebuilt from `main` on every merge | [luisfelipecruz.github.io/speaklab](https://luisfelipecruz.github.io/speaklab/) |
 | The product requirements and the measurement model | `../PRD.md` |
 | How it was built, milestone by milestone | `../speaklab-agent/IMPLEMENTATION-PLAN.md` |

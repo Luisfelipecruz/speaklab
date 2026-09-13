@@ -142,6 +142,23 @@ that nothing in the other documents reads as a claim.
   and they flag 21 places, in the three recorders and six hooks and components. The rules
   of hooks and exhaustive dependencies are on; the two stay off until those places are
   rewritten.
+- **Dependabot cannot update the frontend.** Its updater runs pnpm 11 and fails while it
+  switches to the pnpm 12 release `packageManager` names, so it opens no pull request —
+  for a new release or for a vulnerability — against `frontend/`. Its alerts still come.
+  CI's Monday run fails on a HIGH or CRITICAL advisory against an installed package and
+  lists what has a newer release, and those updates are made by hand.
+
+## The site and releases
+
+- **The site has no search.** The sidebar and each page's own contents are the way round.
+- **Only 0.17.0 and later are releases.** Every earlier version is an entry in the
+  changelog and nothing more, and two of them, 0.2.0 and 0.7.0, were never the version
+  any commit on `main` carried.
+- **The one diagram needs a script from a CDN.** Mermaid is fetched when the diagram is
+  about to be seen, pinned to one release and checked against its hash; without it the
+  diagram's source shows as text.
+- **The site describes `main`**, which is published on every merge and can be ahead of
+  the latest release.
 
 ## Accounts and data
 

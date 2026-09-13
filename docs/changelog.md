@@ -7,6 +7,49 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.0] — 2026-09-13 · releases and the project site
+
+Every version from this one is a release, cut from its entry here by a workflow, and the
+documents are a site, rebuilt from `main` on every merge and checked link by link before
+they get there. Dependabot cannot update the frontend, so CI looks at it every week.
+`docs/decisions/0023`.
+
+### Added
+
+- **Releases from this changelog.** Pushing a tag `vX.Y.Z` on `main` publishes a release
+  whose notes are that version's entry, its links pointed at the tag; a tag on a commit
+  that carries another version is refused. `make release-notes V=x.y.z` prints the notes.
+- **The project site**, published from `main` by a Pages workflow: the README as its home
+  page, every document and decision record as a page, in the product's palette, light and
+  dark. `make site` builds it and `make site-serve` shows it.
+- **A fifth CI job, Site**: the site's and the notes script's tests, and the site built
+  from the pull request. A link to a file git does not track, a heading that does not
+  exist, raw HTML GitHub would not show, or a version in the code without an entry here
+  fails it.
+- **CI every Monday on `main`**: the Security job's scan of the tree, and the frontend's
+  `pnpm audit`, with what `pnpm outdated` lists written into the run's summary.
+
+### Changed
+
+- **Dependabot** ignores the next major of TypeScript, ESLint and Node's types, which wait
+  on a decision, and updates the site's builder with the other Python requirements.
+- **`SECURITY.md`** supports the latest release and `main`; **`CONTRIBUTING.md`** says how
+  a release is cut; the README links the site and the releases.
+
+### Measured
+
+- The site: **35 pages**, and every one of the 175 links in them resolved — 133 to other
+  pages, 8 to a heading on the same page, 8 to files on GitHub, 26 elsewhere — built in
+  0.3–1.1 s, with git present as CI builds it and without it as `make site` does.
+- The notes for 0.17.0, cut from its entry: 74 lines.
+- pnpm 12.4.1 in the frontend container: `pnpm audit` finds no known vulnerability, and
+  `pnpm outdated` lists ESLint 10.10.0 and TypeScript 7.0.2, both of them waiting.
+- actionlint 1.7.12 finds nothing in the three workflows; none of them has run on GitHub.
+- Dependabot's first run on `main`: the Python requirements, the base images, Compose's
+  images and the actions current; the frontend's update failed at the lockfile.
+- API suite **1 050** — 1 012 pass, 38 need a model service; the site's 41 tests; lint
+  clean over `api/`, `eval/` and `website/`.
+
 ## [0.17.0] — 2026-09-13 · security and dependencies
 
 Every dependency that could be current is, every container runs as an unprivileged

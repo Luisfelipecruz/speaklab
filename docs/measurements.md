@@ -32,6 +32,7 @@ Two ways to read these numbers:
 | API test suite | **1 050** — 1 012 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test`, 2026-09-13 |
 | Frontend test suite | **316** across 49 suites, no services needed | `make test-frontend`, 2026-09-13 |
 | API operations | **31** | `app.openapi()`, 2026-09-12 |
+| The project site | **35 pages**; 175 links, every one resolved — 133 to other pages, 8 to a heading on the same page, 8 to files in the repository, 26 elsewhere; built in 0.3–1.1 s | `make site`, 2026-09-13 |
 
 ### The first run, measured twice
 
