@@ -88,6 +88,9 @@ export function AudioPlayer({
   // should: a WAV header is authoritative, a duration passed from a database row is a
   // record of what some other process measured.
   const [duration, setDuration] = React.useState((durationMs ?? 0) / 1000);
+  // True while a seek to the end is making the browser work out a length its file did
+  // not declare; the positions it passes through are not shown.
+  const resolving = React.useRef(false);
 
   // A new src is a different recording, not a seek within this one.
   React.useEffect(() => {
@@ -95,7 +98,30 @@ export function AudioPlayer({
     setFailed(false);
     setPosition(0);
     setDuration((durationMs ?? 0) / 1000);
+    resolving.current = false;
   }, [src, durationMs]);
+
+  // Takes the length the element knows, if it knows one. Chrome writes a MediaRecorder
+  // WebM with no length in its header and reports it as infinite until it has read to the
+  // end; seeking past the end makes it read there now, and the durationchange that follows
+  // brings the real length back here. Until then the prop's length stands.
+  const readDuration = React.useCallback((audio: HTMLAudioElement) => {
+    const value = audio.duration;
+    if (Number.isFinite(value) && value > 0) {
+      setDuration(value);
+    } else if (value === Infinity && !resolving.current) {
+      resolving.current = true;
+      audio.currentTime = Number.MAX_SAFE_INTEGER;
+    }
+  }, []);
+
+  // A server-rendered player can read its header before this component has attached a
+  // handler, so loadedmetadata may already have fired; the element still knows.
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    // 1 is HAVE_METADATA.
+    if (audio && audio.readyState >= 1) readDuration(audio);
+  }, [src, readDuration]);
 
   // Deliberately keyed on `src` alone. Keying it on `autoPlay` as well would restart the
   // reply every time the parent re-rendered with the flag still true, which on a screen
@@ -148,13 +174,20 @@ export function AudioPlayer({
         ref={audioRef}
         src={src}
         preload="metadata"
-        onLoadedMetadata={(event) => {
-          const value = event.currentTarget.duration;
-          // A streamed or headerless file reports Infinity here. Keeping the prop's
-          // value is better than rendering "Infinity:NaN".
-          if (Number.isFinite(value) && value > 0) setDuration(value);
+        onLoadedMetadata={(event) => readDuration(event.currentTarget)}
+        onDurationChange={(event) => {
+          const audio = event.currentTarget;
+          if (resolving.current && Number.isFinite(audio.duration)) {
+            // The seek to the end has done its work: back to the start, unshown.
+            resolving.current = false;
+            audio.currentTime = 0;
+            setPosition(0);
+          }
+          readDuration(audio);
         }}
-        onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)}
+        onTimeUpdate={(event) => {
+          if (!resolving.current) setPosition(event.currentTarget.currentTime);
+        }}
         onPlay={() => report(true)}
         onPause={() => report(false)}
         onWaiting={() => setWaiting(true)}

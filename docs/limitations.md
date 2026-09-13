@@ -86,7 +86,7 @@ that nothing in the other documents reads as a claim.
   needs a new held-out set, written before it is changed.
 - **What reaches the transcript is measured on a synthetic voice.** Fillers, repeats and
   restarts said by the `tts` voice come back 21–23 of 24, 12–13 of 13 and 8–9 of 9 across
-  six runs — but that voice says *um* as a clear word, and a repeat can come back merged
+  seven runs — but that voice says *um* as a clear word, and a repeat can come back merged
   into one (*we we rolled back* as *we rerolled back*). A person's hesitation is a sound,
   and how much of it survives is not measured.
 - **The model's shorter version is checked for new words, not for a changed meaning.** A
@@ -129,9 +129,6 @@ that nothing in the other documents reads as a claim.
   101 HIGH, most in Debian packages and in the `gosu` binary built with an old Go. The
   Alpine variant carries far fewer, but it sorts text differently, so an existing database
   would need a dump and a restore to move to it.
-- **The frontend container runs the development server.** It is built for editing, with
-  the source bind-mounted and every dependency installed; there is no production build of
-  it here.
 - **TypeScript 7 and ESLint 10 wait on the lint plugins.** typescript-eslint, which Next's
   lint configuration uses, accepts TypeScript below 6.1, and the import, accessibility and
   React plugins in the same configuration accept ESLint 9 at most — which its maintainers
