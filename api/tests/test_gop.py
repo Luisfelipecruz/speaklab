@@ -474,8 +474,8 @@ def test_broken_readings_score_worse_than_clean_ones(manifest):
     # Cohen's d with a pooled standard deviation. The criterion asks for the gap "as a
     # measured effect size" precisely because a difference of means says nothing without
     # the spread underneath it: two nats apart is decisive on tight distributions and
-    # invisible on loose ones. The m0 spike measured d = 8.26 by reference perturbation,
-    # which is an upper bound on what this will find.
+    # invisible on loose ones. Reference perturbation on the probe recording gives
+    # d = 8.26, an upper bound on what this will find.
     pooled = math.sqrt(
         (statistics.variance(clean_gops) + statistics.variance(broken_gops)) / 2
     )

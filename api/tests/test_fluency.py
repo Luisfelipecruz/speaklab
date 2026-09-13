@@ -161,7 +161,7 @@ def test_none_is_treated_as_an_unmeasured_turn():
 
 
 def test_words_without_timings_are_skipped_rather_than_crashing():
-    """The column is JSONB and rows written by earlier versions are still in it."""
+    """The column is JSONB, and a stored row may lack a key."""
     words = [{"w": "hello"}, word("there", 0, 500), {"w": "x", "start_ms": "no"}]
     result = analyse(words)
     assert result.word_count == 1

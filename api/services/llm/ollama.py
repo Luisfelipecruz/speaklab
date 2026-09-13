@@ -6,8 +6,8 @@ the same model, several times slower, for nothing. `OLLAMA_BASE_URL` defaults to
 `host.docker.internal:11434` and `extra_hosts` in docker-compose.yml makes that resolve
 on Linux too.
 
-Two things about this API are worth knowing before reading the code, both measured on
-2026-08-30 against Ollama 0.33.1 and `gemma3:4b`:
+Two things about this API are worth knowing before reading the code, both measured
+against Ollama 0.33.1 and `gemma3:4b`:
 
 **1. An over-long prompt is not refused.** Exceed `num_ctx` by one token and llama.cpp
 shifts the context, discarding half of it, and answers anyway with a 200. A 4200-token

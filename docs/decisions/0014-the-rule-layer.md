@@ -1,13 +1,13 @@
 # 0014 — The rule layer
 
-Status: accepted · 2026-09-11
+Status: accepted
 
 Decision 0006 measured the error detector and found a specific failure: `gemma3:4b` lands
 on roughly the right words and files them under the wrong category — three of six scored
 proposals had the right span and the wrong label, and none had the right label. It named
 the way out as a rule layer for the categories a parse can decide on its own, and
 `language_errors.detector` has allowed `'rule'` since the first migration. Grammar
-practice (m14) is built on the corrections, and a drill built on a detector that is right
+practice is built on the corrections, and a drill built on a detector that is right
 half the time teaches the wrong thing half the time — so the rule layer comes first, and
 is measured before anything is built on it.
 
@@ -124,7 +124,7 @@ and its verb, now mean silence.
 One of the ten was right: `we only supports` in a package's own README. It is still
 proposed.
 
-**That prose is a development set now, not a held-out one.** It was consulted four times
+**That prose is a development set, not a held-out one.** It was consulted four times
 while the rules were being fixed, and a figure measured on it would be a figure measured
 on the data the rules were shaped against. The only text the layer has not been shaped
 against is speech nobody has recorded yet.
@@ -149,7 +149,7 @@ rows, as it already got its fluency and its forms.
 ## 5. The measurement
 
 **On the golden set, the rule layer proposes nothing.** `make error-precision`,
-2026-09-11, seven turns, `gemma3:4b` at temperature 0, load average 9.7:
+seven turns, `gemma3:4b` at temperature 0, load average 9.7:
 
 | | Scored | Detection precision | Labelling precision | Recall |
 |---|---:|---|---|---|
@@ -164,8 +164,8 @@ at all**, and one article error, `with possible renewal`, in exactly the shape �
 alone. Across every learner turn in the database — eleven turns, 428 words — the layer
 proposes nothing, and nothing is wrong with that.
 
-So the plan's *done when* — the rule layer's precision reported separately and above the
-model's — is half met. It is reported separately. Whether it is above cannot be decided on
+So of what the layer was built to show — its precision reported separately, and above the
+model's — half is shown. It is reported separately. Whether it is above cannot be decided on
 this corpus, and S5 stays undecidable for the reason it was before.
 
 **Planted errors, which need no model.** The golden set can say nothing about the rules, so
@@ -206,11 +206,10 @@ page's accuracy caveat says the same.
 **A rule's correction is marked on the transcript exactly as a model's is, and its row
 carries a "grammar rule" badge.** The mark answers *where*; a second colour of solid
 underline would read as a second severity, which it is not. The row answers *what and why*,
-so that is where the source goes. This was listed as a decision not yet made; it is made
-here.
+so that is where the source goes.
 
 **Stored reports are not rewritten.** A report is written once, when a session ends, so
-every report before today has no `detector` on its rows. The frontend treats a missing
+a report written before the rule layer existed has no `detector` on its rows. The frontend treats a missing
 detector as the model's — which is what it was — and shows neither the badge nor the note.
 
 **Seen end to end** on a throwaway account: a sentence synthesised by the `tts` service —
@@ -225,32 +224,32 @@ sessions and eleven learner turns, as it was.
 ## 7. A defect found on the way, not fixed here
 
 The first end-to-end run produced a report with **no corrections in it**. Two things were
-wrong, and neither is the rule layer:
+wrong, and neither was the rule layer:
 
-1. **Ending a session does not wait for a turn the live job has already claimed.**
-   `ensure_session_analysed` analyses the turns that are `pending` or `failed`; the last
-   turn is usually `analyzing`, because the live job took it the moment the reply went back.
-   Speak, then press End straight away — the ordinary way to finish — and the report is
-   written without that turn. The report does say a turn is outstanding.
-2. **The promise the report then makes is not kept.** It says *"Open this session again to
+1. **Ending a session did not wait for a turn the live job had already claimed.**
+   `ensure_session_analysed` analysed the turns that were `pending` or `failed`; the last
+   turn was usually `analyzing`, because the live job took it the moment the reply went
+   back. Speak, then press End straight away — the ordinary way to finish — and the report
+   was written without that turn, though it did say a turn was outstanding.
+2. **The promise the report then made was not kept.** It said *"Open this session again to
    finish them."* Opening the session is `GET /sessions/{id}`, which returns the stored
    report. What rebuilds an incomplete report is a second `POST /sessions/{id}/end`, and no
-   page calls it once the session has ended.
+   page called it once the session had ended.
 
-Together: the last thing a learner says is routinely missing from the report, and from the
-corrections marked on the transcript, which are read from the report. Calling `POST /end`
-again rebuilt it correctly in the run above. It touches `services/analysis.py` and the
-session page, which this change is not about, so it is recorded rather than folded in.
+So the last thing a learner said was missing from the report, and from the corrections
+marked on the transcript, which are read from the report. Calling `POST /end` again
+rebuilt it correctly in the run above. It touched `services/analysis.py` and the session
+page, not the rule layer, so it is fixed as a change of its own.
 
-**Fixed since, on the same branch, as an item of its own.** Ending waits for a claimed turn
-— a job in the API's process is awaited, a claim held by a backfill in another process is
-polled — within the same budget, and a job cut off by the deadline is left running rather
-than cancelled. The session page finishes a short report when it is opened, once, and
-then offers a button. A job cancelled by the server stopping puts its turn back in the
-queue, which nothing did before. Measured on the stack, ended straight after one
-synthesised turn: the code before, **3 of 3** reports without the turn and no corrections;
-after, **3 of 3** complete with both, the end taking 4.15–4.80 s. A report left short by the
-old code was opened in a browser and finished by the page with one request.
+**How it is fixed.** Ending waits for a claimed turn — a job in the API's process is
+awaited, a claim held by a backfill in another process is polled — within the same budget,
+and a job cut off by the deadline is left running rather than cancelled. The session page
+finishes a short report when it is opened, once, and then offers a button. A job cancelled
+by the server stopping puts its turn back in the queue. Measured on the stack, ended
+straight after one synthesised turn: the code before, **3 of 3** reports without the turn
+and no corrections; after, **3 of 3** complete with both, the end taking 4.15–4.80 s. A
+report left short by the old code was opened in a browser and finished by the page with one
+request.
 
 ## 8. What is not settled
 

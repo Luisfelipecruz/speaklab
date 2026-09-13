@@ -1,12 +1,10 @@
 # 0023 — Releases and the project site
 
-Status: accepted · 2026-09-13
+Status: accepted
 
-The repository had no release, no tag and no site. Its twenty changelog entries could be
-read only as one file, and its documents only as files on GitHub. The owner compared it
-with two large open-source repositories that publish both, and chose how each would be
-made here. This records those choices, what they rest on, and the gap in Dependabot that
-m17's merge exposed the same day.
+A release gives a version something to point at, and a site lets the documents be read as
+documents rather than as files on GitHub. The owner chose how each is made here. This
+records those choices, what they rest on, and the gap in Dependabot.
 
 ## What was decided
 
@@ -17,15 +15,15 @@ m17's merge exposed the same day.
    `website/release_notes.py` does the cutting with the standard library alone, so the job
    installs nothing. CI's Site job fails when the version in the code has no entry, so the
    mistake is caught on the pull request, before any tag exists.
-2. **Only 0.17.0 is released after the fact**, at the owner's choice, from `18abed8`, and
-   by hand: a workflow run for a tag uses the workflow file at the tagged commit, and
-   `18abed8` has none. Every earlier version stays an entry in the changelog. Two of them
-   could not have been tagged faithfully: no commit on `main` ever carried `0.2.0` or
-   `0.7.0` in `api/config.py` — m2's commit still said 0.1.0 under a `[0.2.0]` entry, and
-   m7's squash already said 0.8.0.
+2. **Of the versions before the workflow, only 0.17.0 is a release**, at the owner's
+   choice, from `18abed8`, made by hand: a workflow run for a tag uses the workflow file at
+   the tagged commit, and `18abed8` has none. Every earlier version is an entry in the
+   changelog. Two of them could not be tagged faithfully: no commit on `main` carries
+   `0.2.0` or `0.7.0` in `api/config.py` — the commit that holds 0.2.0's work carries 0.1.0,
+   and the one that holds 0.7.0's carries 0.8.0.
 3. **The site is built by a script of this repository's own**, `website/build.py`, on
    markdown-it-py 4.2.0 and mdit-py-plugins 0.6.1 — the owner's choice of four. MkDocs had
-   not released since 2024-08-30, and Zensical, which its theme's authors are writing to
+   gone two years without a release, and Zensical, which its theme's authors are writing to
    replace it, was at 0.0.61 and marked alpha. Starlight would have been a second Node
    dependency tree under the pnpm policy, and GitHub's own Jekyll build checks no link.
    The builder's three pinned packages are Python requirements, which Trivy and Dependabot
@@ -50,11 +48,11 @@ m17's merge exposed the same day.
    with the same build CI's Site job ran on the pull request. Its token can write to Pages,
    and only in the job that publishes.
 8. **Dependabot cannot update the frontend, so CI watches it every week.** Dependabot's
-   first run on `main` failed for `/frontend`: its updater runs pnpm 11.17.0,
-   `packageManager` names 12.4.1, and the lockfile update fails while pnpm fetches its own
-   binary — so no pull request, for a new release or for a vulnerability, can be opened
-   against the frontend. The owner chose to keep pnpm 12. The three majors that were due
-   are ignored, because each waits on a decision rather than on Dependabot: ESLint 10 and
+   run on `main` fails for `/frontend`: its updater runs pnpm 11.17.0, `packageManager`
+   names 12.4.1, and the lockfile update fails while pnpm fetches its own binary — so no
+   pull request, for a new release or for a vulnerability, can be opened against the
+   frontend. pnpm 12 stays, at the owner's choice. The three majors that were due are
+   ignored, because each waits on a decision rather than on Dependabot: ESLint 10 and
    TypeScript 7 until the lint plugins Next's configuration uses accept them, and Node's
    types until the runtime moves past Node 24. CI runs every Monday on `main`: the Security
    job's scan fails on a vulnerability published since the last push, and the frontend job
@@ -62,9 +60,9 @@ m17's merge exposed the same day.
 
 ## Measured
 
-- The site: 35 pages and 175 links, every one resolved — 133 to other pages, 8 to a
-  heading on the same page, 8 to files on GitHub at the commit, 26 elsewhere — built in
-  0.3–1.1 s, with git present as CI builds it and without it as `make site` does. In
+- The site: 35 pages and 220 links, every one resolved — 177 to other pages, 8 to a
+  heading on the same page, 9 to files on GitHub at the commit, 26 elsewhere — built in
+  0.2–1.1 s, with git present as CI builds it and without it as `make site` does. In
   headless Chromium, at 1440 and 390 pixels wide, in light and with the dark palette
   forced on: the frame, the sidebar and the hero; the diagram drawn, one SVG, on the home
   page and on a page of its own.
@@ -74,7 +72,7 @@ m17's merge exposed the same day.
   vulnerability and exits 0; `pnpm outdated --format list` lists ESLint 9.39.5 → 10.10.0
   and TypeScript 6.0.3 → 7.0.2, and exits 1.
 - actionlint 1.7.12: nothing in `ci.yml`, `pages.yml` or `release.yml`.
-- Dependabot's first run, on `main` at `18abed8`: pip, docker, docker-compose and
+- Dependabot on `main` at `18abed8`: pip, docker, docker-compose and
   github-actions succeeded with nothing to propose; npm for `/frontend` failed on eslint,
   typescript and `@types/node`, a `HelperSubprocessFailed` while pnpm downloaded its
   12.4.1 binary.

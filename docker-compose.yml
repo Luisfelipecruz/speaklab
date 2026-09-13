@@ -17,13 +17,13 @@ services:
   # ── Storage ────────────────────────────────────────────────────────────────
   postgres:
     # Stock image, pulled not built. No PostGIS: nothing here is spatial. No pgvector:
-    # nothing here is a retrieval problem (D9). An unused extension is a lie about the
+    # nothing here is a retrieval problem. An unused extension is a lie about the
     # system, and a Dockerfile whose only line is `FROM postgres:16` is the same lie in
     # a different file.
     #
-    # There is also no docker-entrypoint-initdb.d script. Alembic owns the schema from
-    # m2 onward, and an init.sql that also created tables would be a second source of
-    # truth that runs exactly once, on an empty volume, and silently diverges after that.
+    # There is also no docker-entrypoint-initdb.d script. Alembic owns the schema, and an
+    # init.sql that also created tables would be a second source of truth that runs
+    # exactly once, on an empty volume, and silently diverges after that.
     # Pinned to a minor release, so a security release arrives as a reviewed change to
     # this line rather than whenever the tag moves.
     image: postgres:16.15
@@ -96,12 +96,12 @@ services:
       TTS_URL: ${TTS_URL:-http://tts:8102}
       PRON_URL: ${PRON_URL:-http://pron:8103}
       HEALTH_PROBE_TIMEOUT_S: ${HEALTH_PROBE_TIMEOUT_S:-1.5}
-      # Audio (m4). AUDIO_ROOT is the mount point of the audio_data volume below, and
+      # Audio. AUDIO_ROOT is the mount point of the audio_data volume below, and
       # the API refuses to serve any path that does not resolve inside it.
       AUDIO_ROOT: ${AUDIO_ROOT:-/audio}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
-      # Speech synthesis (m5). PIPER_VOICE is read by the API as well as by the tts
-      # container because m6 records which voice produced a turn's audio.
+      # Speech synthesis. PIPER_VOICE is read by the API as well as by the tts
+      # container, because each turn records which voice produced its audio.
       PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
       TTS_TIMEOUT_S: ${TTS_TIMEOUT_S:-30}
       # Generous, and deliberately so: a cold asr container is loading weights, and the
@@ -119,7 +119,7 @@ services:
       LLM_MAX_INPUT_TOKENS: ${LLM_MAX_INPUT_TOKENS:-4000}
       LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3003}
-      # Auth (m3). JWT_SECRET has no default here on purpose: unset, it arrives as an
+      # Auth. JWT_SECRET has no default here on purpose: unset, it arrives as an
       # empty string, config.py treats blank as absent and falls back to the built-in
       # development key, and the API says so in its startup log on every boot.
       JWT_SECRET: ${JWT_SECRET:-}
@@ -136,7 +136,7 @@ services:
     volumes:
       - ./api:/app
       # Named volume for audio, not a bind mount. Recordings must survive a rebuild and
-      # must never be able to appear in `git status` (traps §9.6).
+      # must never be able to appear in `git status`.
       - audio_data:/audio
     ports:
       - "127.0.0.1:8002:8000"
@@ -171,23 +171,22 @@ services:
 
   # ── Model services ─────────────────────────────────────────────────────────
   #
-  # asr and tts exist as of m4 and m5. pron does not; its build context arrives with m8,
-  # and until then its profile keeps it inert. All three are the same shape: a small
+  # asr and tts are in the default stack; pron has a profile of its own. All three are
+  # the same shape: a small
   # FastAPI app wrapping one model, and a /health that answers 200 with a `*_loaded:
   # false` flag before the weights finish loading — a cold start is minutes and must not
   # read as a crash — reserving 503 for the one case that is not a cold start, a load
   # that has actually failed.
   #
-  # They differ in where the weights live, and the difference is size. Whisper is 746 MB
-  # and wav2vec2 is ~2 GB, so both are downloaded once into the shared model_cache
-  # volume. A Piper voice is 63 MB, small enough to bake into the image at build time,
+  # They differ in where the weights live, and the difference is size. Whisper's weights
+  # are 464 MB and wav2vec2's 1.2 GB, so both are downloaded once into the shared
+  # model_cache volume. A Piper voice is 63 MB, small enough to bake into the image at build time,
   # which removes the cold first turn entirely. tts still mounts the volume, because a
   # voice other than the default is cached there.
 
   asr:
     build: ./infra/asr
-    # No profile as of m4: infra/asr exists, so the build context is real and this is
-    # part of the default stack (PRD §10.1). `docker compose up -d` therefore builds
+    # No profile: part of the default stack. `docker compose up -d` therefore builds
     # this image and downloads the weights on a first run — minutes, once. Nothing
     # depends_on it, so the rest of the stack comes up while that happens.
     environment:
@@ -219,14 +218,13 @@ services:
         # Setting only the runtime one still works — the voice is downloaded into the
         # shared volume on first start — it just costs a minute the first time.
         PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
-    # No profile as of m5, which retires the `speech` profile entirely: infra/tts exists,
-    # so the build context is real and this is part of the default stack (PRD §10.1).
-    # Nothing depends_on it, so the rest of the stack comes up regardless.
+    # No profile: part of the default stack. Nothing depends_on it, so the rest of the
+    # stack comes up regardless.
     environment:
       PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
       # 8, and it is measured rather than chosen. onnxruntime's own default is 2.3x
       # slower here — 831 ms against 368 ms on an 80-token reply — which is the
-      # difference between missing PRD §9.1's 400 ms budget and meeting it. The curve is
+      # difference between missing the 400 ms synthesis budget and meeting it. The curve is
       # a U with its minimum at 8 on this 16-core machine; 0 restores the library
       # default. docs/decisions/0002 has the sweep.
       PIPER_NUM_THREADS: ${PIPER_NUM_THREADS:-8}
@@ -238,7 +236,7 @@ services:
         condition: service_completed_successfully
     volumes:
       # For voices other than the one in the image. Shared with asr and pron so a
-      # rebuild never re-downloads anything (FR-28).
+      # rebuild never re-downloads anything.
       - model_cache:/models
     ports:
       - "127.0.0.1:8102:8102"
@@ -247,8 +245,8 @@ services:
 
   pron:
     build: ./infra/pron
-    # Its own profile, not `speech`. This is the only image with torch in it (~2 GB),
-    # and the stack has to be usable by someone who never wants to download that (D10).
+    # Its own profile. This is the only image with torch in it (1.87 GB), and the stack
+    # has to be usable by someone who never wants to download that.
     profiles: ["pron"]
     environment:
       PRON_MODEL: ${PRON_MODEL:-facebook/wav2vec2-lv-60-espeak-cv-ft}
@@ -269,9 +267,8 @@ services:
     # why. This definition exists for a Linux host with a GPU, and for CI, where a
     # self-contained stack matters more than throughput.
     #
-    # Pinned to the version the development host ran on 2026-09-10, so the container and
-    # the host serve the model the same way. It was 0.5.13, which predates Gemma 3
-    # support (0.6.0), so `make llm-up` could not pull the default model at all.
+    # Pinned to an exact release, so the container serves the model the same way every
+    # time. Gemma 3 needs 0.6.0 or later.
     image: ollama/ollama:0.34.0
     profiles: ["llm"]
     volumes:
@@ -302,24 +299,20 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-speaklab}:${DB_PASSWORD:-speaklab_dev}@postgres:5432/${DB_NAME:-speaklab}
-      # Pointed at hosts that do not resolve, on purpose, and note that these are NOT
-      # the real service names. Until m4 `http://asr:8101` was itself unresolvable and
-      # served the same purpose; then asr joined the default stack, started sharing this
-      # network, and the health tests quietly began asserting against a service that was
-      # actually up. Naming hosts that cannot exist restores the property the comment
-      # always claimed: `make test` is hermetic, and the model layer it sees is absent.
+      # Pointed at hosts that do not resolve, on purpose — NOT the real service names.
+      # asr and tts share this network, so `http://asr:8101` would reach a running
+      # service and the health tests would assert against it. Hosts that cannot exist
+      # keep `make test` hermetic: the model layer it sees is absent.
       #
       # The suite that DOES want a real recogniser is tests/test_asr_golden.py, which
       # skips unless ASR_URL answers. `make asr-wer` runs it against the live container.
       ASR_URL: http://asr.invalid:8101
       TTS_URL: http://tts.invalid:8102
       PRON_URL: http://pron.invalid:8103
-      # And the LLM, for exactly the same reason — added after it bit. `extra_hosts`
-      # below makes host.docker.internal resolve so that `make turn-latency` can reach
-      # the host's Ollama, and the side effect was that the *hermetic* suite could reach
-      # it too. One test started its session against the real model, passed here because
-      # a model happened to be running, and failed on CI where none is. That is trap 25
-      # exactly, one service later: `make test` must see no model at all.
+      # And the LLM, for the same reason. `extra_hosts` below makes host.docker.internal
+      # resolve so that `make turn-latency` can reach the host's Ollama, which would let
+      # the hermetic suite reach it too: a test would pass here because a model happened
+      # to be running, and fail on CI where none is. `make test` sees no model at all.
       OLLAMA_BASE_URL: http://ollama.invalid:11434
       HEALTH_PROBE_TIMEOUT_S: "0.5"
     # Resolves host.docker.internal, so that a measurement run can be pointed at the
@@ -332,7 +325,7 @@ services:
       # Read-only, and the flag is the point rather than caution. eval/ holds fixtures
       # graded BEFORE the run; a container that can rewrite them could turn a failing
       # eval into a passing one with nobody noticing. Mounted into the
-      # test service and nowhere else. The directory arrives with m11.
+      # test service and nowhere else.
       - ./eval:/app/eval:ro
       # Where a measurement writes its numbers, and the only writable thing the eval
       # path has. Deliberately NOT a subdirectory of eval/: the fixtures above are
@@ -344,7 +337,7 @@ services:
       - ./.eval:/app/.eval
       # The pron service's source, read-only, so that `api/tests/test_phone_map.py` and
       # `api/tests/test_g2p.py` can import the modules they are about. Those two tests
-      # guard handoff trap 1 — a phone that maps to the wrong acoustic target produces
+      # guard the phone map — a phone that maps to the wrong acoustic target produces
       # confident numbers that measure nothing — and a test that can only run inside a
       # 5 GB torch image is a test that stops being run. Neither module imports torch,
       # which is what makes this possible: `phone_map` needs only its vendored

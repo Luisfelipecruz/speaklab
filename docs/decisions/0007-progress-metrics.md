@@ -1,6 +1,6 @@
 # 0007 — Progress: rollups, gates and recommendations
 
-**Status:** accepted · **Date:** 2026-09-05 · **Milestone:** m10
+Status: accepted · §5's limit on accuracy per form superseded by [0015](0015-accuracy-per-form.md)
 
 Read this before changing what the progress page draws, what it refuses to draw, or how
 anything on it is ranked. The arithmetic is simple; almost every decision here is about
@@ -15,8 +15,7 @@ what *not* to say.
    slower every week somebody practises, which is backwards.
 2. **The sample gate is the feature.** A period below the floor is a **hole with a reason
    on screen**, not an omitted point, and a series with no periods above the floor comes
-   back suppressed saying what it is waiting for. Q5 is answered with a defended number
-   rather than the placeholder it was.
+   back suppressed saying what it is waiting for.
 3. **A number is drawn; a verdict is earned.** A direction is claimed only for a metric
    with a defensibly better end *and* at least three measured points. Most fluency
    measures have no better end at all and are reported without one, for ever.
@@ -26,11 +25,11 @@ what *not* to say.
 5. **Recommendations are a transparent weighted score** over three stored sources, with
    the measurement printed under every entry, and a stated confidence that comes from the
    same sample counts the charts are gated on.
-6. **Criterion S7 is not met and cannot be on this corpus.** It asks for 30-day trends
-   across four families from ≥ 20 real sessions. There are **2** conversation sessions and
-   **2** scored readings, all on one calendar day, for one account.
-7. **Migration `0004` adds one column and no tables.** `progress_snapshots` was created
-   complete by `0001`; what was missing is `updated_at`.
+6. **Criterion S7 cannot be met on the corpus this was measured against.** It asks for
+   30-day trends across four families from ≥ 20 real sessions; the corpus held **2**
+   conversation sessions and **2** scored readings, on one calendar day, for one account.
+7. **Migration `0004` adds one column and no tables.** `progress_snapshots` is created
+   complete by `0001`; `updated_at` is what `0004` adds.
 
 ---
 
@@ -41,8 +40,8 @@ month of trends from raw turns on each request — is fine for the first month a
 continuously after it, and it degrades *fastest for the people with the most to look at*,
 which is precisely backwards for a feature about long-term practice.
 
-Measured on this machine, on the whole stored corpus (7 analysed turns, 2 scored readings,
-one account):
+Measured on this machine, on the stored corpus (7 analysed turns, 2 scored readings, one
+account):
 
 | | |
 |---|---|
@@ -68,11 +67,10 @@ the cheaper failure by a long way.
 
 ---
 
-## 2. The gate, and the numbers behind it (Q5)
+## 2. The gate, and the numbers behind it
 
-Q5 asked how many read-aloud attempts should be behind a phoneme trend before it is worth
-showing. The answer is five, and the more useful outcome is that the question generalised:
-every family needed a floor, and they are not the same floor because they are not the same
+How many read-aloud attempts should be behind a phoneme trend before it is shown? Five —
+and every family needs a floor, not the same floor, because they are not the same
 measurement.
 
 | Gate | Value | What it protects |
@@ -139,16 +137,16 @@ every sound, and the panel says so per row.
 one phone's history into three series, each thin enough to be suppressed by its own sample
 gate — so the trend would disappear for exactly the vowels that occur most.
 
-**There is still no pass mark, and this page does not invent one.** Q2 remains open: the
-method for a threshold is settled and the numbers need recordings from more than one
-speaker. Everything here therefore ranks sounds against each other and against their own
-history, and never says a sound is wrong.
+**There is no pass mark, and this page does not invent one.** The method for a threshold is
+settled and the numbers need recordings from more than one speaker
+([0005](0005-gop-pipeline.md) §7). Everything here therefore ranks sounds against each other
+and against their own history, and never says a sound is wrong.
 
 **The device annotation is computed and inert.** `audio_assets.device_hint` exists,
 `sample_counts.devices` records the distinct hints a period's readings used, and nothing
-populates the column — so the list is empty and no chart is ever annotated. It is built now
-because the day something does populate it, the annotation should already be there rather
-than needing a migration of history.
+populates the column — so the list is empty and no chart is ever annotated. It exists so
+that the day something populates it, the annotation is already there rather than needing a
+migration of history.
 
 ---
 
@@ -163,19 +161,10 @@ previous period.**
 Every other combination is left to the numbers. A narrowing repertoire with a *rising*
 error rate is a bad week and already looks like one; a warning there would be noise.
 
-> **Superseded by [0015](0015-accuracy-per-form.md).** The join exists: a correction is
-> applied, the corrected text is parsed, and the verb phrases before and after are
-> compared, so each correction carries the form it was said in and the form it needs. It
-> is neither of the two routes named below — the model names no form, and the rule layer
-> attributes nothing — and it is as right as the corrections it is given.
-
-**There is no accuracy per form, and that is a limit rather than an omission.** Errors are
-filed under a taxonomy category — verb tense, article, preposition — and forms are counted
-by a dependency parse. Nothing in the schema links an error to the form it occurred in, so
-a per-form accuracy bar would be an invented join with decimal places on it. Adding one
-means either the labelling model naming a form (which would put a 0.50-precision label into
-a breadth chart) or a rule layer that can attribute an error to a parse node — which is the
-same rule layer Q15 is about.
+**Accuracy per form is [0015](0015-accuracy-per-form.md)'s.** A correction is applied, the
+corrected text is parsed, and the verb phrases before and after are compared, so each
+correction carries the form it was said in and the form it needs — as right as the
+corrections it is given.
 
 ---
 
@@ -211,15 +200,14 @@ vocabulary. Recommending a form nothing is built to elicit would be advice with 
 act on it.
 
 **Confidence is stated.** `none` / `low` / `moderate` / `good`, computed from the same word
-and reading counts the charts are gated on. The real corpus returns **low**, and the detail
-string says why in the learner's own units.
+and reading counts the charts are gated on. The stored corpus returns **low**, and the
+detail string says why in the learner's own units.
 
-**Two small things real data changed.** The first run against the stored corpus produced two
-categories tied at two corrections each, and *both* said "your most frequent category" — so
-that clause is now only used when one category uniquely is. The second was the wording for a
-sound with no baseline, which said "mean score −7.1" as though −7.1 meant something to a
-reader; it now says the sound is among the weakest in their own readings and that no pass
-mark is calibrated.
+**Two small things real data changed.** Two categories tied at two corrections each would
+*both* say "your most frequent category" — so that clause is used only when one category
+uniquely is. And a sound with no baseline is not described as "mean score −7.1", as though
+−7.1 meant something to a reader; it is described as among the weakest in the learner's own
+readings, with no pass mark calibrated.
 
 ---
 
@@ -228,7 +216,7 @@ mark is calibrated.
 > **S7** — The progress page renders 30-day trends for all four metric families from ≥ 20
 > real sessions.
 
-What the database actually holds, for the only account with practice on it:
+What the database held for the only account with practice on it, when this was measured:
 
 | | |
 |---|---|
@@ -237,7 +225,7 @@ What the database actually holds, for the only account with practice on it:
 | Words | **272** |
 | Scored readings | **2** |
 | Phone instances | **450** |
-| Calendar days with practice | **1** (2026-08-30) |
+| Calendar days with practice | **1** |
 | Weeks with practice | **1** |
 
 So three of the four families draw a single point, and the fourth is gated off entirely at
@@ -245,20 +233,18 @@ So three of the four families draw a single point, and the fourth is gated off e
 series has three points. That is the page working correctly, and it is worth being precise
 about what has and has not been demonstrated:
 
-- **Demonstrated:** the arithmetic, on real stored rows, cross-checked against m9's
-  independently reported figures — 272 words and 11 distinct forms match exactly, and the
-  error rate of 2.57 per 100 words is the 7 counted errors of 12 that m9's confidence gate
-  left standing.
+- **Demonstrated:** the arithmetic, on real stored rows, cross-checked against the error
+  analysis's independently reported figures ([0006](0006-error-taxonomy.md)) — 272 words and
+  11 distinct forms match exactly, and the error rate of 2.57 per 100 words is the 7 counted
+  errors of 12 that its confidence gate left standing.
 - **Demonstrated:** every gate, every suppression message, and the hole-not-omission
   rendering, against fixtures.
 - **Not demonstrated:** that a trend over many weeks reads correctly, that the z-score is
   informative on real baselines, or that the recommendations pick well. All three need
   somebody to practise more than once.
 
-This is the third success criterion to be measured and missed rather than quietly dropped
-(S4 needs recordings, S5 needs a better labeller or a rule layer). The pattern is worth
-naming: the criteria that fail are the ones that need *use*, and the project has one user
-who has held two conversations.
+S4, S5 and S7 are measured and missed rather than dropped, and the pattern is worth naming:
+the criteria that fail are the ones that need *use*.
 
 ---
 
@@ -274,7 +260,7 @@ Nothing new is stored per turn. One row per user per period, at two granularitie
 | `pronunciation` | Per-sound mean and z, with the baseline it was scored against |
 | `sample_counts` | Turns, words, sessions, readings, phone instances per sound, counted and excluded errors, devices |
 | `cefr_estimate` | **Nothing writes it.** A band assigned from seven turns would be a confident answer to a question this data cannot settle |
-| `updated_at` | New in `0004`. What makes "is this snapshot current?" answerable at all |
+| `updated_at` | Added by `0004`. What makes "is this snapshot current?" answerable at all |
 
 **Weekly snapshots are computed from turns, not from seven daily snapshots.** Averaging
 averages would weight a quiet Tuesday the same as a long Sunday.
@@ -292,7 +278,7 @@ behind as a point with nothing underneath it.
 
 ## 9. What ships
 
-25 of the 30 forecast operations. Three are new:
+Three operations:
 
 | | |
 |---|---|
@@ -321,8 +307,8 @@ using one. It also keeps the frontend's dependency list unchanged.
   of them are the kind of number that should be revisited against a corpus with months in
   it, and none can be until there is one.
 - **The accuracy family carries a 0.50-precision caveat on screen.** That is the honest
-  rendering of what m9 measured, and the way out of it is Q15's rule layer rather than
-  anything on this page.
+  rendering of what [0006](0006-error-taxonomy.md) measures; raising it is the rule layer's
+  job ([0014](0014-the-rule-layer.md)), not this page's.
 - **CEFR is a column nothing fills.** Whether this product should estimate a band at all is
   a product question, and estimating one from a handful of turns is not the way to answer
   it.

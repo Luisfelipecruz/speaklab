@@ -21,7 +21,6 @@ fills them from the stored transcripts and corrections, with no model call.
 
 Revision ID: 0005
 Revises: 0004
-Created: 2026-09-11
 """
 
 from collections.abc import Sequence

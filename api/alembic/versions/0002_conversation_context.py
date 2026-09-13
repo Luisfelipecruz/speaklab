@@ -25,7 +25,6 @@ that never happened.
 
 Revision ID: 0002
 Revises: 0001
-Created: 2026-08-30
 """
 
 from collections.abc import Sequence

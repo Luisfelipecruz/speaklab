@@ -7,6 +7,45 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.1] — 2026-09-13 · dates only in the changelog
+
+Every document but this one describes the system as it is: no dates, no milestone ids, no
+account of how a figure was found, and nothing that points at notes kept outside the
+repository. This file is where the dates are.
+
+### Changed
+
+- **The decision records are undated.** Each states its decision and its reasons; its
+  status is `accepted`, and a record another supersedes says which.
+- **The reference documents, the PRD and the golden sets' READMEs** keep every figure and
+  the command that produces it, and drop the date it was taken on, the milestone it was
+  taken in, and the pointers to the build plan and the working notes.
+- **Comments in the code and the configuration** describe what the code does: the dates,
+  the milestone ids, the stories of what was found when, and the pointers to the working
+  notes are gone. Test data keeps its timestamps.
+- **The evaluation report names the revision it measured**, not the minute it was written:
+  no timestamp in its header, none beside each suite, and no first and last session in the
+  census. `docs/evaluation.md` is re-rendered from the last run's raw results — every
+  figure the same.
+- **The build plan is no longer in the repository.** It was a log of how SpeakLab was
+  built; the changelog, the decision records and the PRD say what it is.
+
+### Added
+
+- **The site build fails on a date anywhere but the changelog**, so CI's Site job keeps the
+  rule. The decisions index shows each record's status instead of a date.
+
+### Measured
+
+- Dates in tracked files outside this one: **285 in 56 files** before; none after but test
+  data, data files, and this file's heading format quoted in the release-notes script.
+- The evaluation report, re-rendered from the last run's raw results and a census identical
+  to the one it was counted with: 35 lines differ, each a date or S10's milestone id; no
+  figure moved.
+- The site: 35 pages and 220 links, every one resolved, and no date outside this file.
+- API suite **1 050** — 1 012 pass, 38 need a model service; the site's 43 tests; lint
+  clean; the Compose file parses with every profile.
+
 ## [0.18.0] — 2026-09-13 · releases and the project site
 
 Every version from this one is a release, cut from its entry here by a workflow, and the
@@ -1144,7 +1183,7 @@ has the table.
 - **Read-aloud refuses an account with audio retention off**, because FR-16 (rescore a
   stored reading) and FR-26 (do not keep the waveform) genuinely conflict and the schema
   cannot express both. It says which setting, and points at conversation practice. This is
-  a product call an agent made and a human should confirm — handoff Q14.
+  a product call an agent made and a human should confirm.
 
 ---
 

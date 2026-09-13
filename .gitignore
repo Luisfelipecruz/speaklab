@@ -24,12 +24,12 @@ demo/
 #
 # The golden evaluation fixtures (eval/golden/) are the one exception and need
 # `git add -f`. They are human recordings, they are small, and they are the only
-# audio in the repository. See IMPLEMENTATION-PLAN.md m11.
+# audio in the repository.
 audio_data/
 
 # Anchored with a leading slash, and that slash is load-bearing. An unanchored
-# `models/` matches a directory called `models` at EVERY level, which on 2026-08-30
-# silently excluded `api/models/` — the Pydantic layer — from `git add`. The pattern is
+# `models/` matches a directory called `models` at EVERY level, and would silently
+# exclude `api/models/` — the Pydantic layer — from `git add`. The pattern is
 # meant for a top-level cache of downloaded weights; the extension patterns below are
 # what catch weight files wherever they land.
 /models/
@@ -45,23 +45,17 @@ audio_data/
 # would catch it.
 eval/golden/pron/raw/
 
-# The m0 spike is throwaway; its findings move to docs/decisions/
+# The feasibility spike is throwaway; its findings are in docs/decisions/
 spike/
 
-# Agent phase artefacts — regenerated per milestone, never tracked (D18).
-#
-# These describe how the work is produced, not what was produced. PR bodies are written
-# for `gh pr create --body-file`; SESSION-HANDOFF.md is a live state file rewritten every
-# session; GIT-COMMANDS.md is a personal paste sheet; CLAUDE.md binds agents working in
-# this checkout and means nothing to a reader of the repository.
-#
-# PRD.md and speaklab-agent/IMPLEMENTATION-PLAN.md are NOT here. They are the product
-# specification and the build plan, they are what a reviewer actually wants, and README
-# and docs/architecture.md both link to them.
+# Working notes, never tracked: they describe how the work is produced, not what was
+# produced. PR bodies for `gh pr create --body-file`; speaklab-agent/, the build plan, the
+# session notes and the command sheet; and CLAUDE.md, which binds agents working in this
+# checkout and means nothing to a reader of the repository. PRD.md is the product
+# specification and is tracked.
 .pr-bodies/
 CLAUDE.md
-speaklab-agent/SESSION-HANDOFF.md
-speaklab-agent/GIT-COMMANDS.md
+/speaklab-agent/
 
 # The project site as `make site` builds it. The Pages workflow builds its own from main.
 /_site/

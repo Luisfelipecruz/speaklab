@@ -22,7 +22,7 @@
 
 Practise spoken English against models that run on your machine: a role-play with a persona who answers out loud, a passage read aloud and scored sound by sound, or a work question answered in one go.
 Everything that moves on a chart is counted by code from what you said — the speed, the verb forms you used, each correction on the words it was about, how an answer was built — and a language model explains the numbers without ever producing one.
-Nothing leaves the machine, and every figure here is measured and dated: [six of the ten success criteria are met](#success-criteria), three are not, and the tenth is the rule this file is written by.
+Nothing leaves the machine, and every figure here is measured and names what produced it: [six of the ten success criteria are met](#success-criteria), three are not, and the tenth is the rule this file is written by.
 
 ---
 
@@ -79,8 +79,8 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
 | **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Measured on 2026-09-12, tts, pron and the frontend on 2026-09-13: images of 826 MB (api), 790 MB (asr), 724 MB (tts), 1.06 GB (frontend) and 657 MB (`postgres:16.15`) — 4.1 GB — plus 464 MB of Whisper weights on first start, measured on 2026-09-10. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
-| **Memory** | **1.74 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` on 2026-09-12 — asr 673 MiB, frontend 613, tts 236, api 190, postgres 72; 1.94 GiB the first time, on 2026-09-10. Ollama is not in either figure. The requirement is under 8 GB (PRD §9) |
+| **Disk** | Images of 826 MB (api), 790 MB (asr), 724 MB (tts), 1.06 GB (frontend) and 657 MB (`postgres:16.15`) — 4.1 GB — plus 464 MB of Whisper weights on first start. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
+| **Memory** | **1.74 GiB** for the five containers after one conversation turn with both speech models loaded, sampled once with `docker stats` — asr 673 MiB, frontend 613, tts 236, api 190, postgres 72; 1.94 GiB on a first run. Ollama is not in either figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
 
@@ -101,9 +101,9 @@ recogniser, so the rest of the stack is usable immediately and `make health` rep
 with `"model_loaded": false` until it is done.
 
 **How long that takes.** Measured cold twice, each time from a copy of `main` with
-empty volumes and a build cache of its own: `make setup` returned in **2 min 33 s** on
-2026-09-12, with Whisper loaded at **2 min 43 s**, and in 7 min 12 s on 2026-09-10 on a
-slower connection — nearly all of it the images downloading their dependencies.
+empty volumes and a build cache of its own: `make setup` returned in **2 min 33 s**, with
+Whisper loaded at **2 min 43 s**, and in 7 min 12 s on a slower connection — nearly all of
+it the images downloading their dependencies.
 [The first run](docs/measurements.md#the-first-run-measured-twice) has what each run did
 and did not include.
 
@@ -223,22 +223,22 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 
 | | Criterion | Where it stands | Settled by |
 |---|---|---|---|
-| S1 | A clean clone reaches all-healthy with no manual editing — within five minutes, model downloads included, by §9.2 | **Met** on 2026-09-12: `make setup` 2 min 33 s, Whisper loaded at 2 min 43 s. Missed on 2026-09-10 at 7 min 12 s — the same build on a slower connection | a cold copy of `main` and `make setup`; see [the first run](docs/measurements.md#the-first-run-measured-twice) |
-| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2684 ms over 20 turns (2026-08-30). At a load average of 17, 5356 ms (2026-09-12) — a busy machine, recorded beside it | `make turn-latency` |
-| S3 | A read-aloud attempt returns per-phoneme GOP within 10 s | **Met**: 250 sounds of a 34-second reading scored in 7.5 s (2026-09-12) | `make pron-golden` |
+| S1 | A clean clone reaches all-healthy with no manual editing — within five minutes, model downloads included, by §9.2 | **Met**: `make setup` 2 min 33 s, Whisper loaded at 2 min 43 s. Missed at 7 min 12 s by the same build on a slower connection | a cold copy of `main` and `make setup`; see [the first run](docs/measurements.md#the-first-run-measured-twice) |
+| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2684 ms over 20 turns. At a load average of 17, 5356 ms — a busy machine, recorded beside it | `make turn-latency` |
+| S3 | A read-aloud attempt returns per-phoneme GOP within 10 s | **Met**: 250 sounds of a 34-second reading scored in 7.5 s | `make pron-golden` |
 | S4 | GOP separates mispronounced from correct recordings of the same passage | **Never run.** It needs five minutes of a person's voice, following [the protocol](eval/golden/pron/README.md) | `make eval` |
 | S5 | Error detection ≥ 0.70 precision on the hand-labelled turns | **Undecidable**: 0.500 over 6 scored proposals | `make eval` |
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service (2026-09-13) | `make test` |
-| S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here is dated and names what produced it. Nothing tests prose | — |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service | `make test` |
+| S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
 several days — and no change to the code changes that. [What does not exist yet](docs/limitations.md)
 says what each would take.
 
-Every other figure, each with its date and what produced it, is in
+Every other figure, each with what produced it, is in
 [docs/measurements.md](docs/measurements.md).
 
 ---
@@ -282,7 +282,6 @@ carries its entry in the changelog as its notes.
 | [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-three dated records, each kept as it was written |
 | [docs/changelog.md](docs/changelog.md) | One entry per milestone |
 | [PRD.md](PRD.md) | The product requirements and the measurement model |
-| [IMPLEMENTATION-PLAN.md](speaklab-agent/IMPLEMENTATION-PLAN.md) | How it was built: eighteen milestones, each with what it was expected to prove and what it measured |
 | API reference | <http://localhost:8002/docs> once the stack is up: 31 operations, each with a summary |
 
 ---
@@ -298,7 +297,7 @@ Ollama for conversation.
 | Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 316 across 49 suites |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
 | Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly, for everything but the frontend, which CI audits every Monday; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
-| Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — 15 min 20 s on 2026-09-13 with every service up |
+| Every measurement suite, into [docs/evaluation.md](docs/evaluation.md) | `make eval` — about a quarter of an hour with every service up |
 | The project site, as Pages builds it | `make site` — its tests, then every page into `_site/`; a link to a file or a heading that does not exist fails it. `make site-serve` shows it |
 | A release's notes | `make release-notes V=x.y.z` — that version's entry in the changelog; [CONTRIBUTING.md](CONTRIBUTING.md#releases) has how a release is cut |
 | Every other target, described | `make help` |
@@ -335,7 +334,6 @@ eval/           The evaluation harness. run.py orchestrates, report.py adjudicat
 docs/           Architecture, data model, decisions, changelog, and the evaluation report
 website/        The project site's builder, and the script that cuts a release's notes
                 from the changelog
-speaklab-agent/ The implementation plan — how it was built
 ```
 
 ---
@@ -343,8 +341,8 @@ speaklab-agent/ The implementation plan — how it was built
 ## Contributing
 
 Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) is short, and it explains the
-one rule every change here keeps: a figure is measured, dated and named with what produced
-it, or it is not written down.
+one rule every change here keeps: a figure is measured and named with what produced it, or
+it is not written down.
 
 **What this project needs most is not code.** Criterion S4 is measured on about five
 minutes of a person reading three sentences twice, once naturally and once with marked

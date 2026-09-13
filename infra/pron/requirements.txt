@@ -1,13 +1,12 @@
 # SpeakLab pronunciation service.
 #
 # This is the only image in the system with torch in it, and that is the whole reason
-# the service is profiled (D10, invariant I5). Everything below is here because forced
+# the service is profiled. Everything below is here because forced
 # alignment genuinely needs it; nothing is here for convenience.
 
 # The acoustic model and the aligner. torchaudio is not optional and not interchangeable
 # with anything: `torchaudio.functional.forced_align` is the CTC alignment implementation
-# this service is built on, and it is the reason the m0 spike could align a 3.4 s
-# utterance in 0.1 ms.
+# this service is built on, and it aligns a 3.4 s utterance in 0.1 ms.
 #
 # **These two are installed by the Dockerfile from PyTorch's CPU index, not from PyPI**,
 # and the versions here are what it pins. PyPI's wheels depend on the full NVIDIA CUDA
@@ -26,8 +25,8 @@ setuptools==84.0.0
 
 # Wav2Vec2ForCTC only. Note what is NOT imported: Wav2Vec2PhonemeCTCTokenizer, which
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
-# is dead weight — this was found the hard way in m0 and is why vocab.json is read as
-# JSON rather than through a tokenizer class.
+# is dead weight, which is why vocab.json is read as JSON rather than through a
+# tokenizer class.
 transformers==5.17.0
 
 # Pulls the weights down at run time onto the shared model_cache volume, the same
@@ -38,17 +37,16 @@ huggingface_hub==1.31.0
 
 # Grapheme-to-phoneme. Emits ARPAbet with stress digits, which is what phone_map.py
 # translates. It needs two NLTK corpora and they are downloaded at BUILD time — a
-# container that fetches corpora on its first request is a broken container (m0).
+# container that fetches corpora on its first request is a broken container.
 g2p_en==2.1.0
 nltk==3.10.3
 
 numpy==2.5.3
 
-# Decodes whatever the browser recorded. The m0 spike used `soundfile`, because
-# `torchaudio.load` now requires torchcodec — but soundfile cannot open WebM/Opus or
-# MP4/AAC, which is exactly what MediaRecorder produces (decision 0004 §2). PyAV is the
-# ffmpeg libraries in-process, it is already proven in infra/asr, and it removes the
-# need for an ffmpeg binary in this image. See docs/decisions/0005 §4.
+# Decodes whatever the browser recorded. Not `soundfile`, which cannot open WebM/Opus or
+# MP4/AAC — exactly what MediaRecorder produces — and not `torchaudio.load`, which
+# requires torchcodec. PyAV is the ffmpeg libraries in-process, as in infra/asr, and it
+# removes the need for an ffmpeg binary in this image.
 av==18.1.0
 
 fastapi==0.141.1

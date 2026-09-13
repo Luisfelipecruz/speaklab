@@ -403,15 +403,15 @@ async def test_persona_adherence_over_a_long_conversation(seeded, db_session):
 async def test_the_persona_never_addresses_the_speaker_by_a_placeholder():
     """The name guardrail, against the real model, on the scenario that reproduced it.
 
-    **Found by using the product, not by a test.** A real nine-turn standup on 2026-08-30
-    (session 13) had the scrum master say "Good morning, [User Name]." — three times in
+    **Found by using the product, not by a test.** In a real nine-turn standup the scrum
+    master said "Good morning, [User Name]." — three times in
     five replies. Across every session stored at that point the rate was 4 of 7 assistant
     turns on `daily-standup` and **0 on every other scenario**: the persona says "Greet the
     user", and a greeting in a standup is a template slot in most of the text gemma3:4b was
     trained on. No prompt in this system has ever contained a placeholder.
 
     The opening turn is where it is near-deterministic, which is why this measures that
-    rather than a mid-conversation reply. Measured on 2026-08-30: **12/12 without the
+    rather than a mid-conversation reply. Measured: **12/12 without the
     instruction, 0/12 with it.** The gate here is 0 out of 12 rather than "fewer than
     before", because a persona that addresses somebody as [User Name] is not a degraded
     experience, it is a broken one.
@@ -445,7 +445,7 @@ async def test_the_persona_never_addresses_the_speaker_by_a_placeholder():
     print(f"  replies containing a placeholder: {len(hits)}")
     for example in hits[:3]:
         print(f"    {example}")
-    print("  measured 2026-08-30: 12/12 without the name guardrail, 0/12 with it")
+    print("  measured: 12/12 without the name guardrail, 0/12 with it")
 
     assert not hits, (
         f"{len(hits)}/{n} replies addressed the speaker by a placeholder. The name "

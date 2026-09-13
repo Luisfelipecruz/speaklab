@@ -11,7 +11,7 @@ uvicorn[standard]==0.52.4
 python-multipart==0.0.32
 
 # ── Database ────────────────────────────────────────────────────────────────
-# asyncpg is the request-path driver. psycopg2-binary is here for Alembic (m2), which
+# asyncpg is the request-path driver. psycopg2-binary is here for Alembic, which
 # runs migrations synchronously — `postgresql+asyncpg://` is not a URL psycopg2 can
 # parse, and config.py exposes SYNC_DATABASE_URL for exactly this.
 sqlalchemy[asyncio]==2.0.52
@@ -24,22 +24,17 @@ alembic==1.20.0
 # also the test client, so it was going to be here regardless.
 httpx==0.28.1
 
-# ── Auth (m3) ───────────────────────────────────────────────────────────────
+# ── Auth ────────────────────────────────────────────────────────────────────
 #
-# Argon2id, and argon2-cffi rather than passlib. m1 shipped `passlib[bcrypt]` here with
-# a comment arguing bcrypt was good enough; PRD FR-1 says passwords are stored
-# Argon2-hashed, and the PRD is the authority over a convenience call made in a
-# requirements file. That settled the hash. Dropping passlib as well is a second
-# decision with its own reason: passlib 1.7.4 was released in 2020 and is unmaintained,
-# its bcrypt backend raises on bcrypt >= 4.1, and a wrapper whose value is switching
-# between schemes buys nothing when there is exactly one scheme and no legacy hashes to
-# migrate. argon2-cffi gives hash/verify/check_needs_rehash directly. If a second scheme
-# is ever needed at once — importing users from an existing system — that is what
-# passlib's CryptContext is actually for, and that is when to reconsider.
+# Argon2id, through argon2-cffi rather than passlib. The product stores passwords
+# Argon2-hashed. passlib is unmaintained, its bcrypt backend raises on bcrypt >= 4.1, and
+# a wrapper whose value is switching between schemes buys nothing with one scheme and no
+# legacy hashes to migrate; argon2-cffi gives hash/verify/check_needs_rehash directly.
+# Importing users with other hashes is when passlib's CryptContext would earn its place.
 #
 # It installs from a wheel on linux/amd64 and linux/arm64, so no compiler is added to
-# the image. Verified on 2026-08-30 in this image: hashes carry the `$argon2id$` prefix
-# at the library's default parameters (t=3, m=64 MiB, p=4).
+# the image. Hashes carry the `$argon2id$` prefix at the library's default parameters
+# (t=3, m=64 MiB, p=4).
 argon2-cffi==25.1.0
 pyjwt==2.14.0
 

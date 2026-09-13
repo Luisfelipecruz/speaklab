@@ -3,9 +3,6 @@
 Plain module-level constants read from `os.environ`, not a settings class. They are
 read once at import and every one has a working default — a `BaseSettings` subclass
 would add a dependency and a layer of indirection to `os.environ.get` with a fallback.
-(An earlier version of this docstring counted them. It was wrong by the end of the next
-milestone, which is a small demonstration of why a number belongs in something that
-runs rather than in prose beside it.)
 
 Every default here is the value that works on a laptop with nothing else running. A
 fresh clone starts with `cp .env.example .env && make up` and no editing.
@@ -16,11 +13,9 @@ import os
 
 # ── Application ─────────────────────────────────────────────────────────────
 
-# Moves with `docs/changelog.md`, and the two must be bumped in the same commit. They
-# drifted once already — the changelog said 0.2.0 while /health said 0.1.0 —
-# which is the small version of the rule this project runs on: a number is reported by
-# the thing it describes, never written down beside it.
-VERSION = "0.18.0"
+# The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
+# fails when this number has no entry there, and a release is cut from that entry.
+VERSION = "0.18.1"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -93,8 +88,8 @@ LLM_CHARS_PER_TOKEN = float(os.environ.get("LLM_CHARS_PER_TOKEN", "4.0"))
 
 # How far that estimate is allowed to be wrong before the context window is at risk,
 # expressed as a multiplier and **measured rather than assumed**. Characters per token is
-# not a constant of the language, it is a property of the text: on 2026-08-30 the same
-# estimator over-counted a long conversational history by 5.7 %, under-counted a
+# not a constant of the language, it is a property of the text: against Ollama's own
+# count, the estimator over-counted a long conversational history by 5.7 %, under-counted a
 # persona-sized block of repeated instructions by 8.9 %, and under-counted a one-line
 # greeting by 41 % — where the absolute error was seven tokens and did not matter.
 #
@@ -105,7 +100,7 @@ LLM_ESTIMATOR_MARGIN = float(os.environ.get("LLM_ESTIMATOR_MARGIN", "1.25"))
 
 # The context window to ask Ollama for, and the one option here that is not a
 # preference. **Ollama does not refuse a prompt that does not fit — it silently
-# discards half the context and answers anyway.** Measured on 2026-08-30, gemma3:4b,
+# discards half the context and answers anyway.** Measured with gemma3:4b on
 # Ollama 0.33.1:
 #
 #     prompt ~3935 tokens, num_ctx 4096  ->  prompt_eval_count 3935   intact

@@ -83,7 +83,8 @@ def test_the_decisions_index_lists_every_record_and_each_links_to_its_neighbours
     records = sorted((ROOT / "docs" / "decisions").glob("[0-9][0-9][0-9][0-9]-*.md"))
     index = (out / "decisions" / "index.html").read_text(encoding="utf-8")
 
-    listed = re.findall(r'href="(\d{4}-[a-z0-9-]+\.html)"', index)
+    # Each row's own record is the link that opens its cell; a status may link others.
+    listed = re.findall(r'<td><a href="(\d{4}-[a-z0-9-]+\.html)"', index)
     assert listed == [f"{p.stem}.html" for p in records]
 
     second = (out / "decisions" / f"{records[1].stem}.html").read_text(encoding="utf-8")
@@ -112,7 +113,7 @@ def repository(tmp_path: Path, files: dict[str, str]) -> Path:
             path.write_text(f"# {label}\n\n## Quick start\n\n## X\n", encoding="utf-8")
     (root / "docs" / "decisions").mkdir(parents=True, exist_ok=True)
     (root / "docs" / "decisions" / "0001-first.md").write_text(
-        "# 0001 — First\n\nStatus: accepted · 2026-01-02\n", encoding="utf-8"
+        "# 0001 — First\n\nStatus: accepted\n", encoding="utf-8"
     )
     (root / "docs" / "walkthrough.png").write_bytes(b"\x89PNG")
     for name, text in files.items():
@@ -186,6 +187,37 @@ def test_links_between_pages_are_relative_to_where_each_page_is(tmp_path):
     assert 'href="0001-first.html"' in page
     assert f'href="{REPOSITORY_URL}/tree/{REVISION}/eval/golden"' in page
     assert 'src="../docs/walkthrough.png"' in page
+
+
+def test_a_date_anywhere_but_the_changelog_fails_the_build(tmp_path):
+    root = repository(
+        tmp_path,
+        {
+            "docs/measurements.md": "# M\n\n| x | 2 s | `make x`, 2026-09-12 |\n",
+            "docs/changelog.md": "# Changelog\n\n## [1.0.0] — 2026-09-12 · first\n",
+        },
+    )
+
+    result = build.build(root, tmp_path / "out", REVISION)
+
+    assert result.problems == ["docs/measurements.md:3: a date outside the changelog"]
+
+
+def test_the_decisions_index_shows_each_records_status(tmp_path):
+    root = repository(
+        tmp_path,
+        {
+            "docs/decisions/0002-second.md": (
+                "# 0002 — Second\n\nStatus: accepted · supersedes [0001](0001-first.md)\n"
+            ),
+        },
+    )
+    out = tmp_path / "out"
+
+    assert build.build(root, out, REVISION).problems == []
+    index = (out / "decisions" / "index.html").read_text(encoding="utf-8")
+    assert "<th>Status</th>" in index
+    assert 'accepted · supersedes <a href="0001-first.html">0001</a>' in index
 
 
 def test_a_link_outside_the_repository_fails_the_build(tmp_path):

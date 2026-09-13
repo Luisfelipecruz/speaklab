@@ -16,7 +16,6 @@ a type would create it and the second would fail on a type that already exists.
 
 Revision ID: 0001
 Revises:
-Created: 2026-08-30
 """
 
 from collections.abc import Sequence

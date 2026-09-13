@@ -54,7 +54,7 @@ RUN pip install --no-cache-dir -r requirements.txt && pip check
 # ── The two NLTK corpora g2p_en needs, at BUILD time ────────────────────────
 #
 # `averaged_perceptron_tagger_eng` for part-of-speech tagging and `cmudict` for the
-# lexicon. m0 found this the hard way: g2p_en downloads them on first use, so a service
+# lexicon. g2p_en downloads them on first use, so a service
 # that skips this step answers its first request only if it has internet, and answers it
 # slowly. A container that fetches corpora on demand is a broken container.
 ENV NLTK_DATA=/usr/share/nltk_data
@@ -62,9 +62,8 @@ RUN python -m nltk.downloader -d $NLTK_DATA averaged_perceptron_tagger_eng cmudi
 
 # ── The phone vocabulary, vendored ──────────────────────────────────────────
 #
-# `vocab.json` is IN THE REPOSITORY, not downloaded here, and that is a deliberate
-# change from what m0 prescribed. Three things follow from checking it in that do not
-# follow from fetching it:
+# `vocab.json` is IN THE REPOSITORY, not downloaded here, on purpose. Three things
+# follow from checking it in that do not follow from fetching it:
 #
 #   * **The phone map becomes testable without this image.** `api/tests/test_phone_map.py`
 #     asserts the map against the model's real vocabulary in CI, on a runner with no

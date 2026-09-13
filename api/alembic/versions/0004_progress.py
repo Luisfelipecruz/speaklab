@@ -18,7 +18,6 @@ rather than this one.
 
 Revision ID: 0004
 Revises: 0003
-Created: 2026-09-05
 """
 
 from collections.abc import Sequence

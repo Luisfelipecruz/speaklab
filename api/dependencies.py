@@ -1,12 +1,12 @@
 """Who is asking, and may they have this row.
 
-Two things live here, and they are deliberately the *only* two. FR-4 says no endpoint
-returns another user's data, and the way that requirement is usually broken is not by
-writing a wrong check — it is by writing no check on the one endpoint added in a hurry.
-So there is one dependency that answers "who", one helper that answers "may they", and
+Two things live here, and they are deliberately the *only* two. No endpoint may return
+another user's data, and the way that requirement is usually broken is not by writing a
+wrong check — it is by writing no check on the one endpoint added in a hurry. So there is
+one dependency that answers "who", one helper that answers "may they", and
 `tests/test_ownership.py` walks the router table asserting that every route either uses
-the first or is on a short, explicit list of public paths. A future milestone that adds
-`GET /sessions/{id}` without authentication fails that test rather than shipping.
+the first or is on a short, explicit list of public paths. A route added without
+authentication fails that test rather than shipping.
 
 **Cross-user reads are 404, not 403.** A 403 is a confirmation: it tells the caller the
 row exists and belongs to somebody else, which is exactly the fact they were probing
@@ -39,7 +39,7 @@ async def current_user(request: Request, db: AsyncSession = Depends(get_db)) -> 
     """The authenticated account, or 401.
 
     The token is read from the cookie and from nowhere else — no `Authorization: Bearer`
-    fallback. That is a decision, not an omission (D24): accepting a header as well would
+    fallback. That is a decision, not an omission: accepting a header as well would
     reintroduce every place a token can be read by script, which is the thing the
     httpOnly cookie exists to prevent, and it would do it invisibly. When a non-browser
     client eventually needs access, it gets a token type of its own with its own scopes,
@@ -77,11 +77,8 @@ async def get_owned_or_404(
     comparison is a separate statement somebody can forget or write against the wrong
     variable, and where the row has already been loaded by the time it is refused.
 
-    Used by `GET /audio/{id}` (m4), `GET /sessions/{id}` (m6) and `GET /attempts/{id}`
-    (m8). It was written and tested at m3 against `audio_assets` — the only user-scoped
-    table that existed then — a milestone before the first endpoint that needed it, so
-    that the guard the later milestones depend on was tested by the milestone that wrote
-    it rather than by the first one in a hurry.
+    Used by `GET /audio/{id}`, `GET /sessions/{id}` and `GET /attempts/{id}`, among
+    others, and tested on its own rather than only through the endpoints that use it.
     """
     row = await db.scalar(
         select(model).where(model.id == row_id, model.user_id == user.id)

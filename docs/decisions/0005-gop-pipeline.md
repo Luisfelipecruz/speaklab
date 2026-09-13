@@ -1,7 +1,6 @@
 # 0005 — The GOP pipeline: forced alignment in production
 
-**Status:** accepted · **Date:** 2026-08-30 · **Milestone:** m8
-**Promotes:** the m0 spike (`spike/gop-feasibility.md`), per plan §7 m0
+Status: accepted
 
 Read this before touching `infra/pron/`, the phone map, or anything that reports a
 per-phoneme number to a learner.
@@ -10,26 +9,25 @@ per-phoneme number to a learner.
 
 ## What was decided
 
-1. **The m0 method ships unchanged.** Forced alignment against a wav2vec2 CTC phoneme
-   model, GOP as Witt & Young define it, per-phone rows carrying the phone that actually
-   won. Re-measured through the production service: **identical to the spike, to three
-   decimal places**.
+1. **Forced alignment against a wav2vec2 CTC phoneme model**, GOP as Witt & Young define
+   it, per-phone rows carrying the phone that actually won. Through the production service
+   the probe gives the figures the feasibility measurement that chose the method gave,
+   **to three decimal places**.
 2. **The vocabulary is vendored into the repository**, not fetched during the image build.
-3. **The competitor maximum is taken over phones, excluding CTC's blank.** A deviation
-   from the spike, and a measured one: it changed **0 of 35** rows on real speech.
+3. **The competitor maximum is taken over phones, excluding CTC's blank.** Measured: it
+   changes **0 of 35** rows on real speech.
 4. **`torch` is installed from PyTorch's CPU index.** Not a tidy-up — it is 6.7 GB.
 5. **Scoring is asynchronous, but only the alignment half.** Transcription happens inside
    the request because the audio row cannot exist without it.
 6. **Read-aloud requires audio retention, and refuses rather than working around it.**
    FR-16 and FR-26 genuinely conflict for this feature.
-7. **No GOP threshold is configured, and the interface says so.** Q2 stays open.
+7. **No GOP threshold is configured, and the interface says so.**
 
 ---
 
 ## 1. The image: 8.51 GB, and why
 
-The plan budgeted "~2 GB of torch" for the `pron` image and profiled the service on that
-basis (D10). The first build came out at **8.51 GB**. `du` inside it named the cause:
+A `pron` image built with PyPI's `torch` is **8.51 GB**. `du` inside it names the cause:
 
 ```
 2.9G  site-packages/nvidia
@@ -43,10 +41,8 @@ building on an Apple-silicon laptop — which produces a `linux/arm64` image tha
 ever run on CPU — still drags in 3.5 GB of CUDA libraries and Triton that no code in the
 image can execute.
 
-The `requirements.txt` comment written before measuring said the opposite: *"On
-linux/arm64 PyPI's torch wheels are already CPU-only."* That was wrong, and it is the kind
-of wrong that never surfaces as a failure — the image works, it is just four times the
-size it should be. It surfaced because the size was looked at.
+It never surfaces as a failure: the image works, and is four times the size it should be.
+It surfaces only when the size is looked at.
 
 **The fix is a separate install from an index that only has CPU builds:**
 
@@ -57,33 +53,32 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir -r requirements.txt && pip check
 ```
 
-`--extra-index-url` was tried in principle and rejected: both indexes carry version
-2.13.0, pip is free to take either, and an image whose size depends on resolver mood is
-worse than a duplicated version pin. `pip check` at the end is what makes the duplication
-safe — if the Dockerfile and `requirements.txt` ever disagree, the build fails.
+`--extra-index-url` is rejected: both indexes carry version 2.13.0, pip is free to take
+either, and an image whose size depends on resolver mood is worse than a duplicated version
+pin. `pip check` at the end is what makes the duplication safe — if the Dockerfile and
+`requirements.txt` ever disagree, the build fails.
 
-**Result: 8.51 GB → 1.78 GB**, no `nvidia`, no `triton`, and back inside the budget the
-profile decision was made against.
+**Result: 8.51 GB → 1.78 GB**, no `nvidia`, no `triton`.
 
 ---
 
 ## 2. `vocab.json` is in the repository
 
-m0 prescribed reading `vocab.json` off the hub at build time, to avoid instantiating
-`Wav2Vec2PhonemeCTCTokenizer` — which would drag in `phonemizer` and the espeak-ng
-binary for a job this project does itself. That advice is kept. What changed is *when*.
+The vocabulary is read directly rather than through `Wav2Vec2PhonemeCTCTokenizer`, which
+would drag in `phonemizer` and the espeak-ng binary for a job this project does itself —
+and it is committed rather than fetched.
 
-The file is now committed at `infra/pron/vocab.json` (4.6 KB, 392 tokens), and three
-things follow that do not follow from fetching it:
+The file is at `infra/pron/vocab.json` (4.6 KB, 392 tokens), and three things follow that
+do not follow from fetching it:
 
-- **The phone map became testable without the image.** `api/tests/test_phone_map.py` runs
+- **The phone map is testable without the image.** `api/tests/test_phone_map.py` runs
   in CI, on a runner with no torch, no network and no 1.2 GB download, and asserts the map
   against the model's real vocabulary. That test is the one that catches the U+0261 trap.
   **A test that can only run inside a 1.78 GB image is a test that stops being run.**
 - **The ids are pinned.** These 392 tokens are the meaning of every number this system
   stores. Fetching them at build time means an upstream edit to the model card silently
   redefines every phone in every stored score, with no diff anywhere to notice.
-- **The build stopped needing the network** for anything but pip and NLTK.
+- **The build does not need the network** for anything but pip and NLTK.
 
 The vendored file is a claim; the weights are the fact. So `app.py` checks
 `model.config.vocab_size` against `len(VOCAB)` at start-up and refuses to serve if they
@@ -102,16 +97,16 @@ RUN python -c "import phone_map; print(phone_map.summary())"
 so a bad edit fails the **build**, loudly, in front of whoever made it — rather than at
 the first request, in front of a user, as a number that measures nothing.
 
-Both m0 traps are re-confirmed present in this vocabulary and both are asserted in tests:
-`ɡ` is U+0261 and ASCII `g` is **absent entirely** (id would be nothing), and `r` (id 31)
-exists as the trill while English /r/ is `ɹ` (id 27).
+Two properties of this vocabulary are asserted in tests: `ɡ` is U+0261 and ASCII `g` is
+**absent entirely** (id would be nothing), and `r` (id 31) exists as the trill while
+English /r/ is `ɹ` (id 27).
 
 ---
 
 ## 3. The tokeniser bug: two of the twelve shipped passages
 
-The spike's rule for splitting reference text into words was *a whitespace token with
-`.,!?;:` stripped*. Checked against the real seed file before writing any production code:
+Splitting reference text into words as *a whitespace token with `.,!?;:` stripped*
+desyncs two of the twelve shipped passages:
 
 ```
 DESYNC a-pleasure-to-measure: 79 surface words vs 78 phone groups
@@ -119,18 +114,18 @@ DESYNC in-june-the-judge:     73 surface words vs 72 phone groups
 ```
 
 **Both passages contain a standalone em dash.** It survives that strip, counts as a word,
-and produces no phones — so the two sequences differ by one, and `spike/gop.py` raises
-`ValueError`. Read-aloud would have been broken on **a sixth of the shipped corpus**, and
-the failure would have read as a bug in alignment rather than in tokenisation.
+and produces no phones — so the two sequences differ by one, and alignment raises
+`ValueError`. Read-aloud would be broken on **a sixth of the shipped corpus**, and the
+failure would read as a bug in alignment rather than in tokenisation.
 
-The rule is now **a token containing at least one letter**, which is effectively the rule
+The rule is **a token containing at least one letter**, which is effectively the rule
 `g2p_en` itself applies. 12 of 12 passages align, 3091 phones.
 
-The bug is worth stating carefully, because the interesting part is not the em dash. The
-old rule was *a list of punctuation somebody thought of*; the new one is a property. That
-is why the regression test is parameterised over eight marks rather than written once for
-the dash, and why it runs against `api/seeds/passages.json` rather than a fixture — a
-passage added next month fails the test in thirty seconds instead of failing a user.
+The interesting part is not the em dash. A rule that is *a list of punctuation somebody
+thought of* fails on the next mark; the rule here is a property. That is why the
+regression test is parameterised over eight marks rather than written once for the dash,
+and why it runs against `api/seeds/passages.json` rather than a fixture — a passage added
+later fails the test in thirty seconds instead of failing a user.
 
 ### Homographs are why the whole passage is converted at once
 
@@ -152,15 +147,14 @@ onward, which is a screen full of confident nonsense.
 
 ---
 
-## 4. Three deviations from the spike, each with a reason
+## 4. Three implementation choices, each with a reason
 
 ### 4.1 PyAV, not `soundfile`
 
-m0 prescribed `soundfile` because `torchaudio.load` now requires `torchcodec`. Correct
-about `torchaudio`, wrong about the replacement: **`soundfile` cannot open WebM/Opus or
-MP4/AAC**, which is exactly what `MediaRecorder` produces (decision 0004 §2). PyAV is the
-ffmpeg libraries in-process, it is already proven in `infra/asr`, and it means this image
-needs no ffmpeg binary.
+`torchaudio.load` requires `torchcodec`, and `soundfile` — the obvious replacement —
+**cannot open WebM/Opus or MP4/AAC**, which is exactly what `MediaRecorder` produces
+(decision 0004 §2). PyAV is the ffmpeg libraries in-process, it is already proven in
+`infra/asr`, and it means this image needs no ffmpeg binary.
 
 The decode function is a near-copy of the one in `infra/asr/app.py`, and the duplication
 is deliberate: these are separate images with separate dependency sets, and the
@@ -169,22 +163,22 @@ image's cache to a 200 MB one's.
 
 ### 4.2 `merge_tokens`, not a hand-walked alignment
 
-The spike walked the frame labels itself and had to defend against emitting more spans
-than there were targets (`if pos >= len(flat): continue`). `torchaudio.functional.merge_tokens`
-returns exactly one span per target, so that class of off-by-one is gone and the code
-**asserts** the count rather than skipping the overflow. Wrong attribution is a heatmap
-that tints the wrong word, which is worse than a crash because it looks like an answer.
+A hand-walked alignment has to defend against emitting more spans than there are targets
+(`if pos >= len(flat): continue`). `torchaudio.functional.merge_tokens` returns exactly one
+span per target, so that class of off-by-one is gone and the code **asserts** the count
+rather than skipping the overflow. Wrong attribution is a heatmap that tints the wrong
+word, which is worse than a crash because it looks like an answer.
 
 ### 4.3 The competitor maximum excludes CTC's blank — measured at zero
 
-Witt & Young's max is over the phone set. The spike took it over every token, blank
-included. **The blank is not a phone**, and a segment where it wins is a segment that was
+Witt & Young's max is over the phone set, and taking it over every token includes the
+blank. **The blank is not a phone**, and a segment where it wins is a segment that was
 short or quiet — not one where the speaker produced silence instead of a /θ/. Reporting
 `<pad>` as "what you said instead" would be a claim about speech the acoustic model never
-made, which is what invariant I2 forbids.
+made, and no pronunciation claim may come from something that did not hear it.
 
 That is the principle. The measurement is what makes it a decision rather than a
-preference — `gop.py` computes the spike's arithmetic too, as `gop_all_tokens`:
+preference — `gop.py` computes the every-token arithmetic too, as `gop_all_tokens`:
 
 | material | rows | rows where excluding the blank changed GOP |
 |---|---:|---:|
@@ -192,18 +186,17 @@ preference — `gop.py` computes the spike's arithmetic too, as `gop_all_tokens`
 | 34 s of audio against a mismatched 79-word passage | 250 | 2 |
 
 **Zero on real, matching material.** The two on mismatched audio are in a case where the
-alignment is meaningless anyway. So the deviation is principled, and its measured cost on
-anything the product will actually see is nothing — which is why m0's numbers reproduce
-exactly despite the change.
+alignment is meaningless anyway. So the choice is principled, and its measured cost on
+anything the product will actually see is nothing — which is why the probe's figures are
+the same with or without it.
 
 ---
 
 ## 5. What was measured
 
-All of it through the live service, via `make pron-golden`. Every figure below came from
-running the system on the date of this document (invariant I9).
+All of it through the live service, via `make pron-golden`.
 
-### 5.1 The probe reproduces m0 exactly
+### 5.1 The probe
 
 Real human speech (VOiCES, 3.4 s, native adult English) scored against reference text
 containing a phone the speaker did not produce. Threshold is the 5th percentile of GOP
@@ -229,10 +222,11 @@ correct speech.
 ```
 
 Baseline over the 35 correctly produced phones: **mean −0.386, median exactly 0.000, p5
-−3.1195**. Every one of these matches `spike/gop-feasibility.md` §4 to the digit, through
-an entirely rewritten code path — different span extraction, different competitor set,
-different I/O library, running in a container instead of on the host. That agreement is
-the strongest evidence available that the rewrite is faithful.
+−3.1195**. Every one of these matches the feasibility measurement that chose the method,
+to the digit, through a rewritten code path — different span extraction, different
+competitor set, different I/O library, running in a container instead of on the host.
+That agreement is the strongest evidence available that the service is faithful to the
+method.
 
 **The one miss is a vowel, and it is the expected shape of the failure.** Consonant probes
 averaged a 9.0-nat drop; the two vowel probes averaged 4.2. Vowel quality is gradient and
@@ -252,16 +246,14 @@ so a dependency upgrade that changes a pronunciation fails a test rather than a 
 | 3.4 s | 35 | 819 ms | 825 ms | 241 ms |
 | 34.0 s | 250 | 8095 ms | 8105 ms | 238 ms |
 
-**Linear in audio length**, as expected. And **m0's 99.5 ms on the same 3.4 s of audio is
-not the number that matters** — that was measured on the host with 8 torch threads; the
-service is 8.2× slower in its container. The cost is the container's CPU allocation, not
-the method.
+**Linear in audio length**, as expected. On the host with 8 torch threads the same 3.4 s
+takes 99.5 ms; the service is 8.2× slower in its container. The cost is the container's
+CPU allocation, not the method.
 
 Against PRD §9.1's 10 000 ms budget for asynchronous read-aloud scoring, a 34-second
 reading lands at 8.1 s. **That is 1.9 s of margin, and it is the thinnest budget in the
-system.** Decision 0004 §3a measured stage degradation of 1.3×–3.4× on a loaded machine.
-This budget will be missed under load, and the honest thing is to say so now rather than
-discover it: see §8.
+system.** Decision 0004 §3a measures stage degradation of 1.3×–3.4× on a loaded machine.
+This budget will be missed under load: see §8.
 
 ### 5.4 End to end, through the real API
 
@@ -282,7 +274,7 @@ wrong words is noise with decimal places, and the interface says so above 0.5.
 
 ### 6.1 Only the alignment is asynchronous
 
-The plan says scoring is asynchronous and the client polls (FR-15). Half of it cannot be.
+FR-15 has scoring asynchronous, with the client polling. Half of it cannot be.
 `audio_assets.duration_ms`, `sample_rate` and `format` are NOT NULL and only a decoder
 knows them, so the row cannot exist until the recording has been decoded — which is the
 recogniser's pass. So:
@@ -296,10 +288,7 @@ This also makes PRD R6 fall out rather than be implemented: an attempt whose `pr
 answers still has everything the recogniser produced, because the recogniser ran first and
 in a different request.
 
-**No migration was needed.** m2 built the whole of plan §5, `attempts` and
-`phoneme_scores` included, so the `0005_attempts_phonemes.py` the plan lists does not
-exist — writing an empty revision to match a deliverables list would be worse than not
-writing one.
+**No migration:** the initial schema already has `attempts` and `phoneme_scores`.
 
 ### 6.2 FR-16 and FR-26 conflict, and read-aloud refuses
 
@@ -307,22 +296,23 @@ writing one.
 rescored — FR-16 would be a promise the schema could not keep."* An account with
 `retain_audio` off has asked for exactly the opposite.
 
-There is no arrangement that honours both. The options were to store the recording anyway
+There is no arrangement that honours both. The options are to store the recording anyway
 (breaking a promise the user made a deliberate choice about), to drop rescoring silently
 for those accounts (an FR-16 that is true for some users), or to refuse. **It refuses**,
 with a 409 that names the setting and points at conversation practice, which works with
 retention off and stores no audio.
 
-This is a product decision made by an agent and it deserves a human's eye: handoff **Q14**.
+This is a product decision, and it is open to one: the alternative worth weighing is a
+third retention state that keeps the waveform for read-aloud only.
 
 ---
 
 ## 7. No threshold is configured, and the interface says so
 
-`PRON_GOP_THRESHOLDS` is an empty map. m0 settled the *method* — a percentile of the
-correct-speech distribution, per phone — and could not settle the numbers: one speaker, 35
-phones, 10 probes. The spike's −3.119 is **one native speaker's number** and is
-deliberately not the default.
+`PRON_GOP_THRESHOLDS` is an empty map. The *method* is settled — a percentile of the
+correct-speech distribution, per phone — and the numbers are not: one speaker, 35 phones,
+10 probes. The probe's −3.119 is **one native speaker's number** and is deliberately not
+the default.
 
 So the API reports each reading's own 5th percentile, and the heatmap bands are relative
 to the reading with a legend that says so: *"These bands are relative to this reading, not
@@ -333,7 +323,7 @@ shown. "3 of 79 words marked" reads very differently from a page of red.
 
 A calibrated threshold that is wrong would silently decide which sounds a learner is told
 to work on. An honest relative ranking is less than the PRD asks for and is what the
-measurements support. **Q2 stays open.**
+measurements support.
 
 ---
 
@@ -343,22 +333,21 @@ measurements support. **Q2 stays open.**
    proves the arithmetic separates a produced phone from an unproduced one; it does not
    prove the system detects a **learner** error, because a planted reference is a
    categorically different phone and a learner error is gradient — a retracted /s/,
-   epenthesis with a particular vowel quality, an unreleased final stop. **m0's 8-nat gap
-   is an upper bound.** `test_gop.py::test_broken_readings_score_worse_than_clean_ones`
-   exists, skips, and says what it needs: five minutes of somebody's voice,
-   `spike/RECORD.md`.
-2. **The latency budget has 1.9 s of margin and will be missed under load.** Nothing was
-   changed in response, for the same reason m6 declined to act on its own margin: every
-   available lever trades quality for a problem the machine does not have when idle. But
-   this one is thinner than m6's, and the fallback if it becomes real is a smaller
-   wav2vec2 or chunked alignment, not a faster loop.
-3. **The r-coloured segmentation question is still open.** eSpeak emits `ɑːɹ ɔːɹ oːɹ ɛɹ ɪɹ
+   epenthesis with a particular vowel quality, an unreleased final stop. **The probe's
+   8-nat gap is an upper bound.** `test_gop.py::test_broken_readings_score_worse_than_clean_ones`
+   exists, skips, and says what it needs: five minutes of somebody's voice, recorded to
+   [the protocol](../../eval/golden/pron/README.md).
+2. **The latency budget has 1.9 s of margin and will be missed under load.** Nothing is
+   changed in response, for the reason [0003](0003-conversation-context-strategy.md) gives
+   for the turn's margin: every available lever trades quality for a problem the machine
+   does not have when idle. This margin is thinner than the turn's, and the fallback if it
+   becomes real is a smaller wav2vec2 or chunked alignment, not a faster loop.
+3. **The r-coloured segmentation question is open.** eSpeak emits `ɑːɹ ɔːɹ oːɹ ɛɹ ɪɹ
    ʊɹ aɪɚ aɪə` as single tokens where `g2p_en` emits two ARPAbet phones. Every *symbol*
    maps; *segmentation* can differ. `gop.py` flags affected rows and the summary counts
-   them — **0 on everything measured so far** — so the decision can be made on a count
-   rather than on a guess.
-4. **Safari has still never recorded through this app**, which is m7's outstanding item
-   and now applies to this screen too.
+   them — **0 on everything measured** — so the decision can be made on a count rather than
+   on a guess.
+4. **Safari has never recorded through this app**, on this screen or any other.
 5. **One speaker, and not the target speaker.** Everything above is native adult English.
    The users of this product are not that.
 
@@ -366,13 +355,11 @@ measurements support. **Q2 stays open.**
 
 ## 9. Consequences
 
-- **D3 confirmed in production.** The ASR-diff fork in handoff §10 is not taken.
-- **`spike/` can now be deleted** except `RECORD.md` and `passages.json`, which are inputs
-  to the work in §8.1. `phone_map.py` has moved into `infra/pron/` with its safety
-  properties intact and tests around them.
+- **Forced alignment is the pronunciation method in production**; there is no fallback to
+  diffing the recogniser's transcript.
 - **`make pron-golden`** is where every number in §5 comes from. `make pron-fetch` is not
   an audit step here but the way the probe reaches a machine at all — `*.wav` is
-  gitignored (trap 4), so unlike `eval/golden/asr` nothing in `eval/golden/pron` is
-  versioned but the manifest.
-- **Q2 (threshold) remains open** with the method settled and the numbers not.
-- **Q14 (read-aloud versus audio retention) is new** and is a product call.
+  gitignored, so unlike `eval/golden/asr` nothing in `eval/golden/pron` is versioned but the
+  manifest.
+- **The threshold** has its method settled and its numbers not (§7).
+- **Read-aloud versus audio retention** is a product call (§6.2).

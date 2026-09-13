@@ -15,11 +15,11 @@ with a word containing a phone the speaker **did not** produce, and asserts that
 that phone collapses.
 
 This is the mirror image of planting an error in the audio, and it runs on genuine human
-speech, which is why m0 used it after the first attempt failed (see below). It is exactly
+speech, which synthetic recordings are not (see below). It is exactly
 the situation the product is in when a learner mispronounces a word: the reference says
 one sound, the waveform contains another.
 
-m0 measured **9 of 10 detected**, mean drop **8.138 nats**, Cohen's d **8.26**, with the
+It measures **9 of 10 detected**, mean drop **8.138 nats**, Cohen's d **8.26**, with the
 competing phone named correctly in **10 of 10** — including the one probe the threshold
 missed. `api/tests/test_gop.py` re-runs it through the live service.
 
@@ -42,7 +42,7 @@ The protocol is below: about five minutes with a microphone, in one sitting.
 
 Read each line twice — once normally, once saying the **bold** words wrong, naturally
 rather than exaggerated. Same microphone, same room, one sitting, same pace and volume in
-both takes. GOP moves with the microphone (handoff trap 5), so changing device between
+both takes. GOP moves with the microphone, so changing device between
 takes invalidates the comparison. Leave about half a second of silence at the start and
 the end of each take, so the first sound is not clipped.
 
@@ -103,8 +103,8 @@ Then `make pron-golden` — `test_broken_readings_score_worse_than_clean_ones` s
 ### Read the result before believing it
 
 If the clean and broken takes decode to the same phone string, the takes are not actually
-different and everything downstream is meaningless. **That is exactly how the m0 TTS
-attempt failed** (§3 below), and it is why the first thing to check is whether the two
+different and everything downstream is meaningless. **That is exactly how synthetic
+takes fail** (below), and it is why the first thing to check is whether the two
 recordings differ at all, not whether the score looks good.
 
 Expect the vowel contrasts — `ship`/`sheep`, `bad`/`bed` — to be the weakest. That held on
@@ -113,11 +113,11 @@ the native-speaker probe too, and it is the reason per-phone thresholds are need
 ### Do not synthesise them
 
 Not because TTS is unusable in general — good neural TTS decodes cleanly through this
-acoustic model, and m0 verified that (Chatterbox output decoded `θ` correctly in *three*
-and *thirty*). Two reasons that do hold:
+acoustic model (Chatterbox output decodes `θ` correctly in *three* and *thirty*). Two
+reasons that do hold:
 
-1. **macOS `say` specifically is degenerate here.** m0's first attempt planted ten
-   substitutions in `say` output and scored 3/10. Three checks showed the instrument, not
+1. **macOS `say` specifically is degenerate here.** Ten substitutions planted in `say`
+   output scored 3/10. Three checks showed the instrument, not
    the method, was broken: `p1_clean` and `p1_bad` decoded to an *identical* phone string
    despite different waveforms and different MD5s; in isolation the model heard
    `say("think")` as `s iɛ5 ŋ`, getting the /θ/–/s/ contrast wrong in **both** directions;
@@ -127,12 +127,10 @@ and *thirty*). Two reasons that do hold:
    would test the easy case while appearing to pass, and a cloned voice gives no ground
    truth on which phones are actually wrong.
 
-Handoff D13 and §9 trap 8.
-
 ## The audio is not committed
 
 Unlike `eval/golden/asr`, which commits ten `.flac` files, **nothing here is in git.**
-`.gitignore` covers `*.wav`, which is trap 4 doing its job: recordings of somebody's voice
+`.gitignore` covers `*.wav`, because recordings of somebody's voice
 must never be able to appear in `git status`. So `fetch.py` is not an audit tool here, it
 is the way the file gets onto a machine at all, and the pairs — once recorded — stay
 local to whoever recorded them.

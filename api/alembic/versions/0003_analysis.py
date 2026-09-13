@@ -36,7 +36,6 @@ than in the code that reads the column.
 
 Revision ID: 0003
 Revises: 0002
-Created: 2026-09-05
 """
 
 from collections.abc import Sequence

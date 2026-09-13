@@ -1,7 +1,6 @@
 # 0022 — The model libraries
 
-Status: accepted · 2026-09-13 · supersedes decision 12 of
-[0021](0021-dependencies-images-and-the-supply-chain.md)
+Status: accepted · supersedes decision 12 of [0021](0021-dependencies-images-and-the-supply-chain.md)
 
 0021 brought every dependency current except the libraries the models run on, because
 each of them can change what the product measures and none carried a published
@@ -32,7 +31,7 @@ vulnerability. This records upgrading them, one at a time, and what each changed
 
 ## Measured
 
-On 2026-09-13, in Docker, at load averages between 10 and 25 on 16 cores.
+In Docker, at load averages between 10 and 25 on 16 cores.
 
 **Pronunciation**, after each of the three changes:
 
@@ -58,8 +57,8 @@ On 2026-09-13, in Docker, at load averages between 10 and 25 on 16 cores.
 | | piper-tts 1.8.0 | 1.7.0 |
 |---|---|---|
 | Word error rate, human recordings | 1.72 % (4 / 232) | 1.72 % |
-| 89 sentences said with their mistake, heard as the correction / as something else | 3 / 7 | 1 / 7; 2 / 5 earlier the same evening |
-| Heard as said, of 20: articles, false friends, prepositions | 19, 18, 17 | 17, 18, 16; 18, 18, 16 earlier |
+| 89 sentences said with their mistake, heard as the correction / as something else | 3 / 7 | 1 / 7; 2 / 5 in an earlier run |
+| Heard as said, of 20: articles, false friends, prepositions | 19, 18, 17 | 17, 18, 16; 18, 18, 16 in an earlier run |
 | Spoken answers: fillers, repeats, restarts, signposts | 22 / 24, 13 / 13, 9 / 9, 52 / 52 | 21 / 24, 13 / 13, 9 / 9, 52 / 52 |
 
 Synthesis is not deterministic, and the two voices differ by no more than one voice differs
@@ -78,10 +77,9 @@ tts 0 / 44; none with a fixed release. CI's repository scan: exit 0.
 - **A golden run straight after `up --wait` skips every test.** `/health` answers while
   the weights load, so Compose calls the service healthy before it can score; the suite
   says the model is still loading and to run it again, which is what it is for.
-- **The recogniser's figures on the synthetic voice are wider than published.** The
-  unchanged voice gave 16 of 20 prepositions heard as said, twice, where the published
-  range across the report's runs is 17 to 20. The report's next run is where that range
-  moves.
+- **The recogniser's figures on the synthetic voice are wider than the report's earlier
+  runs.** The unchanged voice gave 16 of 20 prepositions heard as said, twice, below the 17
+  to 20 of every earlier run of the report.
 
 ## Revisit if
 

@@ -32,14 +32,13 @@ protocol ([`eval/golden/pron/README.md`](../pron/README.md)) is the first five m
 that work.
 
 **It is also not the pronunciation golden set.** That one is human recordings of *planted
-errors*, it belongs to m8, and it cannot be drawn from a corpus of correct speech.
+errors*, and it cannot be drawn from a corpus of correct speech.
 
-## Why not the recordings already in `spike/audio/`
+## Why not synthetic speech
 
-They are macOS `say` output. m0 established that instrument is degenerate — two takes
-saying genuinely different words decoded to an identical phone string
-(`spike/gop-feasibility.md` §3). WER against synthetic speech from a single fallback
-voice would be a flattering number about nothing.
+macOS `say` is a degenerate instrument here: two takes saying genuinely different words
+decoded to an identical phone string. WER against synthetic speech from a single voice
+would be a flattering number about nothing.
 
 ## Licence
 
