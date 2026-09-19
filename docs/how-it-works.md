@@ -20,7 +20,7 @@ exist yet is in [limitations.md](limitations.md).
 a goal and a level, and a declared set of grammar forms and kinds of mistake it is written
 to draw out. Hold the button to speak and release it: the recording is transcribed by
 Whisper with a timing and a confidence for every word, answered in character by
-`gemma4:latest`, and spoken by Piper — one request, stored whole or not at all. Ending the
+`gemma4:e4b`, and spoken by Piper — one request, stored whole or not at all. Ending the
 session writes the report.
 
 **The persona stays a persona.** It is given its full brief at the front of the prompt and a
@@ -33,7 +33,7 @@ labelled replies, says whether a reply stayed in character. Corrections wait for
 report: a practice partner that corrects every sentence is not a conversation.
 
 **Measured.** A whole turn — recognition, reply and voice — takes 2035 ms at p95 on a quiet
-machine, against 3 s, and took 2684 ms on Gemma 3. Between 6 and 8 of 9 probe replies break none of the five rules, and
+machine, against 3 s, and took 2684 ms on Gemma 3. Between 6 and 9 of 9 probe replies break none of the five rules, and
 what fails is the sentence cap the persona itself states; the judge agrees with the labels
 on 8 of 10 and misses the same two every time. Asked to step outside the scene, the persona
 gives its instructions away 16 times in 200 across ten phrasings, against 59 before the
@@ -180,7 +180,7 @@ side by side on the same counts, with no pass mark. See
 [decision 0019](decisions/0019-make-your-point.md).
 
 **Measured.** Said by a synthetic voice, 21–23 of 24 fillers, 12–13 of 13 words said twice
-and every signpost reach the transcript. `gemma4:latest`'s shorter version puts no content
+and every signpost reach the transcript. `gemma4:e4b`'s shorter version puts no content
 word the speaker never said into any of 40 labelled answers, so none is withheld — Gemma 3's
 was withheld for 9 of the 40 — and the check withholds 6 of 6 rewrites written to add a
 fact while letting 6 of 6 faithful ones through.

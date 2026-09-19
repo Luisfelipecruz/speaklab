@@ -61,10 +61,10 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Synthesis, an 80-token reply | **320 ms** whole against 400 ms, **78 ms** to the first sentence; 771 ms and 135 ms on a busy machine | `make tts-latency`, [decision 0002](decisions/0002-tts-model-choice.md) |
 | Synthesis throughput | 50× real time on the CPU | `make tts-latency` |
 | The prompt-size estimate against Ollama's own count | −6.4 % to +6.2 % across three prompt shapes | [decision 0003](decisions/0003-conversation-context-strategy.md) |
-| **Persona replies clean of every deterministic rule** | **6 to 8 of 9** across eight runs, 8 in the latest; what fails is the sentence cap the persona itself states | `make persona-adherence`, [evaluation.md](evaluation.md) |
+| **Persona replies clean of every deterministic rule** | **6 to 9 of 9** across nine runs, 9 in the latest; what fails is the sentence cap the persona itself states | `make persona-adherence`, [evaluation.md](evaluation.md) |
 | The persona judge, against hand labels | **0.800** over ten replies; it misses the same two, the two the rules catch, in every run | [evaluation.md](evaluation.md) |
 | **An instruction spoken inside the scene** | the persona gave its instructions away **16 of 200** times over ten phrasings, against **59 of 200** before the speaker's words were quoted; on five phrasings written afterwards, 1 of 100 against 26 | [decision 0013](decisions/0013-an-instruction-spoken-in-the-scene.md) |
-| … in the suite `make eval` runs | fifteen phrasings, ten times each: **2 to 14 of 150** across seven runs, 2 in the latest | [evaluation.md](evaluation.md) |
+| … in the suite `make eval` runs | fifteen phrasings, ten times each: **2 to 14 of 150** across eight runs, 2 in the latest | [evaluation.md](evaluation.md) |
 
 ## Corrections and grammar
 
@@ -74,7 +74,7 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Proposals refused by the gate | **25 %**, each with a reason | [decision 0006](decisions/0006-error-taxonomy.md) |
 | **Grammar rules, on planted errors** | **130 of 172** agreement errors caught — 0.756 [0.686, 0.814] — and **2 of 129** missing articles, with no wrong fix and no stray proposal; nothing proposed on 3 111 words of native English. No model involved | [evaluation.md](evaluation.md), [decision 0014](decisions/0014-the-rule-layer.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 real turns, where the parse of unpunctuated speech loses the verb; none joined to a wrong form | [evaluation.md](evaluation.md), [decision 0015](decisions/0015-accuracy-per-form.md) |
-| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across ten runs, 2 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
+| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across eleven runs, 2 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
 | Articles, prepositions and false friends, said aloud | **16 to 20 of 20** of each kind heard as said across ten runs; repaired by the recogniser, prepositions 18 of 200 tries, articles 4 of 200, false friends never | [evaluation.md](evaluation.md), [decision 0018](decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | … found and filed under their kind | articles **9 of 20**, prepositions **17 of 20**, false friends **10 of 20** — identical in every run; 3 of the 60 corrected sentences drew a proposal. On Gemma 3: 6, 12 and 6 of 20, and 22 corrected sentences flagged | [evaluation.md](evaluation.md), [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | … one detection call | about **1.0–2.4 s**, from 124–283 s over the sixty sentences and their corrections across three runs; 0.7 s on Gemma 3; 8 s with thinking on | [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |

@@ -53,8 +53,7 @@ export default async function AnswersPage() {
       <PageHeader
         title="Make your point"
         description="Answer a work question out loud, in one go. How you built the answer and
-          how you said it are counted from the recording, and a language model's feedback
-          sits beside the counts."
+          how you said it are counted from the recording."
       />
 
       <section className="flex flex-col gap-6" aria-labelledby="questions">

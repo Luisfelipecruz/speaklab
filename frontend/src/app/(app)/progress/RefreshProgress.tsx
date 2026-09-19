@@ -51,7 +51,7 @@ export function RefreshProgress({ stale }: { stale: boolean }) {
         onClick={rebuild}
       >
         <RefreshCw />
-        {pending ? "Rebuilding" : stale ? "Bring up to date" : "Rebuild"}
+        {pending ? "Counting again" : stale ? "Count the latest practice" : "Count again"}
       </Button>
     </span>
   );

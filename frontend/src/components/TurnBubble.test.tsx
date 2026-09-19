@@ -21,7 +21,7 @@ test("a turn in flight says what is happening and invents no words", () => {
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-test("a reply with audio mounts a player captioned with its own text", () => {
+test("a reply with audio shows its words once, above the player", () => {
   render(
     <TurnBubble
       item={{ kind: "stored", turn: makeTurn({ transcript: "Over what period?" }) }}
@@ -30,8 +30,9 @@ test("a reply with audio mounts a player captioned with its own text", () => {
   );
 
   expect(screen.getByText("Dana")).toBeInTheDocument();
-  // Synthesised speech is always captioned.
-  expect(screen.getAllByText("Over what period?")).toHaveLength(2);
+  // The transcript is the caption of the synthesised speech; a second copy under the
+  // player would print every reply twice.
+  expect(screen.getAllByText("Over what period?")).toHaveLength(1);
   expect(screen.getByRole("button", { name: /Play Dana's reply/ })).toBeInTheDocument();
 });
 

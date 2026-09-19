@@ -144,7 +144,7 @@ export function AnswerRecorder({
           </p>
           {sending && (
             <p aria-live="polite" className="text-sm text-muted-foreground">
-              Counting how you said it and how you built it, then asking for feedback&hellip;
+              Counting the words, the pace and the pauses, then asking for feedback&hellip;
             </p>
           )}
         </div>

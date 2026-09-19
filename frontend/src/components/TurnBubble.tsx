@@ -6,6 +6,10 @@
  * Three things it renders are requirements rather than decoration, and each is a place
  * where the easy version would be dishonest.
  *
+ * **The words appear once.** The transcript above the player is the caption of the
+ * synthesised speech: the same sentence printed again under the player, as the earlier
+ * layout did, made every reply read twice as long as it was.
+ *
  * **A missing player is never silent.** An assistant turn with no audio means synthesis
  * failed, and a user turn with no audio means audio retention is off — two
  * different facts with two different sentences. Simply omitting the player would make
@@ -140,7 +144,6 @@ export function TurnBubble({
         <AudioPlayer
           src={src}
           label={mine ? "your recording" : `${speakerLabel}'s reply`}
-          caption={!mine ? (turn.transcript ?? undefined) : undefined}
           autoPlay={autoPlay}
           onPlayingChange={onPlayingChange}
         />

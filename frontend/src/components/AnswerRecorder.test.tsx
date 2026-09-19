@@ -60,6 +60,18 @@ test("a stopped recording goes to this prompt and the answer is shown counted", 
   expect(screen.getByRole("button", { name: "Say it again, tighter" })).toBeInTheDocument();
 });
 
+test("while the answer is counted, the message says what is counted, not the report's headings", async () => {
+  api.postAnswer.mockReturnValue(new Promise(() => {}));
+  render(<AnswerRecorder prompt={makePrompt()} />);
+
+  await userEvent.setup().click(screen.getByRole("button", { name: /Stop/ }));
+
+  const status = await screen.findByText(/then asking for feedback/);
+  expect(status).toHaveTextContent("Counting the words, the pace and the pauses");
+  expect(status).not.toHaveTextContent(/how you said it/i);
+  expect(status).not.toHaveTextContent(/how you built it/i);
+});
+
 test("saying it again sends the second as the first said again, and shows both", async () => {
   const first = makeAnswer();
   const second = makeAnswer({ id: 8, again_of: 7, delivery: { ...first.delivery, words: 12 } });

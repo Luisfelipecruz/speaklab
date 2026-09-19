@@ -40,6 +40,7 @@ import { useRecorder } from "@/hooks/useRecorder";
 import { reportIsIncomplete, useSession } from "@/hooks/useSession";
 import type { SessionDetail, TurnTiming } from "@/lib/api";
 import { correctionsByTurn } from "@/lib/corrections";
+import { plural } from "@/lib/format";
 
 function timingLine(timing: TurnTiming): string {
   const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
@@ -116,7 +117,7 @@ export function Conversation({
             <Badge variant={active ? "default" : "secondary"}>
               {session.session?.status ?? "loading"}
             </Badge>
-            <span>{session.session?.turn_count ?? 0} turns</span>
+            <span>{plural(session.session?.turn_count ?? 0, "turn")}</span>
             {session.session?.scenario_slug && (
               <Link
                 href={`/scenarios/${session.session.scenario_slug}`}

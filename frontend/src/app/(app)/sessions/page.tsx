@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { SessionPage } from "@/lib/api";
 import { serverRequestOrNull } from "@/lib/server-api";
+import { plural } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +104,7 @@ export default async function SessionsPage({
                     {session.scenario_title ?? "Read-aloud session"}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    {when(session.started_at)} · {session.turn_count} turns
+                    {when(session.started_at)} · {plural(session.turn_count, "turn")}
                   </span>
                 </div>
 

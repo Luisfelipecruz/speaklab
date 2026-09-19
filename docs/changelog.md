@@ -7,6 +7,74 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.21.0] — 2026-09-19 · the measured build by name, and a screen that reads cleanly
+
+The model is configured as the build every figure was measured on, the stack reports the
+build it is running and refuses to call another one fine, the frontend's own healthcheck
+tells the truth, and the learner's screen loses six things an engineer had left on it.
+
+### Changed
+
+- **The default model is `gemma4:e4b`**, never `latest` — in `api/config.py`,
+  `docker-compose.yml`, `.env.example`, the `Makefile`, the Quick start, CONTRIBUTING and
+  the PRD. Ollama's `gemma4` family carries five sizes under one name and `latest` moves
+  when the library does; `e4b` is the tag whose manifest is byte for byte the build
+  measured, found by hashing the library's manifests without pulling. A test refuses a
+  default that ends in `latest`. A checkout whose `.env` still names `gemma4:latest` keeps
+  it. [Decision 0026](decisions/0026-the-measured-build-by-name.md).
+- **`GET /health/models` and `make llm-check` report the build**: the model's manifest
+  digest, size and quantisation beside its name, and the Ollama version. A pulled build
+  whose digest is not the measured one is `degraded` — conversations still work, `ready`
+  stays true — and the detail names both builds and the pull command; `make llm-check`
+  exits non-zero on it. `OLLAMA_MODEL_DIGEST` accepts a build; it is empty for a model
+  with no measured build.
+- **A missing model on an Ollama too old for it** is reported as the version to install,
+  with the download address, instead of a pull command that fails. `OLLAMA_MIN_VERSION`,
+  0.20.0.
+- **The evaluation report's first line names the build** the figures describe, as the
+  running API reports it.
+- **The front door shows the product**: one sentence, the conversation screen as it looks
+  mid-reply, and the names of the models — Whisper hears, Gemma 4 answers, Piper speaks,
+  wav2vec2 scores — above the three claims. The engineer's terms are gone from the first
+  sentence.
+- **The learner's screen**, from the take of the interface: a persona's words appear once
+  in its bubble, not again under the player; the level meter is hidden until the
+  microphone opens, and its space is kept so the button does not move; `1 turn` and
+  `1 conversation` agree; a reading's sitting is no longer listed as an active conversation
+  with no turns — the history lists conversations only; the answers page says once what
+  the language model adds, on the card that carries it; the report's confidence badge,
+  the phoneme table's column and caption and the progress page's stale-figures button and
+  badge say in words what they count, with the figure kept. Each with a test.
+
+### Fixed
+
+- **The built frontend reported `unhealthy` while serving every request.** Its healthcheck
+  fetched `http://localhost:3000`, which resolves to `::1` in the image while Next listens
+  on IPv4 only; busybox `wget` tries one address and stops. It fetches `127.0.0.1:3000` in
+  both stages, the container reports `healthy` within its start period, and a test over
+  the Dockerfiles keeps `wget` on a numeric address.
+
+### Measured
+
+- The library's six `gemma4` manifests, hashed: `e4b` and `latest` both `c6eb396dbd59`;
+  e2b, 12b, 26b and 31b each different. The local build: 8.0B, Q4_K_M, 9.6 GB, requiring
+  Ollama 0.20.0, on 0.34.2. `ollama pull gemma4:e4b` on a machine that has `latest` takes
+  1.2 s and adds a manifest, no weights.
+- `make llm-check` on this machine: `ok, gemma4:e4b, build c6eb396dbd59, 8.0B, Q4_K_M,
+  9.6 GB on Ollama 0.34.2`; with a wrong expected digest, `degraded` naming both; with a
+  missing model and a minimum version of 99.0.0, the version message.
+- The frontend container `healthy` 9 s after start, against `unhealthy` for an hour before.
+- `make eval` with every suite, the report's first line naming `gemma4:e4b` build
+  `c6eb396dbd59`: S4 not run, S5 0.500 over six (undecidable), S6 1.72 %, S7 7 sessions on
+  2 days — unchanged. Run to run on the same build: the persona probes 9 of 9 replies
+  clean, instructions given away 2 of 150, stepped out 4 of 150; the drill heard a
+  mistake as its correction 2 of 89 times; the rule layer's articles 18 of 20; the spoken
+  answers' median time to answer 4835 ms.
+- API suite **1 079** — 1 041 pass, 38 need a model service. Frontend **328** in 51 suites;
+  ESLint and TypeScript clean. Site 46 tests, 38 pages, 0 problems.
+
+---
+
 ## [0.20.0] — 2026-09-19 · Gemma 4, asked not to think
 
 The conversation and the analysis run on `gemma4:latest`, with thinking turned off on

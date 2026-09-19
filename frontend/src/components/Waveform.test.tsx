@@ -28,6 +28,17 @@ test("the canvas is hidden from assistive technology", () => {
   expect(container.querySelector("canvas")).toHaveAttribute("aria-hidden", "true");
 });
 
+test("nothing is drawn before the microphone opens, and the space is kept", () => {
+  const { container, rerender } = render(<Waveform analyser={null} active={false} />);
+
+  // An empty bordered box above the record button reads as a broken input.
+  expect(container.querySelector("canvas")).toHaveAttribute("hidden");
+  expect(container.querySelector("canvas")?.parentElement).toHaveClass("h-14");
+
+  rerender(<Waveform analyser={analyserAt(40)} active />);
+  expect(container.querySelector("canvas")).not.toHaveAttribute("hidden");
+});
+
 test("nothing is announced when nothing is being recorded", () => {
   render(<Waveform analyser={analyserAt(40)} active={false} />);
 

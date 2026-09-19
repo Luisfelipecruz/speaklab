@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getHealth, PUBLIC_API_URL, type ServiceStatus } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,13 @@ const MODEL_SERVICES = [
 
 function StatusBadge({ status }: { status: ServiceStatus | string }) {
   const variant =
-    status === "ok" ? "default" : status === "error" ? "destructive" : "secondary";
+    status === "ok"
+      ? "default"
+      : status === "error"
+        ? "destructive"
+        : status === "degraded"
+          ? "outline"
+          : "secondary";
   return <Badge variant={variant}>{status}</Badge>;
 }
 
@@ -131,11 +138,20 @@ export default async function StatusPage() {
                     <div className="flex flex-col gap-0.5">
                       <span className="font-mono font-medium">{name}</span>
                       <span className="text-muted-foreground">{role}</span>
-                      {/* Only for `error`: up and unwell is the state with a fix to name
-                          — a model not pulled says which command pulls it. An
-                          unreachable service is what the badge already says. */}
-                      {probe?.status === "error" && probe.detail ? (
-                        <span className="font-mono text-xs text-destructive">
+                      {/* For `error` and `degraded`: the states with a fix to name — a
+                          model not pulled says which command pulls it, and a model of
+                          another build says which build was measured. An unreachable
+                          service is what the badge already says. */}
+                      {(probe?.status === "error" || probe?.status === "degraded") &&
+                      probe.detail ? (
+                        <span
+                          className={cn(
+                            "font-mono text-xs",
+                            probe.status === "error"
+                              ? "text-destructive"
+                              : "text-muted-foreground",
+                          )}
+                        >
                           {probe.detail}
                         </span>
                       ) : null}

@@ -101,3 +101,24 @@ test("an API that does not answer says how to start it", async () => {
   expect(screen.getByText("api unreachable")).toBeInTheDocument();
   expect(screen.getByText(/The API did not answer/)).toBeInTheDocument();
 });
+
+test("a model of another build says which build was measured, and is not an error", async () => {
+  health.mockResolvedValue(
+    stack({
+      asr: OK,
+      tts: OK,
+      pron: OK,
+      llm: {
+        status: "degraded",
+        detail:
+          "gemma4:e4b is pulled as build 7fbdbf8f5e45, not c6eb396dbd59, the build the published figures were measured on. Run: ollama pull gemma4:e4b.",
+      },
+    }),
+  );
+
+  render(await StatusPage());
+
+  expect(screen.getByText(/pulled as build 7fbdbf8f5e45/)).toBeInTheDocument();
+  expect(screen.getAllByText("degraded").length).toBeGreaterThanOrEqual(1);
+  expect(screen.queryByText("error")).not.toBeInTheDocument();
+});

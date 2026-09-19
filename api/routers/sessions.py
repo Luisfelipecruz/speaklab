@@ -65,6 +65,10 @@ def _unavailable(exc: LlmError) -> HTTPException:
 async def _summary_rows(db: AsyncSession, user: User, limit: int, offset: int):
     """One query for the page, counting turns in the same statement.
 
+    Conversations only. A reading is scored in a sitting of its own, a session row with
+    no scenario and no turns that stays `active`; listed here it would read as a
+    conversation that never started. The reading's own page is where a sitting is shown.
+
     A LEFT JOIN with a GROUP BY rather than a relationship and a length: `len(session.turns)`
     would load every turn of every session on the page to produce twenty integers, which
     is the N+1 that turns a history screen into a table scan somewhere around session 200.
@@ -79,7 +83,9 @@ async def _summary_rows(db: AsyncSession, user: User, limit: int, offset: int):
         )
         .outerjoin(Scenario, PracticeSession.scenario_id == Scenario.id)
         .outerjoin(Turn, Turn.session_id == PracticeSession.id)
-        .where(PracticeSession.user_id == user.id)
+        .where(
+            PracticeSession.user_id == user.id, PracticeSession.mode == "conversation"
+        )
         .group_by(PracticeSession.id, Scenario.slug, Scenario.title)
         .order_by(PracticeSession.started_at.desc(), PracticeSession.id.desc())
         .limit(limit)
@@ -177,7 +183,9 @@ async def list_sessions(
     """
     rows = await _summary_rows(db, user, limit, offset)
     total = await db.scalar(
-        select(func.count(PracticeSession.id)).where(PracticeSession.user_id == user.id)
+        select(func.count(PracticeSession.id)).where(
+            PracticeSession.user_id == user.id, PracticeSession.mode == "conversation"
+        )
     )
     return SessionPage(
         items=[_summary(*row) for row in rows],

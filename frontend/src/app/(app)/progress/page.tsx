@@ -106,7 +106,7 @@ export default async function ProgressPage({
         <Alert className="w-fit max-w-2xl">
           <AlertDescription>
             Something has been analysed or scored since these figures were last computed,
-            so they are behind your practice. Rebuilding takes a moment.
+            so they are behind your practice. Counting again takes a moment.
           </AlertDescription>
         </Alert>
       )}

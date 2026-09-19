@@ -37,22 +37,38 @@ setup:                             ## First run, and after every pull: build, st
 define LLM_CHECK
 import json, sys
 llm = json.load(sys.stdin)["services"]["llm"]
+found = llm.get("reports") or {}
+def build():
+    parts = [found.get("model") or "the configured model"]
+    if found.get("digest"):
+        parts.append("build " + found["digest"][:12])
+    if found.get("parameter_size"):
+        parts.append(found["parameter_size"])
+    if found.get("quantization_level"):
+        parts.append(found["quantization_level"])
+    if found.get("size_bytes"):
+        parts.append(f"{found['size_bytes'] / 1e9:.1f} GB")
+    return ", ".join(parts)
+ollama = f"Ollama {found['ollama_version']}" if found.get("ollama_version") else "Ollama"
 if llm["status"] == "ok":
-    print(f"llm: ok, {llm['reports']['model']} at {llm['url']}")
+    print(f"llm: ok, {build()} on {ollama} at {llm['url']}")
     sys.exit(0)
 print(f"llm: {llm['status']}. {llm.get('detail', '')}")
+if llm["status"] == "degraded":
+    print(f"Conversations work, on {build()}, but the published figures were not measured on this build.")
+    sys.exit(1)
 print("Conversations will not work until this is fixed. Everything else does.")
 if llm["status"] == "unreachable":
     print(f"Nothing answered at {llm['url']}, as seen from inside the api container.")
     print("  1. Install Ollama from https://ollama.com/download and start it.")
-    print("  2. ollama pull gemma4   (or whatever OLLAMA_MODEL is set to in .env)")
+    print("  2. ollama pull gemma4:e4b   (or whatever OLLAMA_MODEL is set to in .env)")
     print("  On Linux, start Ollama with OLLAMA_HOST=0.0.0.0 so containers can reach it.")
 print("Then: make llm-check")
 sys.exit(1)
 endef
 export LLM_CHECK
 
-llm-check:                         ## Can the API reach Ollama, with the model pulled?
+llm-check:                         ## Can the API reach Ollama, and is the pulled model the measured build?
 	@body=$$(curl -sf --max-time 10 http://localhost:8002/health/models) \
 		|| { echo "The API is not answering on localhost:8002. Start the stack: make setup"; exit 1; }; \
 	echo "$$body" | python3 -c "$$LLM_CHECK"
@@ -164,7 +180,7 @@ llm-up:                            ## Run Ollama in a container instead of on th
 	@echo "On macOS a container cannot use the GPU, so this runs on the CPU. It is meant"
 	@echo "for a Linux host with a GPU, or for CI."
 	docker compose --profile llm up -d ollama
-	docker compose --profile llm exec ollama ollama pull $${OLLAMA_MODEL:-gemma4:latest}
+	docker compose --profile llm exec ollama ollama pull $${OLLAMA_MODEL:-gemma4:e4b}
 	@echo ""
 	@echo "The API still uses the host's Ollama. To switch, set"
 	@echo "  OLLAMA_BASE_URL=http://ollama:11434"

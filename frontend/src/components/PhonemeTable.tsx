@@ -41,8 +41,8 @@ export function PhonemeTable({ phonemes, summary }: PhonemeTableProps) {
 
   return (
     <Table
-      caption="Sounds where something else scored higher than the one the text asked for."
-      head={["Wanted", "Heard", "Times", "Worst GOP"]}
+      caption="Sounds where another sound scored higher than the one the text asked for: the sound the text wanted, the one that came out instead, how often, and the lowest score the wanted sound got — the further below zero, the further off it was."
+      head={["Wanted", "Heard", "Times", "Lowest score"]}
       rows={pairs.map((pair) => [
         <span key="c" className="font-mono text-sm">/{pair.canonical}/</span>,
         <span key="h" className="font-mono text-sm">[{pair.heard}]</span>,
