@@ -738,12 +738,15 @@ export interface Repertoire {
 }
 
 export interface ProgressTotals {
+  /** Sessions with turns inside the window, summed period by period. */
   sessions: number;
   turns: number;
   words: number;
   attempts: number;
   phones: number;
   periods: number;
+  /** Every conversation on the account — the count the history list shows. */
+  conversations: number;
 }
 
 export interface Progress {

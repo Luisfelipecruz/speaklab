@@ -307,6 +307,7 @@ export function makeProgress(overrides: Partial<Progress> = {}): Progress {
       attempts: 2,
       phones: 450,
       periods: 1,
+      conversations: 2,
     },
     families: [makeFamily()],
     phones: [],

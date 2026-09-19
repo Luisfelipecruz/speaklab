@@ -268,6 +268,56 @@ def _grams(words: list[str], run: int) -> set[str]:
     }
 
 
+# ── A question with a figure in its answer ──────────────────────────────────
+
+# Digits, or the number words a spoken answer would use. Ordinals are in because a date
+# is a figure ("the first of next month"), and "half" because rent is quoted that way.
+_NUMBER_WORDS = re.compile(
+    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|"
+    r"forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|"
+    r"first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)"
+    r"\b"
+)
+_DIGITS = re.compile(r"\d")
+
+
+def names_a_figure(reply: str) -> str | None:
+    """The first number in a reply, as a digit or as a word, or None.
+
+    The floor for a question that asks for one: a reply with no figure at all has not
+    answered it, whatever else it says. It does not check the figure is right — that is
+    `names_one_of`, against what the brief carries.
+    """
+    lowered = _plain(reply)
+    if match := _DIGITS.search(lowered):
+        return match.group(0)
+    if match := _NUMBER_WORDS.search(lowered):
+        return match.group(0)
+    return None
+
+
+def _figures(text: str) -> str:
+    """Lower case, with the separators inside a number removed, so "1,450", "1 450" and
+    "1450" are one string, and a currency sign does not come between them."""
+    lowered = _plain(text).replace("£", "").replace("€", "").replace("$", "")
+    return re.sub(r"(?<=\d)[,\s](?=\d)", "", lowered)
+
+
+def names_one_of(reply: str, expected: list[str]) -> str | None:
+    """The first of `expected` that the reply contains, compared as figures, or None.
+
+    `expected` is the fact the brief carries, written the ways a voice would say it —
+    "1,450", "fourteen fifty". Containment rather than equality, because the figure
+    arrives inside a sentence.
+    """
+    haystack = _figures(reply)
+    return next(
+        (item for item in expected if _figures(item) in haystack),
+        None,
+    )
+
+
 @dataclass(frozen=True)
 class GuardrailReport:
     """What the deterministic layer found in one reply.

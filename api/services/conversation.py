@@ -62,6 +62,7 @@ from config import (
     LLM_MAX_INPUT_TOKENS,
     LLM_MAX_OUTPUT_TOKENS,
     PIPER_VOICE,
+    TTS_RETRY_PAUSE_S,
     TTS_TIMEOUT_S,
 )
 from db_models import PracticeSession, Scenario, Turn
@@ -72,7 +73,7 @@ from services.llm import (
     LlmProvider,
     estimate_messages,
 )
-from services.tts_client import TtsError, TtsRejected, speak
+from services.tts_client import TtsError, TtsRejected, TtsUnavailable, speak
 from services.wav import WavMismatch, WavUnreadable, concatenate
 
 # ── Prompt assembly ─────────────────────────────────────────────────────────
@@ -505,23 +506,43 @@ class Reply(BaseModel):
 
 @dataclass
 class _Synthesis:
-    """Per-sentence synthesis in flight."""
+    """Per-sentence synthesis in flight, with the sentences kept so one can be asked again."""
 
     tasks: list[asyncio.Task] = field(default_factory=list)
+    sentences: list[str] = field(default_factory=list)
     client: httpx.AsyncClient | None = None
 
 
 async def _collect(
     state: _Synthesis, voice: str
 ) -> tuple[list[bytes], str, str | None]:
-    """Await every sentence, in order, and report the first failure without hiding it."""
+    """Await every sentence, in order, and report the first failure without hiding it.
+
+    A sentence the voice could not be reached for is asked once more, after a pause. The
+    failure seen in practice is a single connection the service never received while it
+    reported healthy and stayed up; one more request a moment later is what recovers it,
+    and a reply that goes out as text because of one dropped connection has lost its
+    voice for nothing. A refusal is not retried — the same text will be refused again —
+    and a second failure is reported as the first would have been, with both in the
+    detail.
+    """
     if not state.tasks:
         return [], "skipped", None
 
     results = await asyncio.gather(*state.tasks, return_exceptions=True)
 
     audio: list[bytes] = []
-    for result in results:
+    for sentence, result in zip(state.sentences, results):
+        if isinstance(result, TtsUnavailable):
+            await asyncio.sleep(TTS_RETRY_PAUSE_S)
+            try:
+                result = await speak(sentence, voice=voice, client=state.client)
+            except TtsUnavailable as again:
+                return [], "unavailable", f"{result}; asked again: {again}"
+            except TtsRejected as refused:
+                return [], "rejected", str(refused)
+            except TtsError as other:
+                return [], "unavailable", f"{result}; asked again: {other}"
         if isinstance(result, TtsRejected):
             return [], "rejected", str(result)
         if isinstance(result, TtsError):
@@ -549,8 +570,9 @@ async def generate_reply(
     `make turn-latency` measures them against each other, and a comparison whose control
     arm is the treatment arm measures nothing.
 
-    Synthesis failures never fail the turn. A reply the speaker can read is worth more
-    than a 502, and `speech_status` says plainly which happened.
+    Synthesis failures never fail the turn. A sentence the voice could not be reached
+    for is asked once more; after that, a reply the speaker can read is worth more than a
+    502, and `speech_status` says plainly which happened.
     """
     started = time.perf_counter()
     state = _Synthesis()
@@ -569,6 +591,7 @@ async def generate_reply(
             sentence = plain_speech(sentence)
             if not sentence:
                 return
+            state.sentences.append(sentence)
             state.tasks.append(
                 asyncio.create_task(speak(sentence, voice=voice, client=client))
             )

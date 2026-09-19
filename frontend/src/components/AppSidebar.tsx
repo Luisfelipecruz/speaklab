@@ -62,7 +62,9 @@ import { PUBLIC_API_URL } from "@/lib/api";
  * product to decorate a menu.
  */
 export interface ShellFacts {
-  sessions: number;
+  /** Every conversation on the account: the number the History page lists. */
+  conversations: number;
+  /** Scored readings inside the progress window. */
   attempts: number;
   /** Weeks with practice in them — the closest thing to a streak that is actually counted. */
   periods: number;
@@ -104,7 +106,7 @@ const SECTIONS: readonly Section[] = [
     label: "History",
     icon: HistoryIcon,
     hint: "Every conversation you have practised",
-    badge: (facts) => (facts.sessions > 0 ? String(facts.sessions) : null),
+    badge: (facts) => (facts.conversations > 0 ? String(facts.conversations) : null),
   },
   {
     href: "/grammar",
@@ -213,8 +215,8 @@ export function AppSidebar({ facts }: { facts: ShellFacts | null }) {
             <SidebarGroupContent className="px-2 text-xs text-muted-foreground">
               <p>
                 {facts.periods} week{facts.periods === 1 ? "" : "s"} with practice in
-                {facts.periods === 1 ? " it" : " them"}, {facts.sessions} conversation
-                {facts.sessions === 1 ? "" : "s"} and {facts.attempts} scored reading
+                {facts.periods === 1 ? " it" : " them"}, {facts.conversations} conversation
+                {facts.conversations === 1 ? "" : "s"} and {facts.attempts} scored reading
                 {facts.attempts === 1 ? "" : "s"}.
               </p>
             </SidebarGroupContent>

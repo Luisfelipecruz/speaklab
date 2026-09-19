@@ -7,6 +7,61 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.22.0] — 2026-09-19 · a persona that answers the question, and counts that agree
+
+The letting agent answers a question asked with a figure instead of selling past it, the
+rail's `History` badge counts what the History page lists, and a reply loses its voice to
+one dropped connection no longer.
+
+### Changed
+
+- **The letting agent's brief carries the facts a viewer asks for** — rent, deposit,
+  contract and break clause, size and floor, the date the flat is free, last winter's
+  heating, the noise — and tells the persona to give a fact in its first sentence when a
+  direct question asks for one, then sell. The evasiveness stays for what was not asked.
+  The facts are written as a list, so a spoken fact is not a run of the brief's words.
+  `make seed` loads it into a running stack.
+  [Decision 0027](decisions/0027-a-persona-that-answers-the-question.md).
+- **Seven questions with a figure in their answer** join the persona golden set, the
+  cover's own question first, each asked ten times by `make persona-adherence` and
+  `make eval`. A reply is checked by arithmetic for any figure and for the brief's figure;
+  the report carries both rates and the quoting rate beside them, per question and in
+  total, and the drift test fails when a question's figure leaves the seeded brief.
+- **The rail's `History` badge counts the account's conversations**, the number the
+  History page lists, read from a new `conversations` field in the progress totals that is
+  counted with the list's own predicate. It read the trend window's session count before,
+  which drops a conversation older than thirty days, counts one spanning two weeks twice
+  and keeps one deleted since the rollup. The window's count is unchanged for the pages
+  that describe the window.
+- **A sentence the voice could not be reached for is asked once more**, after half a
+  second (`TTS_RETRY_PAUSE_S`), before the reply is stored as text. A refusal is not
+  retried, a second failure is reported with both attempts in the detail, and a sentence
+  that was spoken is not asked again.
+
+### Measured
+
+- Before the brief carried the facts, `gemma4:e4b` answered the seven questions with any
+  figure 22 of 70 times and with the brief's figure 3; the cover's question, 4 of 10.
+  After, 70 of 70 and 70 of 70, quoting the brief 0 of 70. The existing probe figures
+  stayed in range on both runs: 9 of 9 replies clean, gave its instructions away 3 then 4
+  of 150, stepped out 5 then 4 of 150, the judge 8 of 10.
+- Asked the cover's question once on the live stack: "The rent for this beautiful flat is
+  £1,450 a month, but honestly, you'll be so taken with everything else that it's a
+  bargain!", 723 ms.
+- The account behind the screens: the badge read 1 beside a History page listing none;
+  now both read none.
+- `make eval` at the code commit, 16 min 53 s, all five suites: S4 not run, S5 0.500 over
+  6, S6 1.72 %, S7 not met — unchanged. Moved run to run: persona replies clean 8 of 9 (one
+  did not end with its question), gave its instructions away 2 of 150, stepped out of the
+  scene 15 of 150 — above the 4 to 10 seen before, 7 of the 15 on the phrasing that names
+  the phrase, 1 in the letting agent's scene; the seven figure questions 70 of 70; a
+  mistake said aloud heard as its correction 1 of 89, a corrected one heard as something
+  else 1 of 89; articles, prepositions and false friends heard as said 18, 17 and 18 of
+  20; the spoken answers' median time 4470 ms. API 1 084 — 1 046 pass, 38 skip; frontend
+  331 / 52; site 46 tests, 39 pages.
+
+---
+
 ## [0.21.0] — 2026-09-19 · the measured build by name, and a screen that reads cleanly
 
 The model is configured as the build every figure was measured on, the stack reports the

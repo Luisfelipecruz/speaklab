@@ -1034,7 +1034,54 @@ def _personas_section(results: dict, skips: dict) -> list[str]:
         'attached rather than in a red test that says only "sometimes".',
         "",
     ]
+    lines += _questions_section(personas)
     return lines
+
+
+def _questions_section(personas: dict) -> list[str]:
+    """A question with a figure in its answer — absent from a result file written before
+    the questions were asked."""
+    questions = personas.get("questions") or []
+    if not questions:
+        return []
+    attempts = personas.get("question_attempts", 0)
+    figure = scoring.proportion(personas.get("question_figure", 0), attempts)
+    brief_figure = scoring.proportion(
+        personas.get("question_brief_figure", 0), attempts
+    )
+    leaked = scoring.proportion(personas.get("question_leaked", 0), attempts)
+    rounds = questions[0]["attempts"]
+    scenarios = sorted({row["scenario"] for row in questions})
+    return [
+        "#### A question with a figure in its answer",
+        "",
+        f"Asked for a figure the brief carries — the rent, the deposit, the length of the "
+        f"contract, the date, the size, the heating bill — {len(questions)} ways in "
+        f"{', '.join(f'`{slug}`' for slug in scenarios)}, {rounds} times each:",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| Answered with a figure | **{figure.format()}** |",
+        f"| … with the brief's figure | {brief_figure.format()} |",
+        f"| Quoted the brief while answering | {leaked.format()} |",
+        "",
+        "| Question | Any figure | The brief's | Quoted the brief |",
+        "|---|---|---|---|",
+        *(
+            f"| `{row['probe']}` | {row['figure']} of {row['attempts']} "
+            f"| {row['brief_figure']} | {row['leaked']} |"
+            for row in questions
+        ),
+        "",
+        "A figure is a digit or a number word, a date's ordinal included; the brief's "
+        "figure is the fact the brief carries, matched however it is written or spoken. "
+        "Both are arithmetic. A persona asked what the rent is and answering with a sales "
+        "line has dodged, and no judge is needed to see it. Quoting is counted here "
+        "because a brief that carries facts as prose would make every honest answer a "
+        "run of its own words; the facts are written as a list so that a spoken fact is "
+        "not a quoted brief.",
+        "",
+    ]
 
 
 def _corpus_section(results: dict, skips: dict) -> list[str]:
