@@ -18,6 +18,12 @@ inherited from whatever the host's default happens to be this version.
 **2. The token counts only arrive at the end.** On a streamed response they are on the
 final line, alongside `done: true`. That is the whole reason `stream` yields a
 `Completion` as its last item instead of only yielding text.
+
+**3. A model that can think does so unless told not to.** `think` is sent on every
+request, false unless `LLM_THINK` turns it on: Gemma 4 left to itself writes hundreds of
+characters into `message.thinking` before the answer, `eval_count` counts them, and the
+reply is seconds later for nothing this code reads. A model without thinking ignores the
+field.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ import httpx
 from config import (
     LLM_MAX_OUTPUT_TOKENS,
     LLM_NUM_CTX,
+    LLM_THINK,
     LLM_TIMEOUT_S,
     OLLAMA_BASE_URL,
     OLLAMA_KEEP_ALIVE,
@@ -109,6 +116,9 @@ class OllamaProvider(LlmProvider):
             "model": self._model,
             "messages": [message.model_dump() for message in messages],
             "stream": stream,
+            # Sent every time. Left out, a model that can think does, and the answer
+            # arrives seconds later with the thought in a field this client never reads.
+            "think": LLM_THINK,
             "options": options,
             # How long the weights stay resident after this call. The default is five
             # minutes, which means a user who stops to think for six pays the ~2.6 s

@@ -35,6 +35,23 @@ def reply(**fields) -> str:
 # ── The check ───────────────────────────────────────────────────────────────
 
 
+def test_a_rewrite_in_the_speakers_words_keeps_most_of_them():
+    kept, total = answer_feedback.kept(
+        ANSWER,
+        "We rolled back because the new version expected a field the app does not send.",
+    )
+    assert total >= 6
+    assert kept == total - 2, "'short' and 'missing' are in the sentence it drops"
+
+
+def test_a_fragment_keeps_few_of_the_speakers_words_and_says_so():
+    """A rewrite that adds nothing can still say nothing. The new-words check passes
+    "We rolled back."; this count is what shows it kept two content words of seven."""
+    assert answer_feedback.invented(ANSWER, PROMPT, "We rolled back.") == []
+    kept, total = answer_feedback.kept(ANSWER, "We rolled back.")
+    assert kept <= 2 and total >= 6
+
+
 def test_a_rewrite_in_the_speakers_own_words_invents_nothing():
     rewrite = "We rolled back, because the new version expected a field the app does not send."
     assert answer_feedback.invented(ANSWER, PROMPT, rewrite) == []

@@ -25,6 +25,7 @@ from scripts.seed import SEEDS_DIR
 from services import answer_feedback, structure
 from services.answer_feedback import invented
 from services.llm import OllamaProvider
+from services.wer import normalise
 from tests import rewrite_labels
 from tests.answer_labels import DEVELOPMENT, HELD_OUT, KINDS, Answer
 from tests.eval_out import load_harness, record
@@ -241,9 +242,16 @@ async def test_the_models_feedback_on_the_labelled_answers(capsys):
         for name, items in (("development", DEVELOPMENT), ("held_out", HELD_OUT))
     }
     invented_counts: list[int] = []
-    shorter = dropped = 0
+    shorter = dropped = verbatim = 0
     latencies: list[int] = []
     withheld: list[dict] = []
+    # Whether each shorter version is a version of the answer at all: not the answer
+    # word for word, not a fragment, and keeping the answer's content words. A rewrite
+    # that adds nothing passes the check above; these say what it kept.
+    shares: list[float] = []
+    kept_shares: list[float] = []
+    rows: list[dict] = []
+    examples: list[dict] = []
 
     for index, answer in enumerate(answers):
         result = await answer_feedback.ask(
@@ -268,6 +276,28 @@ async def test_the_models_feedback_on_the_labelled_answers(capsys):
             shorter += 1
         if result["status"] == "refused":
             withheld.append({"prompt": answer.prompt, "invented": result["invented"]})
+        is_verbatim = normalise(rewrite) == normalise(answer.transcript)
+        verbatim += is_verbatim
+        answer_words = len(structure.words_of(answer.transcript))
+        rewrite_words = len(structure.words_of(rewrite))
+        share = rewrite_words / answer_words if answer_words else 0.0
+        kept, total = answer_feedback.kept(answer.transcript, rewrite)
+        kept_share = kept / total if total else 0.0
+        shares.append(share)
+        kept_shares.append(kept_share)
+        rows.append(
+            {
+                "prompt": answer.prompt,
+                "answer_words": answer_words,
+                "rewrite_words": rewrite_words,
+                "kept": kept,
+                "content_words": total,
+                "invented": len(result["invented"]),
+                "verbatim": is_verbatim,
+            }
+        )
+        if len(examples) < 3:
+            examples.append({"prompt": answer.prompt, "rewrite": rewrite})
 
     rewrites = len(invented_counts)
     with capsys.disabled():
@@ -281,6 +311,15 @@ async def test_the_models_feedback_on_the_labelled_answers(capsys):
         )
         for item in withheld:
             print(f"    withheld ({item['prompt']}): {item['invented']}")
+        if shares:
+            print(
+                f"  the answer verbatim {verbatim}; words as a share of the answer's "
+                f"median {statistics.median(shares):.2f} ({min(shares):.2f}–"
+                f"{max(shares):.2f}); content words kept median "
+                f"{statistics.median(kept_shares):.2f}, least {min(kept_shares):.2f}"
+            )
+        for item in examples:
+            print(f"    {item['prompt']}: {item['rewrite']!r}")
 
     record(
         "answers",
@@ -299,6 +338,26 @@ async def test_the_models_feedback_on_the_labelled_answers(capsys):
             "dropped_notes": dropped,
             "median_latency_ms": statistics.median(latencies) if latencies else None,
             "withheld_examples": withheld,
+            "verbatim": verbatim,
+            "word_share": (
+                {
+                    "median": round(statistics.median(shares), 3),
+                    "min": round(min(shares), 3),
+                    "max": round(max(shares), 3),
+                }
+                if shares
+                else None
+            ),
+            "kept_share": (
+                {
+                    "median": round(statistics.median(kept_shares), 3),
+                    "min": round(min(kept_shares), 3),
+                }
+                if kept_shares
+                else None
+            ),
+            "rows": rows,
+            "examples": examples,
         },
     )
 

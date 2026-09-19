@@ -92,15 +92,15 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | | |
 |---|---|
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
-| **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b` — 3.3 GB. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
+| **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma4` — 9.6 GB, on Ollama 0.20.0 or later. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Images of 826 MB (api), 790 MB (asr), 724 MB (tts), 299 MB (frontend) and 657 MB (`postgres:16.15`) — 3.3 GB — plus 464 MB of Whisper weights on first start. `gemma3:4b` is 3.3 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
+| **Disk** | Images of 826 MB (api), 790 MB (asr), 724 MB (tts), 299 MB (frontend) and 657 MB (`postgres:16.15`) — 3.3 GB — plus 464 MB of Whisper weights on first start. `gemma4:latest` is 9.6 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
 | **Memory** | **1.02 GiB** for the five containers after a conversation, a reading and a spoken answer with both speech models loaded, sampled once with `docker stats` — asr 497 MiB, tts 317, api 115, frontend 79, postgres 40. Ollama is not in the figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
 
 ```bash
-ollama pull gemma3:4b
+ollama pull gemma4
 make setup
 ```
 
@@ -239,14 +239,14 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | | Criterion | Where it stands | Settled by |
 |---|---|---|---|
 | S1 | A clean clone reaches all-healthy with no manual editing — within five minutes, model downloads included, by §9.2 | **Met**: `make setup` 2 min 33 s, Whisper loaded at 2 min 43 s. Missed at 7 min 12 s by the same build on a slower connection | a cold copy of `main` and `make setup`; see [the first run](docs/measurements.md#the-first-run-measured-twice) |
-| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2684 ms over 20 turns. On a busy one, missed: 5356 ms at a load average of 17, and 5330 ms at 3.6–7.0 with another stack's containers working beside it | `make turn-latency` |
+| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2684 ms over 20 turns, on Gemma 3. On a busy one, missed: 5356 ms at a load average of 17, and 5330 ms at 3.6–7.0 with another stack's containers working beside it; Gemma 4 with thinking off 4058 ms at 7.8–12, against Gemma 3's 4417 back to back | `make turn-latency` |
 | S3 | A read-aloud attempt returns per-phoneme GOP within 10 s | **Met**: 250 sounds of a 34-second reading scored in 7.5 s | `make pron-golden` |
 | S4 | GOP separates mispronounced from correct recordings of the same passage | **Never run.** It needs five minutes of a person's voice, following [the protocol](eval/golden/pron/README.md) | `make eval` |
 | S5 | Error detection ≥ 0.70 precision on the hand-labelled turns | **Undecidable**: 0.500 over 6 scored proposals | `make eval` |
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 050 — 1 012 pass, 38 need a model service | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 061 — 1 023 pass, 38 need a model service | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -263,8 +263,8 @@ Every other figure, each with what produced it, is in
 The full list is [docs/limitations.md](docs/limitations.md). The ones to know first:
 
 - **Error detection is below its own bar.** 0.500 precision against 0.70, over six scored
-  proposals — too few to decide the question either way. `gemma3:4b` finds roughly the
-  right words and files them under the wrong category three times out of six.
+  proposals — too few to decide the question either way. `gemma4:latest` finds roughly the
+  right words and files them under the wrong category two times out of six.
 - **A person's microphone has never been through the interface.** A synthetic voice played
   into a headless Chromium's microphone input has; the press on a real microphone, in
   Chrome and in Safari, needs a person.
@@ -308,7 +308,7 @@ Ollama for conversation.
 
 | | |
 |---|---|
-| API tests, in a container | `make test` — 1 050; 1 012 pass with Postgres alone, the other 38 need a model service |
+| API tests, in a container | `make test` — 1 061; 1 023 pass with Postgres alone, the other 38 need a model service |
 | Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 319 across 49 suites |
 | Editing the frontend | `make dev` — the development server over the source, in place of the built frontend, on the same port; `make up` puts the built one back |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
@@ -379,7 +379,7 @@ SpeakLab is built on other people's work:
 [wav2vec2](https://huggingface.co/facebook/wav2vec2-lv-60-espeak-cv-ft) through Hugging Face
 Transformers, with [g2p_en](https://github.com/Kyubyong/g2p) and the CMU Pronouncing
 Dictionary; [spaCy](https://spacy.io) and `en_core_web_sm`; [Ollama](https://ollama.com)
-and Gemma 3; [FastAPI](https://fastapi.tiangolo.com),
+and Gemma 4; [FastAPI](https://fastapi.tiangolo.com),
 [PostgreSQL](https://www.postgresql.org), [Next.js](https://nextjs.org) and
 [shadcn/ui](https://ui.shadcn.com); and [LibriSpeech](https://www.openslr.org/12) for the
 word-error-rate set.

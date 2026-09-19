@@ -15,7 +15,7 @@ import os
 
 # The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
 # fails when this number has no entry there, and a release is cut from that entry.
-VERSION = "0.19.0"
+VERSION = "0.20.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -56,12 +56,12 @@ HEALTH_PROBE_TIMEOUT_S = float(os.environ.get("HEALTH_PROBE_TIMEOUT_S", "1.5"))
 # ── Generation ──────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:latest")
 
 # How long Ollama keeps the weights resident after a call. Its own default is five
 # minutes, which is short enough that a user who stops to think for six pays the model
 # load again — measured at ~2.6 s on this machine, against a 3 s budget for the whole
-# turn. Ten minutes covers a pause without pinning 3.3 GB of host RAM indefinitely.
+# turn. Ten minutes covers a pause without pinning 9.6 GB of host RAM indefinitely.
 #
 # Host RAM, not container RAM: the PRD's 8 GB ceiling is for the Compose stack and
 # explicitly excludes the host's Ollama, so this trades memory the ceiling does not
@@ -145,6 +145,13 @@ LLM_HISTORY_HIGH_WATER = float(os.environ.get("LLM_HISTORY_HIGH_WATER", "0.7"))
 # measured against each other on demand (`make turn-latency`) rather than compared
 # against a number somebody wrote down once.
 LLM_STREAM_TO_TTS = os.environ.get("LLM_STREAM_TO_TTS", "1") != "0"
+
+# Whether the model may think before it answers. Off, and sent on every request: a model
+# that thinks by default spends 1.6–3.5 s of a persona reply writing 280–870 characters
+# nobody hears before the first word of the answer, against 0.7 s without — 146–312
+# tokens generated for a reply of 55–60, the thought counted with the answer. A model
+# with no thinking ignores the field. On, the request lets the model's own default stand.
+LLM_THINK = os.environ.get("LLM_THINK", "0") == "1"
 
 # ── Sessions ────────────────────────────────────────────────────────────────
 

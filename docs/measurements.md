@@ -31,7 +31,7 @@ Two ways to read these numbers:
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command |
 | Frontend releases the trust check refuses | **2** — older-line releases by their own maintainers, each excepted by exact version; every other package in the lockfile passes | pnpm 12.4.1's install; each checked against the npm registry |
-| API test suite | **1 050** — 1 012 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test` |
+| API test suite | **1 061** — 1 023 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test` |
 | Frontend test suite | **319** across 49 suites, no services needed | `make test-frontend` |
 | API operations | **31** | `app.openapi()` |
 | The project site | **35 pages**; 220 links, every one resolved — 177 to other pages, 8 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.1 s | `make site` |
@@ -53,6 +53,8 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 |---|---|---|
 | **A whole spoken turn, p95 over 20** | **2684 ms** against 3000 ms — met, at a load average of 1.7–5.0 | `make turn-latency` |
 | … on a busy machine | 7283 ms at load 10–16, 5356 ms at load 16.7–18.0, and 5330 ms at load 3.6–7.0 with another stack's containers working beside it — the same code; the quiet figure has not been reproduced since | `make turn-latency` |
+| … the two models back to back | Gemma 4 with thinking off **4058 ms** (median 2875) at load 7.8–12, Gemma 3 4417 ms (median 3493) at load 2.6–8.5; generation median 869 against 888 ms, recognition 1.4 s on both | `make turn-latency`, [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
+| Thinking, on a persona reply | **0.64–0.70 s** with `think: false`, 1.6–3.5 s left to the model's default, warm, three runs each | [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | Turn stages, median | recognition 1146 ms · generation 872 ms · synthesis tail 235 ms | `make turn-latency` |
 | Speaking while writing, against its control | 235 ms of synthesis left to wait for, against 375 ms in series | `make turn-latency-noflow` |
 | Recognition, about six seconds of audio | **1231 ms** against a 700 ms stage budget — missed, deliberately; `base.en` meets it at 525 ms and 2.6× the word error | [decision 0001](decisions/0001-asr-model-choice.md) |
@@ -74,7 +76,9 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 real turns, where the parse of unpunctuated speech loses the verb; none joined to a wrong form | [evaluation.md](evaluation.md), [decision 0015](decisions/0015-accuracy-per-form.md) |
 | **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across ten runs, 2 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
 | Articles, prepositions and false friends, said aloud | **16 to 20 of 20** of each kind heard as said across ten runs; repaired by the recogniser, prepositions 18 of 200 tries, articles 4 of 200, false friends never | [evaluation.md](evaluation.md), [decision 0018](decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
-| … found and filed under their kind | articles **6 of 20**, prepositions **12 of 20**, false friends **6 of 20** — identical in every run; 22 of the 60 corrected sentences drew a proposal | [evaluation.md](evaluation.md) |
+| … found and filed under their kind | articles **9 of 20**, prepositions **17 of 20**, false friends **10 of 20** — identical in every run; 3 of the 60 corrected sentences drew a proposal. On Gemma 3: 6, 12 and 6 of 20, and 22 corrected sentences flagged | [evaluation.md](evaluation.md), [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
+| … one detection call | about **1.0–2.4 s**, from 124–283 s over the sixty sentences and their corrections across three runs; 0.7 s on Gemma 3; 8 s with thinking on | [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
+| … what the model proposed before the taxonomy | **55** over the 120 sentences, 7 refused (six a correction equal to its original), 2 superseded by a rule; the 46 stored are the counts above | [evaluation.md](evaluation.md) |
 | Analysing one turn | median **4.9 s**, max 10.1 s — off the request path | [decision 0006](decisions/0006-error-taxonomy.md) |
 | Ending straight after speaking | the report holds the last turn in **3 of 3** runs, the end taking 4.15–4.80 s | [decision 0014](decisions/0014-the-rule-layer.md) |
 | Grammar forms in the stored corpus | **13 distinct**, over 106 counted instances in 11 turns, 48 of them verb phrases | the stored corpus |
@@ -98,7 +102,8 @@ learner's speech will be worse by an amount that set cannot estimate.
 |---|---|---|
 | **The counter, on 16 held-out answers** | precision / recall: reasons **0.957 / 1.000**, examples 1.000 / 0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, a word said twice 0.923 / 1.000. **A phrase started again 0.636 / 0.636 — below the bar, so counted and not shown.** No model involved | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
 | A spoken answer, as the recogniser writes it | twelve answers spoken by the `tts` voice, seven runs: fillers **21 to 23 of 24**, words said twice 12 to 13 of 13, phrases started again 8 to 9 of 9, signposts 52 of 52 every time; the sentence count within one of the written in 8 to 12 of 12 | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
-| **The model's shorter version** | on 40 labelled answers, a content word the speaker never said in 26, and **9 withheld** for more than two — **2 of 16** held out — in every run; every one shorter than the answer | [evaluation.md](evaluation.md) |
+| **The model's shorter version** | on 40 labelled answers, a content word the speaker never said in **0**, none withheld, every one shorter than the answer; Gemma 3's put one in 26 and had 9 withheld, 2 of 16 held out | [evaluation.md](evaluation.md), [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
+| … and whether it is a version at all | none of the 40 is the answer word for word; its words a median **0.72** of the answer's (0.32–0.99); the answer's content words kept, median **0.73**, least 0.32 | [evaluation.md](evaluation.md) |
 | The check on a shorter version | withholds **6 of 6** rewrites written to add a fact, and shows 6 of 6 faithful ones | [evaluation.md](evaluation.md) |
 
 ## Progress

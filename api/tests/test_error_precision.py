@@ -392,6 +392,11 @@ async def test_articles_prepositions_and_false_friends_are_found(capsys):
     }
     rows: list[dict] = []
     lines: list[str] = []
+    # What the model proposed before the taxonomy refused it or a rule superseded it,
+    # on the sentence as said and on its corrected form. A fall in wrong proposals is
+    # only a better model if it is not the taxonomy throwing more away.
+    proposed = rejected = superseded = 0
+    reasons: Counter[str] = Counter()
 
     for case in CASES:
         counts = tally[case.category]
@@ -413,6 +418,12 @@ async def test_articles_prepositions_and_false_friends_are_found(capsys):
             counts["failed"] += 1
             lines.append(f"  failed   {case.transcript!r}")
             continue
+        for detection in (said, corrected):
+            proposed += detection.proposed
+            rejected += len(detection.rejected)
+            superseded += len(detection.superseded)
+            for rejection in detection.rejected:
+                reasons[rejection.reason] += 1
 
         for text, detection in ((case.transcript, said), (case.corrected, corrected)):
             for found in detection.errors:
@@ -478,6 +489,8 @@ async def test_articles_prepositions_and_false_friends_are_found(capsys):
                 "outcome": outcome,
                 "proposals": proposals,
                 "on_the_corrected_sentence": on_correct,
+                "not_stored": said.not_stored(),
+                "not_stored_on_the_corrected_sentence": corrected.not_stored(),
             }
         )
         lines.append(
@@ -498,6 +511,10 @@ async def test_articles_prepositions_and_false_friends_are_found(capsys):
         print("")
         print("\n".join(lines))
         print(f"\n  model {provider.model}, {len(CASES)} labelled sentences")
+        print(
+            f"  the model proposed {proposed} over {2 * len(CASES)} sentences; rejected "
+            f"{rejected} ({dict(reasons) or '{}'}), superseded by a rule {superseded}"
+        )
         for category in categories:
             counts = tally[category]
             print(
@@ -516,6 +533,13 @@ async def test_articles_prepositions_and_false_friends_are_found(capsys):
             "status": "measured",
             "model": provider.model,
             "by_category": {category: dict(tally[category]) for category in categories},
+            "proposals": {
+                "sentences": 2 * len(CASES),
+                "proposed": proposed,
+                "rejected": rejected,
+                "superseded": superseded,
+                "reasons": dict(reasons),
+            },
             "rows": rows,
         },
     )

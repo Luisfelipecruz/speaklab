@@ -24,6 +24,7 @@ from services.conversation import (
     build_report,
     generate_reply,
     narrate_report,
+    plain_speech,
     select_history,
     summarise,
     system_message,
@@ -471,7 +472,70 @@ def test_the_sentences_reassemble_into_the_reply():
     assert " ".join(found).split() == reply.split()
 
 
+# ── Markdown out of speech ──────────────────────────────────────────────────
+
+
+def test_emphasis_marks_are_unwrapped():
+    assert plain_speech("That sounds *amazing*. **What** happened `next`?") == (
+        "That sounds amazing. What happened next?"
+    )
+    assert (
+        plain_speech("It was _very_ ~~cheap~~ ***good***.") == "It was very cheap good."
+    )
+
+
+def test_a_mark_left_open_is_removed_on_its_own():
+    """An emphasis that opened in one sentence and closed in the next reaches the voice
+    as two halves, each with one asterisk."""
+    assert plain_speech("*Oh, that is lovely.") == "Oh, that is lovely."
+    assert plain_speech("Do tell me more.*") == "Do tell me more."
+
+
+def test_heading_and_list_marks_are_removed():
+    assert plain_speech("## Welcome\n- the kitchen\n* the balcony\n+ the view") == (
+        "Welcome\nthe kitchen\nthe balcony\nthe view"
+    )
+
+
+def test_an_underscore_inside_a_word_is_not_a_mark():
+    assert plain_speech("The file is called snake_case_name.") == (
+        "The file is called snake_case_name."
+    )
+
+
+def test_plain_speech_keeps_a_price_and_a_question():
+    assert plain_speech("It is £1,150 a month. Does that suit you?") == (
+        "It is £1,150 a month. Does that suit you?"
+    )
+
+
 # ── Generating and speaking ─────────────────────────────────────────────────
+
+
+async def test_markdown_is_stripped_before_the_reply_is_stored_or_spoken(
+    scenario, voice
+):
+    """The model's asterisks reached the screen as characters and the voice as words.
+    Both paths — each sentence as it is dispatched, and the text that is stored — see
+    the plain text, and a fragment that was only marks is not spoken at all."""
+    provider = StubProvider(["That sounds *amazing*. **What** happened `next`?  **"])
+    messages = build_messages(scenario, None, [], None)
+
+    reply = await generate_reply(provider, messages, stream_to_tts=True)
+
+    assert reply.text == "That sounds amazing. What happened next?"
+    assert voice == ["That sounds amazing.", "What happened next?"]
+    assert reply.sentences == 2
+
+
+async def test_markdown_is_stripped_on_the_unstreamed_path_too(scenario, voice):
+    provider = StubProvider(["That sounds *amazing*. **What** happened next?"])
+    messages = build_messages(scenario, None, [], None)
+
+    reply = await generate_reply(provider, messages, stream_to_tts=False)
+
+    assert reply.text == "That sounds amazing. What happened next?"
+    assert voice == ["That sounds amazing.", "What happened next?"]
 
 
 async def test_a_reply_is_generated_spoken_and_joined_into_one_file(scenario, voice):
