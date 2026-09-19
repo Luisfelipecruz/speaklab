@@ -137,6 +137,11 @@ class AlignedWord(BaseModel):
     expected: str | None = None
     heard: str | None = None
 
+    # What kind of difference this is, on a substitution: `figure`, `ending` or
+    # `different-word`. None on a match, and on a take recorded before differences were
+    # sorted at all — which is why it is optional rather than a fourth `kind`.
+    kind_of_difference: str | None = None
+
     # The recogniser's own confidence in this word was under the floor. Shown because a
     # word it was unsure of is the likeliest place for a mistake that is the microphone's
     # rather than the speaker's.
@@ -151,6 +156,11 @@ class Fidelity(BaseModel):
     substitutions: int
     deletions: int
     insertions: int
+
+    # Substituted words that are the same number written two ways. Counted on their own
+    # and left out of `substitutions` and `wer`, because a number said correctly and
+    # written as a digit is not something the speaker did.
+    figures: int = 0
     words: list[AlignedWord] = Field(default_factory=list)
 
     # -1 when the recogniser's words could not be lined up with the compared text, so
@@ -213,12 +223,36 @@ NEXT_UP_CAVEAT = (
 )
 
 
+class SoundOut(BaseModel):
+    """One sound across this script's takes, named in words rather than in code.
+
+    `words` are the speaker's own — up to three words of their script the sound was
+    scored inside — because a sound is practised in words, and theirs are the ones they
+    are about to say again.
+    """
+
+    phone: str
+    name: str
+    instances: int
+    takes: int
+    mean_gop: float
+    words: list[str] = Field(default_factory=list)
+
+
+SOUNDS_CAVEAT = (
+    "Scored from your takes of this script. A low score is a sound worth listening to, "
+    "not a mistake: it is how far the recording sat from what the model expected."
+)
+
+
 class PresentationPage(BaseModel):
-    """The presentation's own page: its sections, and what to rehearse next."""
+    """The presentation's own page: its sections, what to rehearse next, its sounds."""
 
     presentation: PresentationOut
     next_up: list[NextUp] = Field(default_factory=list)
+    sounds: list[SoundOut] = Field(default_factory=list)
     caveat: str = NEXT_UP_CAVEAT
+    sounds_caveat: str = SOUNDS_CAVEAT
 
 
 class SectionTarget(BaseModel):

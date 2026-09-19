@@ -1067,12 +1067,17 @@ export function refreshProgress(
 // ── Rehearse: a script of your own, section by section ──────────────────────
 
 /** One step of the alignment between the section text and what was heard. */
+/** What kind of difference a substituted word is. Null on anything else. */
+export type DifferenceKind = "figure" | "ending" | "different-word";
+
 export interface AlignedWord {
   kind: "match" | "substitution" | "deletion" | "insertion";
   expected: string | null;
   heard: string | null;
   /** The recogniser's confidence in this word was under the floor. */
   unsure: boolean;
+  /** Null on a match, and on a take recorded before differences were sorted. */
+  kind_of_difference?: DifferenceKind | null;
 }
 
 /** How close a take was to the script, and where it differed. */
@@ -1082,10 +1087,23 @@ export interface Fidelity {
   substitutions: number;
   deletions: number;
   insertions: number;
+  /** Substituted words that are the same number written two ways, left out of `wer`. */
+  figures: number;
   words: AlignedWord[];
   /** -1 when the recogniser's words could not be lined up with the compared text. */
   unsure_words: number;
   caveat: string;
+}
+
+/** One sound across a script's takes, named in words. */
+export interface SoundOut {
+  phone: string;
+  name: string;
+  instances: number;
+  takes: number;
+  mean_gop: number;
+  /** Up to three words of the script this sound was scored inside. */
+  words: string[];
 }
 
 /** One take as a row in a table. */
@@ -1183,7 +1201,9 @@ export interface NextUp {
 export interface PresentationPage {
   presentation: Presentation;
   next_up: NextUp[];
+  sounds: SoundOut[];
   caveat: string;
+  sounds_caveat: string;
 }
 
 export interface PresentationCreate {

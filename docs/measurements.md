@@ -114,6 +114,9 @@ learner's speech will be worse by an amount that set cannot estimate.
 | **Which words of a script can be scored** | all **12 of 12** seeded passages are scorable word by word; `Revenue grew 12% in Q3 2026, per the API.` names `12%` and `2026` and nothing else — `Q3` converts in one group and scores, against the phones of *q-three*. The same text is refused by the scorer with a desync, which is what the naming predicts | `make pron-golden` |
 | … and what it costs to ask | **3 ms** for a 120-word section, converted word by word, against 2 ms for the same text converted whole | the converter in the `pron` container |
 | **One take, on the live stack** | a human recording of a nine-word line, rehearsed against that line: **9 of 9 words matched**, 191 words a minute, no pauses, **35 phones scored**, median GOP 0.0, the three weakest all inside *curiosity* | `POST /presentations/{id}/sections/{idx}/takes` against the running stack |
+| **Sorting a difference into what kind it is** | every substitution from four takes of one speaker's own 144-word script, labelled by hand: **8 endings, 15 other words, 2 numbers written as a figure** — 25 pairs, each asserted on its own | `api/tests/test_fidelity_kinds.py`, [decision 0029](decisions/0029-what-a-take-tells-the-speaker.md) |
+| … what leaving the figures out changes | on that script, the first section's word error rate falls from **0.200 to 0.171** and the third's from **0.140 to 0.116**; the other two hold no figure and do not move | the four stored takes |
+| **The sounds one script named** | *the vowel in "see"* −3.79 over 15 instances in 4 takes, *the "th" in "this"* −3.43 over 16, *the "ng" at the end of "sing"* −3.29 over 6 in 3, *the "z" at the end of "is"* −2.72 over 14, *the vowel in "her"* −2.67 over 19. The words offered beside them are the speaker's own | `GET /presentations/{id}` against the running stack |
 
 ## Progress
 

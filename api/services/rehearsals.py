@@ -35,6 +35,7 @@ from config import (
     REHEARSAL_SCRIPT_MAX_WORDS,
     REHEARSAL_SECTION_MAX_WORDS,
     REHEARSAL_SECTION_MIN_WORDS,
+    REHEARSAL_SOUNDS_SHOWN,
 )
 from db_models import (
     Presentation,
@@ -55,12 +56,13 @@ from models.presentation import (
     PresentationPage,
     PresentationSummary,
     SectionOut,
+    SoundOut,
     SplitPreview,
     TakeOut,
     TakeSummary,
 )
 from services import audio as audio_service
-from services import fluency, sections, structure
+from services import fidelity_kinds, fluency, phone_names, sections, structure
 from services.answers import delivery_of
 from services.pron_client import PronError, PronUnavailable
 from services.pron_client import phonemize as pron_phonemize
@@ -321,13 +323,11 @@ async def page(db: AsyncSession, user: User, presentation_id: int) -> Presentati
         ],
     )
 
+    means = await _phone_means(db, section_ids)
     return PresentationPage(
         presentation=out,
-        next_up=next_up(
-            out.sections,
-            await _phone_means(db, section_ids),
-            await _fillers_said(db, section_ids),
-        ),
+        next_up=next_up(out.sections, means, await _fillers_said(db, section_ids)),
+        sounds=sounds_of(means, await _phone_words(db, section_ids)),
     )
 
 
@@ -406,6 +406,69 @@ async def _fillers_said(
 # ── What to rehearse next ───────────────────────────────────────────────────
 
 
+# Three words is enough to recognise a sound in one's own script and short enough to read
+# in a line. More would be a list of the script.
+_WORDS_PER_SOUND = 3
+
+
+async def _phone_words(
+    db: AsyncSession, section_ids: list[int]
+) -> dict[str, list[str]]:
+    """Up to three words of this script each sound was scored inside, commonest first.
+
+    The speaker's own words, not examples: a sound is practised in words, and theirs are
+    the ones they are about to say again. Stress is folded away here too, so a list is
+    about a sound rather than about where it fell in a word.
+    """
+    if not section_ids:
+        return {}
+    phone = func.rtrim(RehearsalPhone.canonical_phone, "012").label("phone")
+    rows = await db.execute(
+        select(phone, RehearsalPhone.word, func.count(RehearsalPhone.id).label("said"))
+        .join(Rehearsal, Rehearsal.id == RehearsalPhone.rehearsal_id)
+        .where(Rehearsal.section_id.in_(section_ids))
+        .group_by(phone, RehearsalPhone.word)
+        .order_by(phone, func.count(RehearsalPhone.id).desc(), RehearsalPhone.word)
+    )
+
+    found: dict[str, list[str]] = {}
+    for name, word, _ in rows.all():
+        words = found.setdefault(name, [])
+        if len(words) < _WORDS_PER_SOUND and word not in words:
+            words.append(word)
+    return found
+
+
+def sounds_of(
+    phone_means: list[tuple[str, float, int, int]],
+    words: dict[str, list[str]],
+) -> list[SoundOut]:
+    """The sounds worth a speaker's time, weakest first. Pure, so it is tested alone.
+
+    The same floor `next_up` uses — two takes and five instances — because a sound heard
+    twice describes the microphone as much as the mouth, and the same list should not
+    say one thing in one place on the page and another somewhere else.
+    """
+    scored = [
+        row
+        for row in phone_means
+        if row[3] >= 2 and row[2] >= PROGRESS_MIN_PHONE_SAMPLES
+    ]
+    return [
+        SoundOut(
+            phone=name,
+            name=phone_names.name_of(name),
+            instances=instances,
+            takes=takes,
+            mean_gop=round(mean, 2),
+            words=words.get(name, []),
+        )
+        for name, mean, instances, takes in sorted(scored, key=lambda row: row[1])[
+            :REHEARSAL_SOUNDS_SHOWN
+        ]
+    ]
+
+
 def next_up(
     section_list: list[SectionOut],
     phone_means: list[tuple[str, float, int, int]],
@@ -444,7 +507,7 @@ def next_up(
         items.append(
             NextUp(
                 kind="sound",
-                title=f"the /{name}/ sound",
+                title=phone_names.name_of(name),
                 reason=(
                     f"{instances} instances across {takes} takes, mean score {mean:.1f}"
                 ),
@@ -616,7 +679,7 @@ def alignment_of(reference: str, transcription: Transcription) -> dict:
     attachable = len(heard) == len(hyp)
 
     words: list[dict] = []
-    substitutions = deletions = insertions = 0
+    substitutions = deletions = insertions = figures = 0
     unsure_words = 0
 
     for step in align(ref, hyp):
@@ -628,13 +691,23 @@ def alignment_of(reference: str, transcription: Transcription) -> dict:
 
         if step.ref is not None and step.hyp is not None:
             same = ref[step.ref] == hyp[step.hyp]
-            substitutions += 0 if same else 1
+            # A number written as a digit is not a difference, so it is not counted as
+            # one: the kind is decided here and the count follows from it, rather than
+            # the count being taken first and apologised for on screen.
+            difference = (
+                None if same else fidelity_kinds.classify(ref[step.ref], hyp[step.hyp])
+            )
+            if difference == fidelity_kinds.FIGURE:
+                figures += 1
+            elif difference is not None:
+                substitutions += 1
             words.append(
                 {
                     "kind": "match" if same else "substitution",
                     "expected": ref[step.ref],
                     "heard": hyp[step.hyp],
                     "unsure": unsure,
+                    "kind_of_difference": difference,
                 }
             )
         elif step.ref is not None:
@@ -663,6 +736,7 @@ def alignment_of(reference: str, transcription: Transcription) -> dict:
         "substitutions": substitutions,
         "deletions": deletions,
         "insertions": insertions,
+        "figures": figures,
         "reference_words": len(ref),
         "unsure_words": unsure_words if attachable else UNSURE_UNKNOWN,
     }
@@ -679,6 +753,7 @@ def fidelity_of(row: Rehearsal) -> Fidelity:
         substitutions=raw.get("substitutions", 0),
         deletions=raw.get("deletions", 0),
         insertions=raw.get("insertions", 0),
+        figures=raw.get("figures", 0),
         words=[AlignedWord(**word) for word in raw.get("words", [])],
         unsure_words=raw.get("unsure_words", 0),
     )

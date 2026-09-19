@@ -215,14 +215,32 @@ nothing on screen would say so. Written the way they are said, they convert.
 wrote, word by word, by the same alignment a reading is scored with, with the words the
 recogniser was unsure of marked rather than excused. How it was said — words a minute, the
 share of the time paused, the fillers — the arithmetic a spoken answer gets. And the
-sounds, scored from the waveform by the same model that scores a reading. The only
-comparison is with a time you set yourself, and the takes sit side by side so the fourth
-can be read against the first.
+sounds, scored from the waveform by the same model that scores a reading. Each of those
+figures is shown beside the same figure from your own previous take of the same words,
+which is the only comparison this product can defend: it has measured no corpus of good
+presentations and quotes no norm from one. A time to aim for is yours to set, and can be
+taken from a take you were happy with.
+
+**A word that came out differently is sorted into what kind of difference it is.** A lost
+or gained ending — a plural, a tense, a comparative, a contraction — is one thing; a
+different word is another; and a number you said correctly that the recogniser wrote as a
+digit is not a difference at all, so it is counted apart and left out of the rate. One
+number covering all three is correct and tells nobody what to do. The sorting is string
+comparison and arithmetic, the same answer every time, and no model sees it.
+
+**A sound is named in words, beside your own.** The scorer thinks in `/IY/`; the screen
+says *the vowel in "see"* and lists up to three words of your script it was scored inside.
+The names are written by hand and checked against the scorer's inventory when the service
+starts, so a sound cannot quietly lose its name. A take also says what is *not* measured:
+tone, intonation and stress are outside this product, and silence where somebody is
+looking for an answer reads as "nothing found".
 
 **What to rehearse next is four counts**, each printing its own measurement: the section
-furthest from its script and by how many words, the phone with the lowest mean score and in
+furthest from its script and by how many words, the sound with the lowest mean score and in
 how many takes, a section over the target you set, and the filler said most often across
-your takes. Nothing here comes from a language model, and none of it moves the progress
+your takes. A take also gets one sentence assembled from its own counts — the largest group
+of differences, and which way the pace moved against your last take — which says nothing
+about you and nothing a reader could not work out from the numbers beside it. Nothing here comes from a language model, and none of it moves the progress
 page: a script you wrote and said forty times is practice, not a sample of how you speak
 unprepared.
 

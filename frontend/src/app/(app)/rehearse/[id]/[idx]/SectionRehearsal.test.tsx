@@ -163,6 +163,49 @@ test("earlier takes are listed newest first, each with what it was worth", () =>
   expect(rows[1]).toHaveTextContent("4 of 7");
 });
 
+test("a finished take offers the next section rather than ending there", async () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection()}
+      earlier={[makeTake()]}
+      nextIdx={2}
+    />,
+  );
+
+  expect(screen.getByRole("link", { name: /Rehearse the next section/ })).toHaveAttribute(
+    "href",
+    "/rehearse/3/2",
+  );
+});
+
+test("the last section's take offers the whole script instead", async () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection()}
+      earlier={[makeTake()]}
+      nextIdx={null}
+    />,
+  );
+
+  expect(screen.getByRole("link", { name: /Back to the whole script/ })).toHaveAttribute(
+    "href",
+    "/rehearse/3",
+  );
+  expect(
+    screen.queryByRole("link", { name: /Rehearse the next section/ }),
+  ).not.toBeInTheDocument();
+});
+
+test("nothing to go on to is offered before there is a take", () => {
+  render(<SectionRehearsal presentationId={3} section={makeSection()} earlier={[]} nextIdx={2} />);
+
+  expect(
+    screen.queryByRole("link", { name: /Rehearse the next section/ }),
+  ).not.toBeInTheDocument();
+});
+
 test("a target is saved as it is typed and the recording stops at twice it", async () => {
   api.setSectionTarget.mockResolvedValue(makeSection({ target_seconds: 40 }));
   recorder.state = "idle";
@@ -172,4 +215,100 @@ test("a target is saved as it is typed and the recording stops at twice it", asy
 
   await waitFor(() => expect(api.setSectionTarget).toHaveBeenLastCalledWith(3, 0, 40));
   expect(screen.getByText("Press to start, press again to stop. It stops by itself after 1:20.")).toBeInTheDocument();
+});
+
+test("a take with no target says what the duration is rather than calling it long", () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection()}
+      earlier={[makeTake({ target_seconds: null, pace: null })]}
+    />,
+  );
+
+  expect(screen.getByText("how long it took")).toBeInTheDocument();
+  expect(screen.queryByText("long")).not.toBeInTheDocument();
+});
+
+test("each measure is shown beside the speaker's own previous take", () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection({ takes: 2 })}
+      earlier={[
+        makeTake({ id: 9, missed: 2, speech_rate_wpm: 85, duration_ms: 30_000, fillers: 1 }),
+        makeTake({ id: 8, missed: 5, speech_rate_wpm: 91, duration_ms: 25_000, fillers: 3 }),
+      ]}
+    />,
+  );
+
+  expect(screen.getByText("was 5 last take")).toBeInTheDocument();
+  expect(screen.getByText("was 91 last take")).toBeInTheDocument();
+  expect(screen.getByText("was 0:25 last take")).toBeInTheDocument();
+  expect(screen.getByText("was 3 last take")).toBeInTheDocument();
+});
+
+test("the first take of a section is compared with nothing", () => {
+  render(
+    <SectionRehearsal presentationId={3} section={makeSection()} earlier={[makeTake()]} />,
+  );
+
+  expect(screen.queryByText(/last take/)).not.toBeInTheDocument();
+});
+
+test("a target can be taken from the take itself, and is not offered once one is set", async () => {
+  api.setSectionTarget.mockResolvedValue(makeSection({ target_seconds: 42 }));
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection()}
+      earlier={[makeTake({ duration_ms: 42_000, target_seconds: null, pace: null })]}
+    />,
+  );
+
+  await userEvent.setup().click(
+    screen.getByRole("button", { name: /Set this section.s target to 0:42/ }),
+  );
+
+  await waitFor(() => expect(api.setSectionTarget).toHaveBeenLastCalledWith(3, 0, 42));
+});
+
+test("a section that already has a target is not asked to set one again", () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection({ target_seconds: 40 })}
+      earlier={[makeTake({ target_seconds: 40, pace: "on" })]}
+    />,
+  );
+
+  expect(screen.queryByRole("button", { name: /Set this section's target/ })).not.toBeInTheDocument();
+});
+
+test("a take says in one sentence what it was, before any of the tiles", () => {
+  render(
+    <SectionRehearsal
+      presentationId={3}
+      section={makeSection({ takes: 2 })}
+      earlier={[
+        makeTake({ id: 9, wer: 0.1, speech_rate_wpm: 85 }),
+        makeTake({ id: 8, wer: 0.3, speech_rate_wpm: 91 }),
+      ]}
+    />,
+  );
+
+  expect(
+    screen.getByText(
+      "Closest yet to your script; most of the differences are other words; " +
+        "slower than your last take by 6 words a minute.",
+    ),
+  ).toBeInTheDocument();
+});
+
+test("what is not measured is said, rather than left as silence", () => {
+  render(
+    <SectionRehearsal presentationId={3} section={makeSection()} earlier={[makeTake()]} />,
+  );
+
+  expect(screen.getByText(/Tone, intonation and stress are not measured here/)).toBeInTheDocument();
 });

@@ -15,6 +15,7 @@ import { ArrowLeft } from "lucide-react";
 import { DeletePresentationButton } from "@/app/(app)/rehearse/[id]/DeletePresentationButton";
 import { Page, PageHeader } from "@/components/PageHeader";
 import { RehearseNext } from "@/components/RehearseNext";
+import { Sounds } from "@/components/Sounds";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,8 @@ export default async function PresentationDetailPage({
         sectionIndexById={sectionIndexById}
         caveat={page.caveat}
       />
+
+      <Sounds sounds={page.sounds} caveat={page.sounds_caveat} />
 
       <section className="flex flex-col gap-3" aria-labelledby="sections">
         <h2 id="sections" className="text-lg font-semibold tracking-tight">

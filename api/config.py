@@ -500,3 +500,8 @@ REHEARSAL_TAKES_PER_SECTION = int(os.environ.get("REHEARSAL_TAKES_PER_SECTION", 
 # twice varies by more than a second or two, so a tighter band would report a difference
 # in the reading rather than in the pace.
 REHEARSAL_PACE_TOLERANCE = float(os.environ.get("REHEARSAL_PACE_TOLERANCE", "0.10"))
+
+# How many sounds a script names as worth working on. A list of twenty is a list nobody
+# practises, and the ones below the top few differ from each other by less than a take of
+# the same words differs from itself.
+REHEARSAL_SOUNDS_SHOWN = int(os.environ.get("REHEARSAL_SOUNDS_SHOWN", "5"))

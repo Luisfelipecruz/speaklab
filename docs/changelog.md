@@ -7,6 +7,65 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.24.0] — 2026-09-20 · say what the take was, not just what it measured
+
+The first real use of Rehearse found five things measured correctly and almost none of
+them said. A take now sorts its differences into what kind each one is, names its sounds
+in words, sets every figure beside the speaker's own previous take, says what is not
+measured, and leads somewhere afterwards. No model, no score, and no new measurement —
+all of it arithmetic over counts that already existed.
+
+### Added
+
+- **A word that came out differently is sorted into what kind of difference it is** — a
+  lost or gained ending, a different word, or a number written as a figure — and each
+  group lists its own pairs. One number covering all three is correct and tells nobody
+  what to do. String comparison and arithmetic only.
+  [Decision 0029](decisions/0029-what-a-take-tells-the-speaker.md).
+- **Sounds are named in words**: *the vowel in "see"* rather than `/IY/`, with up to three
+  words of your own script the sound was scored inside, on the script's page and again
+  under a take. All thirty-nine names are hand-written and checked against the scorer's
+  inventory at import.
+- **Every measure of a take sits beside the same measure of your previous take** of those
+  words — words a minute, how long it took, the share of the time paused, the fillers, the
+  differences — written out rather than drawn as an arrow, because an arrow has a
+  direction and a direction reads as a verdict.
+- **A target can be taken from a take you were happy with**, which is a number you chose.
+  Nothing here quotes a words-a-minute norm, because no corpus of presentations has been
+  measured to draw one from.
+- **One sentence per take, assembled from its own counts**: the largest group of
+  differences, whether it is the closest to the script yet, and which way the pace moved.
+  It cannot say you did well or badly, and with one take it says only what that take
+  contains.
+- **A line saying tone, intonation and stress are not measured.** Silence where somebody is
+  looking for an answer reads as "nothing found".
+- **Somewhere to go after a take**: previous and next section in the header, and a button
+  to the next section under the take — or to the whole script on the last one.
+
+### Fixed
+
+- **A number you said correctly is no longer counted against you.** The recogniser writes
+  "eleven" as `11`, and the comparison counted that as a word you got wrong. Those are now
+  counted apart and left out of the rate. `services/wer.py` is unchanged, so read-aloud's
+  published word error rate stays comparable with every earlier run of it.
+- **The pace tile no longer labels a duration with the bare word "long"** when no target is
+  set. It says what the number is.
+
+### Measured
+
+- Every substitution from four takes of one speaker's own 144-word script, labelled by
+  hand: **8 endings, 15 other words, 2 numbers written as a figure** — 25 pairs, each
+  asserted on its own as well as in the totals.
+- Leaving the figures out takes that script's first section from **0.200 to 0.171** and its
+  third from **0.140 to 0.116**. The other two hold no figure and do not move.
+- The sounds that script names, on the live stack: *the vowel in "see"* −3.79 over 15
+  instances in 4 takes, *the "th" in "this"* −3.43 over 16, *the "ng" at the end of "sing"*
+  −3.29 over 6 in 3, *the "z" at the end of "is"* −2.72 over 14, *the vowel in "her"* −2.67
+  over 19 — with *billing*, *calling*, *publishing* and *is*, *calls*, *becomes* offered
+  beside them from the speaker's own script.
+
+---
+
 ## [0.23.0] — 2026-09-20 · rehearse a script of your own
 
 Paste the script of a talk and say it back a section at a time: every take is compared
