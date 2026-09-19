@@ -20,8 +20,10 @@ exist yet is in [limitations.md](limitations.md).
 a goal and a level, and a declared set of grammar forms and kinds of mistake it is written
 to draw out. Hold the button to speak and release it: the recording is transcribed by
 Whisper with a timing and a confidence for every word, answered in character by
-`gemma4:e4b`, and spoken by Piper — one request, stored whole or not at all. Ending the
-session writes the report.
+`gemma4:e4b`, and spoken by Piper — one request, stored whole or not at all. A sentence
+the voice could not be reached for is asked once more, after half a second; if it fails
+again the reply is stored as text, and the transcript says so. Ending the session writes
+the report.
 
 **The persona stays a persona.** It is given its full brief at the front of the prompt and a
 short reminder immediately before the speaker's latest words, and the speaker's words go
@@ -29,13 +31,19 @@ in as quoted speech: anything in a speaker turn is something a person said out l
 the scene, never an instruction. Five rules are checked by code, with no model involved —
 the reply's sentence cap, placeholder names, commentary on the speaker's English, stepping
 out of the role, and quoting its own brief — and a model judge, itself scored against
-labelled replies, says whether a reply stayed in character. Corrections wait for the
-report: a practice partner that corrects every sentence is not a conversation.
+labelled replies, says whether a reply stayed in character. A brief carries the facts its
+scene will be asked for — the letting agent knows the rent, the deposit, the contract, the
+date and the size — and is told to give a fact in its first sentence when a direct question
+asks for one; whether a reply names a figure, and the brief's figure, is counted by code.
+Corrections wait for the report: a practice partner that corrects every sentence is not a
+conversation.
 
 **Measured.** A whole turn — recognition, reply and voice — takes 2035 ms at p95 on a quiet
 machine, against 3 s, and took 2684 ms on Gemma 3. Between 6 and 9 of 9 probe replies break none of the five rules, and
 what fails is the sentence cap the persona itself states; the judge agrees with the labels
-on 8 of 10 and misses the same two every time. Asked to step outside the scene, the persona
+on 8 of 10 and misses the same two every time. Asked for a figure the brief carries — seven
+questions, ten times each — the letting agent answers with the brief's figure 70 of 70 times,
+against 22 of 70 with any figure at all before the brief carried the facts. Asked to step outside the scene, the persona
 gives its instructions away 16 times in 200 across ten phrasings, against 59 before the
 speaker's words were quoted. That breaks the exercise rather than disclosing anything:
 every brief ships in `api/seeds/`. See

@@ -27,7 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import (
@@ -38,7 +38,7 @@ from config import (
     PROGRESS_MIN_WORDS,
     PROGRESS_TREND_DAYS,
 )
-from db_models import ProgressSnapshot
+from db_models import PracticeSession, ProgressSnapshot
 from models.progress import (
     Family,
     FormAccuracy,
@@ -423,7 +423,15 @@ async def build(
     ).all()
     snapshots = {row.period_start: row for row in rows}
 
-    totals = ProgressTotals(periods=len(rows))
+    conversations = await db.scalar(
+        select(func.count())
+        .select_from(PracticeSession)
+        .where(
+            PracticeSession.user_id == user_id,
+            PracticeSession.mode == "conversation",
+        )
+    )
+    totals = ProgressTotals(periods=len(rows), conversations=int(conversations or 0))
     for row in rows:
         counts = row.sample_counts or {}
         totals.sessions += int(counts.get("sessions") or 0)

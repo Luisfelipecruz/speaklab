@@ -65,6 +65,7 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | The persona judge, against hand labels | **0.800** over ten replies; it misses the same two, the two the rules catch, in every run | [evaluation.md](evaluation.md) |
 | **An instruction spoken inside the scene** | the persona gave its instructions away **16 of 200** times over ten phrasings, against **59 of 200** before the speaker's words were quoted; on five phrasings written afterwards, 1 of 100 against 26 | [decision 0013](decisions/0013-an-instruction-spoken-in-the-scene.md) |
 | … in the suite `make eval` runs | fifteen phrasings, ten times each: **2 to 14 of 150** across eight runs, 2 in the latest | [evaluation.md](evaluation.md) |
+| **A question with a figure in its answer** | seven questions to the letting agent, ten times each: the brief's figure in **70 of 70** replies, none quoting the brief; **22 of 70** named any figure before the brief carried the facts, 3 the right one | `make persona-adherence`, [decision 0027](decisions/0027-a-persona-that-answers-the-question.md) |
 
 ## Corrections and grammar
 

@@ -644,6 +644,64 @@ async def test_a_silent_voice_does_not_cost_the_speaker_their_reply(
     assert "refused" in (reply.speech_detail or "")
 
 
+async def test_a_voice_that_fails_once_is_asked_again_and_still_speaks_the_reply(
+    scenario, voice, monkeypatch
+):
+    """One dropped connection to a healthy service is the failure seen in practice, and
+    the reply losing its voice to it was the cost. The second request is what recovers it,
+    and the pause before it is skipped here because a test that sleeps proves nothing
+    about the sleep."""
+    from services import conversation
+    from services.tts_client import TtsUnavailable
+
+    real_speak = conversation.speak
+    calls: list[str] = []
+
+    async def flaky_speak(text, voice=None, length_scale=None, client=None):
+        calls.append(text)
+        if len(calls) == 1:
+            raise TtsUnavailable("ConnectError: connection reset")
+        return await real_speak(
+            text, voice=voice, length_scale=length_scale, client=client
+        )
+
+    monkeypatch.setattr(conversation, "speak", flaky_speak)
+    monkeypatch.setattr(conversation, "TTS_RETRY_PAUSE_S", 0)
+
+    reply = await generate_reply(StubProvider(["I understand. Tell me more."]), [])
+
+    assert reply.speech_status == "ok"
+    assert reply.audio is not None and reply.duration_ms > 0
+    assert calls.count("I understand.") == 2, "the failed sentence was asked once more"
+    assert (
+        calls.count("Tell me more.") == 1
+    ), "a sentence that was spoken is not asked again"
+
+
+async def test_a_voice_that_fails_twice_is_reported_once_with_both_failures(
+    scenario, monkeypatch
+):
+    from services import conversation
+    from services.tts_client import TtsUnavailable
+
+    calls: list[str] = []
+
+    async def broken_speak(text, voice=None, length_scale=None, client=None):
+        calls.append(text)
+        raise TtsUnavailable(f"ConnectError: refused ({len(calls)})")
+
+    monkeypatch.setattr(conversation, "speak", broken_speak)
+    monkeypatch.setattr(conversation, "TTS_RETRY_PAUSE_S", 0)
+
+    reply = await generate_reply(StubProvider(["I understand."]), [])
+
+    assert reply.speech_status == "unavailable"
+    assert reply.audio is None
+    assert len(calls) == 2, "asked twice, not forever"
+    assert "asked again" in (reply.speech_detail or "")
+    assert "refused (1)" in reply.speech_detail and "refused (2)" in reply.speech_detail
+
+
 async def test_text_the_voice_refuses_is_reported_as_a_rejection_not_an_outage(
     monkeypatch,
 ):
@@ -652,15 +710,21 @@ async def test_text_the_voice_refuses_is_reported_as_a_rejection_not_an_outage(
     from services import conversation
     from services.tts_client import TtsRejected
 
+    calls = 0
+
     async def refusing_speak(text, voice=None, length_scale=None, client=None):
+        nonlocal calls
+        calls += 1
         raise TtsRejected("text produced no speech", 422)
 
     monkeypatch.setattr(conversation, "speak", refusing_speak)
+    monkeypatch.setattr(conversation, "TTS_RETRY_PAUSE_S", 0)
 
     reply = await generate_reply(StubProvider(["— — —"]), [])
 
     assert reply.speech_status == "rejected"
     assert reply.audio is None
+    assert calls == 1, "a refusal is not asked again"
 
 
 async def test_a_provider_that_is_down_raises_rather_than_inventing_a_reply(voice):

@@ -194,7 +194,10 @@ async def judge(
 # ── The fixture, which is checked everywhere ────────────────────────────────
 
 
-@pytest.mark.skipif(GOLDEN is None, reason="the persona golden set is not mounted")
+@pytest.mark.skipif(
+    GOLDEN is None or scoring is None,
+    reason="the persona golden set or the harness is not mounted",
+)
 def test_the_golden_set_still_describes_the_personas_it_was_written_against():
     """Drift between the seeds and the probes, caught here rather than in a report.
 
@@ -234,6 +237,21 @@ def test_the_golden_set_still_describes_the_personas_it_was_written_against():
     ids = [item["id"] for item in golden["probes"] + golden["injections"]]
     assert len(set(ids)) == len(ids), "a probe id is used twice"
 
+    # A question that asks for a figure is only a probe while the brief carries that
+    # figure. The day the brief loses it, this fails, rather than the report showing the
+    # persona dodging a question it was given nothing to answer.
+    for item in golden["questions"]:
+        scenario = seeds.get(item["scenario"])
+        assert scenario, f"{item['id']} names a scenario that is not seeded"
+        assert item["history"] and item["utterance"].strip() and item["why"].strip()
+        assert item["expects_any_of"], f"{item['id']} expects no figure"
+        assert scoring.names_one_of(
+            scenario["persona_prompt"], item["expects_any_of"]
+        ), (
+            f"{item['id']} expects one of {item['expects_any_of']}, which the "
+            f"{item['scenario']} brief no longer carries"
+        )
+
     for item in golden["calibration"]:
         assert item["scenario"] in seeds, f"{item['id']} names an unseeded scenario"
         assert item["why"], "a labelled reply with no stated reason is not a label"
@@ -260,6 +278,7 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
         if row.slug
         in {probe["scenario"] for probe in golden["probes"]}
         | {item["scenario"] for item in golden["injections"]}
+        | {item["scenario"] for item in golden["questions"]}
         | {item["scenario"] for item in golden["calibration"]}
     }
 
@@ -384,6 +403,52 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
     described = sum(row["described"] for row in injection_rows)
     stepped_out = sum(row["broke_role"] for row in injection_rows)
 
+    # ── A question with a figure in its answer, repeated for the same reason ────
+    #
+    # The brief carries the rent, the deposit, the contract, the date, the size and the
+    # heating bill, and asks the persona to give a fact when it is asked for one before
+    # selling. Whether a reply names a figure is arithmetic — a digit or a number word —
+    # and whether it names the brief's figure is a substring, so no judge is involved.
+    # Quoting is counted here too: a brief that carries facts as prose could make every
+    # honest answer a six-word run from it, and that would show as a leak nowhere else.
+    question_rows: list[dict] = []
+    for question in golden["questions"]:
+        question_scenario = scenarios[question["scenario"]]
+        question_history = [
+            Turn(idx=index, role=turn["role"], transcript=turn["text"])
+            for index, turn in enumerate(question["history"])
+        ]
+        question_messages = build_messages(
+            question_scenario, None, question_history, question["utterance"]
+        )
+        given = instructions(question_messages)
+        said = spoken(question_messages)
+        replies = []
+        counts = {"figure": 0, "brief_figure": 0, "leaked": 0}
+        for _ in range(rounds):
+            attempt = await provider.complete(question_messages, max_tokens=250)
+            text = attempt.text.strip()
+            counts["figure"] += bool(scoring.names_a_figure(text))
+            counts["brief_figure"] += bool(
+                scoring.names_one_of(text, question["expects_any_of"])
+            )
+            counts["leaked"] += bool(scoring.leaked_brief(text, given, spoken=said))
+            replies.append(text)
+        question_rows.append(
+            {
+                "probe": question["id"],
+                "scenario": question["scenario"],
+                "attempts": rounds,
+                **counts,
+                "replies": replies,
+            }
+        )
+
+    question_attempts = sum(row["attempts"] for row in question_rows)
+    with_figure = sum(row["figure"] for row in question_rows)
+    with_brief_figure = sum(row["brief_figure"] for row in question_rows)
+    question_leaked = sum(row["leaked"] for row in question_rows)
+
     # ── The judge, measured on replies whose verdicts were written down first ──
     verdicts: dict[str, bool] = {}
     calibration_unparseable = 0
@@ -415,6 +480,15 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
     guardrail_rate = scoring.proportion(clean, probes)
     character_rate = scoring.proportion(judged_in_character, probes - unparseable)
     elicit_rate = scoring.proportion(elicited, probes - unparseable)
+    figure_rate = scoring.proportion(with_figure, question_attempts)
+    brief_figure_rate = scoring.proportion(with_brief_figure, question_attempts)
+    question_leak_rate = scoring.proportion(question_leaked, question_attempts)
+    question_lines = [
+        f"  {row['probe']:<28} figure {row['figure']:>2}, the brief's "
+        f"{row['brief_figure']:>2}, quoted the brief {row['leaked']:>2}, "
+        f"of {row['attempts']}"
+        for row in question_rows
+    ]
 
     report = "\n".join(
         [
@@ -436,6 +510,13 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             f"    quoted them             {injection_rate.format()}",
             f"    described them          {described_rate.format()}",
             f"  stepped out of the scene  {role_rate.format()}",
+            "",
+            f"a question with a figure in its answer, {len(question_rows)} questions "
+            f"× {rounds} attempts:",
+            *question_lines,
+            f"  answered with a figure     {figure_rate.format()}",
+            f"  with the brief's figure    {brief_figure_rate.format()}",
+            f"  quoted the brief doing it  {question_leak_rate.format()}",
             "",
             f"judge vs hand labels        {scored.rate.format()} "
             f"({calibration_unparseable} unparseable)",
@@ -465,6 +546,11 @@ async def test_persona_adherence_against_the_golden_probes(seeded, db_session, c
             "injection_described": described,
             "injection_broke_role": stepped_out,
             "injections": injection_rows,
+            "question_attempts": question_attempts,
+            "question_figure": with_figure,
+            "question_brief_figure": with_brief_figure,
+            "question_leaked": question_leaked,
+            "questions": question_rows,
             "in_character": [judged_in_character, probes - unparseable],
             "elicited": [elicited, probes - unparseable],
             "unparseable": unparseable,

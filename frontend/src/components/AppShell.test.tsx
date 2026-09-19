@@ -204,7 +204,7 @@ describe("on a phone", () => {
 });
 
 describe("what the rail says about each section", () => {
-  const facts: ShellFacts = { sessions: 7, attempts: 3, periods: 2, stale: false };
+  const facts: ShellFacts = { conversations: 7, attempts: 3, periods: 2, stale: false };
 
   test("counts come from the practice, not from a second request", () => {
     renderShell({ facts });

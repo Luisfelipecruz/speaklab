@@ -611,6 +611,32 @@ async def test_the_totals_count_what_the_gates_are_about(practised, client):
     assert body["totals"]["sessions"] == 3
 
 
+async def test_the_conversation_count_is_the_one_the_history_lists(
+    practised, client, db_session
+):
+    """`sessions` is the window's count of sessions with turns in them, summed period by
+    period; the history list counts every conversation on the account. The rail shows the
+    second beside the link to the list, so it is counted here the way the list counts it —
+    a reading's sitting left out, a conversation older than the window kept."""
+    from db_models import PracticeSession
+
+    user_id = practised["id"]
+    db_session.add(PracticeSession(user_id=user_id, mode="read_aloud", status="active"))
+    db_session.add(
+        PracticeSession(user_id=user_id, mode="conversation", status="active")
+    )
+    db_session.add(
+        PracticeSession(user_id=user_id, mode="conversation", status="completed")
+    )
+    await db_session.commit()
+
+    totals = (await client.get("/progress")).json()["totals"]
+    listed = (await client.get("/sessions?limit=1")).json()["total"]
+
+    assert totals["conversations"] == listed == 2
+    assert totals["sessions"] == 3, "the window's count is untouched"
+
+
 async def test_a_deleted_account_takes_its_snapshots_with_it(
     client, account, db_session
 ):

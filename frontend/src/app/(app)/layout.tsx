@@ -19,34 +19,15 @@
 import { cookies } from "next/headers";
 
 import { AppShell } from "@/components/AppShell";
-import type { ShellFacts } from "@/components/AppSidebar";
-import type { Progress } from "@/lib/api";
-import { serverRequestOrNull } from "@/lib/server-api";
+import { loadShellFacts } from "@/lib/shell-facts";
 
 export const dynamic = "force-dynamic";
 
 /** What the sidebar writes when it is collapsed or expanded. */
 const SIDEBAR_COOKIE = "sidebar_state";
 
-async function loadFacts(): Promise<ShellFacts | null> {
-  let progress: Progress | null = null;
-  try {
-    progress = await serverRequestOrNull<Progress>("/progress");
-  } catch {
-    return null;
-  }
-  if (!progress) return null;
-
-  return {
-    sessions: progress.totals.sessions,
-    attempts: progress.totals.attempts,
-    periods: progress.totals.periods,
-    stale: progress.stale,
-  };
-}
-
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [facts, jar] = await Promise.all([loadFacts(), cookies()]);
+  const [facts, jar] = await Promise.all([loadShellFacts(), cookies()]);
   const stored = jar.get(SIDEBAR_COOKIE)?.value;
 
   return (

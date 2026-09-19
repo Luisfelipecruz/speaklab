@@ -191,6 +191,13 @@ SESSION_PAGE_MAX = int(os.environ.get("SESSION_PAGE_MAX", "100"))
 # a synthesis that has not returned in 30 s is a stuck process, not a slow one.
 TTS_TIMEOUT_S = float(os.environ.get("TTS_TIMEOUT_S", "30"))
 
+# How long to wait before asking the voice a second time for a sentence it failed to
+# speak. One retry, once: the failure this covers is a single connection refused or reset
+# by a service that is otherwise up, and half a second is long enough for that to clear
+# and short enough that a reply which will not be spoken at all is still handed over as
+# text within the turn.
+TTS_RETRY_PAUSE_S = float(os.environ.get("TTS_RETRY_PAUSE_S", "0.5"))
+
 # The voice this system speaks with. Read here as well as by the service because the
 # conversation loop records it on the turn: a reply synthesised by lessac and one synthesised by some
 # later voice are different audio for the same text, and "we changed the voice in

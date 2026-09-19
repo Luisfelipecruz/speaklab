@@ -21,6 +21,10 @@ that nothing in the other documents reads as a claim.
   fifteen phrasings. See
   [decision 0013 §7](decisions/0013-an-instruction-spoken-in-the-scene.md) and
   [decision 0025](decisions/0025-gemma-4-with-thinking-off.md).
+- **One persona has facts to answer with.** The letting agent's brief carries the rent, the
+  deposit, the contract, the date, the size and the heating bill, and gives them when asked;
+  the other ten briefs carry no figures, and what those personas say when asked for one is
+  not measured. See [decision 0027](decisions/0027-a-persona-that-answers-the-question.md).
 - **The personas repeat a mistake back corrected** — *so you attended a conference* — and
   nothing counts it.
 - **A model that cannot stop thinking is not measured.** Every request asks Ollama not

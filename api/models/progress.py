@@ -167,6 +167,10 @@ class ProgressTotals(BaseModel):
     attempts: int = 0
     phones: int = 0
     periods: int = 0
+    # Every conversation on the account, not only the window's. It is the number the
+    # history list shows, counted the same way, so a badge fed from here agrees with the
+    # list it opens.
+    conversations: int = 0
 
 
 class ProgressOut(BaseModel):
