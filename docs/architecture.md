@@ -115,10 +115,20 @@ The status vocabulary is closed, so the frontend can switch on it:
 | `ok` | reachable, answering 2xx |
 | `unreachable` | no answer — not started, not built, DNS failure, or timed out |
 | `error` | answered, but not with a 2xx. Up and unwell is a different problem from absent |
+| `degraded` | answering and able to serve, but not with what was measured: the pulled model is another build than the one every published figure describes |
 
 A service's own answer is passed through under `reports`. The model services answer 200
 with `model_loaded: false` while their weights download — a cold start is minutes and must
 not read as a crash — so *reachable* and *ready* are reported as two facts.
+
+The conversation model's probe reads Ollama's model list and its version. It reports the
+configured model's manifest digest, size and quantisation beside its name, because a tag
+is a pointer the library can move and a digest is a build. The build the figures were
+measured on is in the configuration next to the model; a pulled build with another digest
+is `degraded` — it answers, so `ready` stays true — and the detail names both builds and
+the pull command. A missing model on an Ollama older than the model needs is reported as
+the version to install, not as a pull that would fail. `make llm-check` prints the same
+report from the host and exits non-zero on anything but `ok`.
 
 ---
 

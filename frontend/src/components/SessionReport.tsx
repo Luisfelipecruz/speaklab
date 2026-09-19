@@ -121,7 +121,7 @@ export function SessionReport({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {measured.mean_asr_confidence !== null && (
               <Badge variant="outline">
-                mean recogniser confidence {measured.mean_asr_confidence.toFixed(2)}
+                how surely your words were heard: {measured.mean_asr_confidence.toFixed(2)} of 1
               </Badge>
             )}
             {measured.min_turns !== null && (

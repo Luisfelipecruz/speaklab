@@ -116,6 +116,37 @@ test("somebody who has practised gets their counts and what to do next", async (
   expect(screen.getByRole("link", { name: "All 4 conversations" })).toBeInTheDocument();
 });
 
+test("one turn and one conversation are said in the singular", async () => {
+  answer({
+    progress: makeProgress({
+      totals: { sessions: 1, turns: 1, words: 12, attempts: 0, phones: 0, periods: 1 },
+    }),
+    recommendations: makeRecommendations(),
+    sessions: {
+      items: [
+        {
+          id: 3,
+          scenario_slug: "apartment-viewing",
+          scenario_title: "Apartment viewing",
+          mode: "conversation",
+          status: "active",
+          started_at: "2026-09-01T18:20:00Z",
+          ended_at: null,
+          turn_count: 1,
+        },
+      ],
+      total: 1,
+      limit: 3,
+      offset: 0,
+    },
+  });
+
+  render(await HomePage());
+
+  expect(screen.getByText(/· 1 turn$/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "All 1 conversation" })).toBeInTheDocument();
+});
+
 test("a history that has not loaded does not claim the account is empty", async () => {
   // Readings are scored without a conversation, so counts above can move while this
   // stays empty — and "nothing here" must not read as "your history is gone".

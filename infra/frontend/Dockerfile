@@ -51,7 +51,7 @@ EXPOSE 3000
 # a poor trade; --spider requests the page and downloads nothing. `next dev` compiles the
 # first route on demand, so the first answer takes seconds, and the start period covers it.
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=60s \
-    CMD wget -q --spider http://localhost:3000 || exit 1
+    CMD wget -q --spider http://127.0.0.1:3000 || exit 1
 
 CMD ["pnpm", "run", "dev"]
 
@@ -93,6 +93,6 @@ USER node
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=20s \
-    CMD wget -q --spider http://localhost:3000 || exit 1
+    CMD wget -q --spider http://127.0.0.1:3000 || exit 1
 
 CMD ["node", "server.js"]

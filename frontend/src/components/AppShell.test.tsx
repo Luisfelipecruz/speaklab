@@ -220,7 +220,9 @@ describe("what the rail says about each section", () => {
   test("figures known to be behind the practice are said to be", () => {
     renderShell({ facts: { ...facts, stale: true } });
 
-    expect(screen.getByText("Progress figures are behind")).toBeInTheDocument();
+    expect(
+      screen.getByText("Progress not yet counted"),
+    ).toBeInTheDocument();
   });
 
   test("a reader nobody has identified gets no counts at all", () => {

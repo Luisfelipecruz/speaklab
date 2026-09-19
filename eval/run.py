@@ -34,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -124,6 +125,39 @@ def revision() -> str:
     except (OSError, subprocess.SubprocessError):
         return "unknown"
     return result.stdout.strip() or "unknown"
+
+
+API_URL = os.environ.get("SPEAKLAB_API_URL", "http://localhost:8002")
+
+
+def model_in_use() -> str | None:
+    """The language model as the running API reports it: name, build and size.
+
+    Asked of the API rather than of Ollama, because the API's configuration is the one
+    the suites ran against. None when the API is not up or Ollama is not answering; the
+    header then names the revision alone, and the errors, personas and answers suites
+    will have been reported as not run for the same reason.
+    """
+    try:
+        with urllib.request.urlopen(f"{API_URL}/health/models", timeout=5) as response:
+            body = json.load(response)
+    except (OSError, ValueError):
+        return None
+    llm = body.get("services", {}).get("llm", {}) if isinstance(body, dict) else {}
+    found = llm.get("reports") or {}
+    if not found.get("model") or not found.get("digest"):
+        return None
+    parts = [f"`{found['model']}` build `{str(found['digest'])[:12]}`"]
+    inside = [
+        piece
+        for piece in (found.get("parameter_size"), found.get("quantization_level"))
+        if piece
+    ]
+    if found.get("size_bytes"):
+        inside.append(f"{found['size_bytes'] / 1e9:.1f} GB")
+    if inside:
+        parts.append(f"({', '.join(inside)})")
+    return " ".join(parts)
 
 
 def _skip_reason(output: str, fallback: str) -> str:
@@ -304,6 +338,7 @@ def main() -> int:
         skips=skips,
         failures=failures,
         revision=revision(),
+        model=model_in_use(),
     )
 
     destination = Path(args.out)

@@ -14,6 +14,11 @@
  * while recording, it prints a line telling the user their microphone may be muted,
  * because a person who does not know what a waveform looks like cannot read a flat one.
  *
+ * Before the microphone opens there is nothing to draw, and an empty bordered box in that
+ * place reads as a broken input. The canvas is hidden until recording starts and its
+ * height is kept, so the button under it does not move under a finger that is about to
+ * press it.
+ *
  * Drawing happens on a canvas at frame rate and is invisible to assistive technology on
  * purpose — a canvas that announced 60 changes a second would make a screen reader
  * useless. The state it represents is announced once, as text, in the live region below
@@ -97,16 +102,16 @@ export function Waveform({ analyser, active, className }: WaveformProps) {
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <canvas
-        ref={canvasRef}
-        width={480}
-        height={56}
-        aria-hidden="true"
-        className={cn(
-          "h-14 w-full rounded-md border border-border bg-muted/40 text-primary transition-opacity",
-          active ? "opacity-100" : "opacity-40",
-        )}
-      />
+      <div className="h-14 w-full">
+        <canvas
+          ref={canvasRef}
+          width={480}
+          height={56}
+          aria-hidden="true"
+          hidden={!active}
+          className="h-14 w-full rounded-md border border-border bg-muted/40 text-primary"
+        />
+      </div>
       {/* One live region, one sentence at a time. The canvas above changes every frame
           and announces nothing; this is what a screen reader hears. */}
       <p role="status" aria-live="polite" className="min-h-5 text-xs text-muted-foreground">

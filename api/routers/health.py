@@ -18,6 +18,7 @@ ceiling once — not four times, and never unbounded.
 """
 
 import asyncio
+import re
 import time
 from typing import Any
 
@@ -29,7 +30,9 @@ from config import (
     HEALTH_PROBE_TIMEOUT_S,
     MODEL_SERVICES,
     OLLAMA_BASE_URL,
+    OLLAMA_MIN_VERSION,
     OLLAMA_MODEL,
+    OLLAMA_MODEL_DIGEST,
     VERSION,
 )
 from database import engine
@@ -42,9 +45,15 @@ router = APIRouter(tags=["health"])
 #   unreachable  no answer: not started, not built, DNS failure, or timed out
 #   error        answered, but not with a 2xx — the service is up and unwell,
 #                which is a different problem from it being absent
+#   degraded     answering, and able to serve, but not with what was measured: the
+#                pulled model is a different build from the one every published
+#                figure describes
 OK = "ok"
 UNREACHABLE = "unreachable"
 ERROR = "error"
+DEGRADED = "degraded"
+# The statuses under which a feature still works. `ready` is computed over these.
+SERVING = {OK, DEGRADED}
 
 
 async def _probe_database() -> dict[str, Any]:
@@ -117,8 +126,23 @@ def _with_tag(model: str) -> str:
     return model if ":" in model else f"{model}:latest"
 
 
+def _version_key(version: str) -> tuple[int, ...]:
+    """`0.20.0` before `0.34.2`; a suffix such as `-rc1` is ignored."""
+    numbers = re.match(r"\d+(?:\.\d+)*", version.strip())
+    if numbers is None:
+        return ()
+    return tuple(int(part) for part in numbers.group(0).split("."))
+
+
+def _too_old(ollama_version: str | None) -> bool:
+    if not ollama_version or not OLLAMA_MIN_VERSION:
+        return False
+    found, needed = _version_key(ollama_version), _version_key(OLLAMA_MIN_VERSION)
+    return bool(found) and bool(needed) and found < needed
+
+
 async def _probe_llm(client: httpx.AsyncClient) -> dict[str, Any]:
-    """Ask Ollama whether the configured model is there to answer.
+    """Ask Ollama whether the configured model is there to answer, and which build it is.
 
     Ollama has no `/health`. `/api/tags` lists the models it has pulled, which is the
     question that matters: an Ollama without the model fails a conversation exactly as
@@ -127,13 +151,24 @@ async def _probe_llm(client: httpx.AsyncClient) -> dict[str, Any]:
     command that fixes it in `detail`, never `ok` with a flag the way a loading model
     service is. `ready` must be false whenever a conversation would fail.
 
-    Cheap enough for a probe that runs every ten seconds: listing tags reads a manifest
-    directory and loads no weights.
+    The list also carries each model's manifest digest, size and quantisation, and they
+    are reported beside the name, because a tag is a pointer and a digest is a build. A
+    pulled model whose digest is not the one the published figures were measured on is
+    `degraded`: it answers, so `ready` stays true, but the numbers no longer describe it.
+
+    `/api/version` is asked at the same time. A model that needs a newer Ollama than the
+    one installed fails at `ollama pull` with a message about the file format, so when the
+    model is missing and Ollama is too old, `detail` says that first.
+
+    Cheap enough for a probe that runs every ten seconds: both calls read local state and
+    load no weights.
     """
     url = OLLAMA_BASE_URL
     started = time.perf_counter()
     try:
-        response = await client.get(f"{url}/api/tags")
+        tags, version = await asyncio.gather(
+            client.get(f"{url}/api/tags"), client.get(f"{url}/api/version")
+        )
     except Exception as exc:
         return {
             "status": UNREACHABLE,
@@ -146,22 +181,58 @@ async def _probe_llm(client: httpx.AsyncClient) -> dict[str, Any]:
         "url": url,
         "latency_ms": round((time.perf_counter() - started) * 1000, 2),
     }
-    if not response.is_success:
-        result["detail"] = f"HTTP {response.status_code}"
+    if not tags.is_success:
+        result["detail"] = f"HTTP {tags.status_code}"
         return result
     try:
         pulled = {
-            _with_tag(entry.get("name") or entry.get("model") or "")
-            for entry in response.json()["models"]
+            _with_tag(entry.get("name") or entry.get("model") or ""): entry
+            for entry in tags.json()["models"]
         }
     except (ValueError, KeyError, TypeError, AttributeError):
         result["detail"] = "answered, but not with Ollama's model list"
         return result
 
-    result["reports"] = {"model": OLLAMA_MODEL}
-    if _with_tag(OLLAMA_MODEL) not in pulled:
+    ollama_version: str | None = None
+    if version.is_success:
+        try:
+            ollama_version = str(version.json().get("version") or "") or None
+        except (ValueError, AttributeError):
+            ollama_version = None
+
+    result["reports"] = {"model": OLLAMA_MODEL, "ollama_version": ollama_version}
+    entry = pulled.get(_with_tag(OLLAMA_MODEL))
+    if entry is None:
+        if _too_old(ollama_version):
+            result["detail"] = (
+                f"Ollama {ollama_version} is older than {OLLAMA_MIN_VERSION}, which "
+                f"{OLLAMA_MODEL} needs. Update it from https://ollama.com/download, "
+                f"then run: ollama pull {OLLAMA_MODEL}"
+            )
+        else:
+            result["detail"] = (
+                f"{OLLAMA_MODEL} is not pulled. Run: ollama pull {OLLAMA_MODEL}"
+            )
+        return result
+
+    details = entry.get("details") if isinstance(entry.get("details"), dict) else {}
+    digest = entry.get("digest")
+    result["reports"].update(
+        {
+            "digest": digest,
+            "size_bytes": entry.get("size"),
+            "parameter_size": details.get("parameter_size"),
+            "quantization_level": details.get("quantization_level"),
+        }
+    )
+    if OLLAMA_MODEL_DIGEST and digest != OLLAMA_MODEL_DIGEST:
+        result["status"] = DEGRADED
         result["detail"] = (
-            f"{OLLAMA_MODEL} is not pulled. Run: ollama pull {OLLAMA_MODEL}"
+            f"{OLLAMA_MODEL} is pulled as build {str(digest or '')[:12] or 'unknown'}, "
+            f"not {OLLAMA_MODEL_DIGEST[:12]}, the build the published figures were "
+            f"measured on. Run: ollama pull {OLLAMA_MODEL}. If the build stays, the "
+            "library has moved on and the figures are due a new measurement; "
+            "OLLAMA_MODEL_DIGEST accepts a build."
         )
         return result
     result["status"] = OK
@@ -223,6 +294,6 @@ async def health_models() -> dict[str, Any]:
     """
     models = await probe_model_services()
     return {
-        "ready": all(service["status"] == OK for service in models.values()),
+        "ready": all(service["status"] in SERVING for service in models.values()),
         "services": models,
     }

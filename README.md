@@ -92,15 +92,15 @@ ever using the present simple. So the system tracks *which* verb forms you use a
 | | |
 |---|---|
 | **Docker** | Docker Desktop, or Docker Engine with Compose **2.24 or later** (`docker compose version`) |
-| **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma4` — 9.6 GB, on Ollama 0.20.0 or later. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
+| **Ollama, on the host** | [ollama.com/download](https://ollama.com/download), then `ollama pull gemma4:e4b` — 9.6 GB, on Ollama 0.20.0 or later. The tag names the build every figure here was measured on; `latest` points at whichever size the library chooses. It is deliberately not in Compose; [Architecture](#architecture) says why. Without it everything works except conversation |
 | **Python 3, on the host** | For `make llm-check`, `make health` and `make eval`. The standard library is enough |
-| **Disk** | Images of 826 MB (api), 790 MB (asr), 724 MB (tts), 299 MB (frontend) and 657 MB (`postgres:16.15`) — 3.3 GB — plus 464 MB of Whisper weights on first start. `gemma4:latest` is 9.6 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
+| **Disk** | Images of 826 MB (api), 790 MB (asr), 724 MB (tts), 299 MB (frontend) and 657 MB (`postgres:16.15`) — 3.3 GB — plus 464 MB of Whisper weights on first start. `gemma4:e4b` is 9.6 GB on top. Pronunciation scoring, which is optional, adds a 1.87 GB image and 1.2 GB of weights |
 | **Memory** | **1.02 GiB** for the five containers after a conversation, a reading and a spoken answer with both speech models loaded, sampled once with `docker stats` — asr 497 MiB, tts 317, api 115, frontend 79, postgres 40. Ollama is not in the figure. The requirement is under 8 GB (PRD §9) |
 
 **Then:**
 
 ```bash
-ollama pull gemma4
+ollama pull gemma4:e4b
 make setup
 ```
 
@@ -135,7 +135,7 @@ Then:
 | Your conversations | <http://localhost:3003/sessions> |
 | What the stack says about itself | <http://localhost:3003/status> |
 | API docs | <http://localhost:8002/docs> |
-| Can the API reach the conversation model? | `make llm-check` |
+| Can the API reach the conversation model, and is it the measured build? | `make llm-check` — prints the model, its build digest, size and quantisation, and the Ollama version |
 | Health | `make health` |
 | Hear the voice | `make tts-sample` |
 | Everything else | `make help` |
@@ -167,7 +167,8 @@ The long way, if you want each step separately: `cp .env.example .env`, `make up
 
 | Symptom | Cause, and the fix |
 |---|---|
-| Starting a conversation fails with "The conversation model is not available" or "not responding" | Ollama is not running, or the model is not pulled. `make llm-check` asks the API — not the host — and names the command that fixes it |
+| Starting a conversation fails with "The conversation model is not available" or "not responding" | Ollama is not running, or the model is not pulled. `make llm-check` asks the API — not the host — and names the command that fixes it, or the Ollama version to install when the one running is older than the model needs |
+| `make llm-check` says `degraded` | The pulled `gemma4:e4b` is a different build from the one the figures were measured on. `ollama pull gemma4:e4b` brings the pinned build back if the library still has it; if the build stays, the library has moved on, and `OLLAMA_MODEL_DIGEST` in `.env` accepts it while the figures wait for a new measurement |
 | `make llm-check` says unreachable on **Linux**, with Ollama running | Ollama listens on 127.0.0.1 by default, which a container cannot reach. Start it with `OLLAMA_HOST=0.0.0.0` — for the systemd service, `sudo systemctl edit ollama` and add `Environment="OLLAMA_HOST=0.0.0.0"`. That also exposes it to your network, so firewall port 11434 |
 | No Ollama on the host at all | `make llm-up` runs it in a container instead, and tells you the one `.env` line that points the API at it. On macOS it runs on the CPU, several times slower |
 | The first recording takes a long time, or reads as unavailable | The recogniser is still downloading its weights. `make health`, and wait for `asr` to report `"model_loaded": true` |
@@ -263,7 +264,7 @@ Every other figure, each with what produced it, is in
 The full list is [docs/limitations.md](docs/limitations.md). The ones to know first:
 
 - **Error detection is below its own bar.** 0.500 precision against 0.70, over six scored
-  proposals — too few to decide the question either way. `gemma4:latest` finds roughly the
+  proposals — too few to decide the question either way. `gemma4:e4b` finds roughly the
   right words and files them under the wrong category two times out of six.
 - **A person's microphone has never been through the interface.** A synthetic voice played
   into a headless Chromium's microphone input has; the press on a real microphone, in

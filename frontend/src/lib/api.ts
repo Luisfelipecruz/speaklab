@@ -24,8 +24,12 @@ export const INTERNAL_API_URL =
 export const PUBLIC_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8002";
 
-/** Closed vocabulary, mirroring api/routers/health.py. */
-export type ServiceStatus = "ok" | "unreachable" | "error";
+/**
+ * Closed vocabulary, mirroring api/routers/health.py. `degraded` is the model layer
+ * answering with a different build from the one the published figures were measured on:
+ * it serves, and the numbers no longer describe it.
+ */
+export type ServiceStatus = "ok" | "unreachable" | "error" | "degraded";
 
 export interface ProbeResult {
   status: ServiceStatus;

@@ -173,25 +173,150 @@ async def test_probe_survives_a_service_answering_with_something_that_is_not_jso
 # `model`, both the tagged name.
 
 
-def _tags(*names: str):
+MEASURED = "c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb"
+OTHER = "7fbdbf8f5e45" + "0" * 52
+
+
+def _entry(name: str, digest: str = MEASURED) -> dict:
+    return {
+        "name": name,
+        "model": name,
+        "digest": digest,
+        "size": 9608350718,
+        "details": {"parameter_size": "8.0B", "quantization_level": "Q4_K_M"},
+    }
+
+
+def _ollama(*entries, version: str = "0.34.2"):
+    """Ollama answering both calls the probe makes: the model list and its version."""
+    models = [_entry(e) if isinstance(e, str) else e for e in entries]
+
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/version":
+            return httpx.Response(200, json={"version": version})
         assert request.url.path == "/api/tags"
-        return httpx.Response(
-            200, json={"models": [{"name": n, "model": n} for n in names]}
-        )
+        return httpx.Response(200, json={"models": models})
 
     return handler
 
 
+def _tags(*names: str):
+    return _ollama(*names)
+
+
+@pytest.fixture
+def pinned(monkeypatch):
+    """The measured model configured, with its digest expected."""
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma4:e4b")
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL_DIGEST", MEASURED)
+    monkeypatch.setattr(health_module, "OLLAMA_MIN_VERSION", "0.20.0")
+
+
 async def test_llm_probe_is_ok_when_the_configured_model_is_pulled(monkeypatch):
     monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma3:4b")
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL_DIGEST", "")
 
     async with _mock_client(_tags("mistral:7b", "gemma3:4b")) as mock:
         result = await health_module._probe_llm(mock)
 
     assert result["status"] == "ok"
-    assert result["reports"] == {"model": "gemma3:4b"}
+    assert result["reports"]["model"] == "gemma3:4b"
     assert "latency_ms" in result
+
+
+async def test_llm_probe_reports_the_build_it_found(pinned):
+    """A tag is a pointer; the digest is the build. The report carries both, with the
+    size and quantisation Ollama lists, so `make llm-check` can print what is running.
+    """
+    async with _mock_client(_ollama("gemma4:e4b")) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "ok"
+    assert result["reports"] == {
+        "model": "gemma4:e4b",
+        "ollama_version": "0.34.2",
+        "digest": MEASURED,
+        "size_bytes": 9608350718,
+        "parameter_size": "8.0B",
+        "quantization_level": "Q4_K_M",
+    }
+
+
+async def test_a_pulled_build_that_is_not_the_measured_one_is_degraded(pinned):
+    """It answers, so a conversation works; the published figures describe another
+    build, so it is not `ok`. The detail names both builds and the command."""
+    async with _mock_client(_ollama(_entry("gemma4:e4b", OTHER))) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "degraded"
+    assert result["reports"]["digest"] == OTHER
+    assert "7fbdbf8f5e45" in result["detail"]
+    assert "c6eb396dbd59" in result["detail"]
+    assert "ollama pull gemma4:e4b" in result["detail"]
+
+
+async def test_no_expected_digest_means_any_build_is_ok(monkeypatch):
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma4:e4b")
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL_DIGEST", "")
+
+    async with _mock_client(_ollama(_entry("gemma4:e4b", OTHER))) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "ok"
+
+
+async def test_a_drifted_build_leaves_the_stack_ready(client, monkeypatch, pinned):
+    """`ready` is false only when a feature would fail. A different build answers."""
+
+    async def degraded_llm(_client):
+        return {"status": "degraded", "url": "x", "detail": "another build"}
+
+    async def ok_service(*_args, **_kwargs):
+        return {"status": "ok", "url": "x", "latency_ms": 1}
+
+    monkeypatch.setattr(health_module, "_probe_llm", degraded_llm)
+    monkeypatch.setattr(health_module, "_probe_service", ok_service)
+
+    body = (await client.get("/health/models")).json()
+    assert body["ready"] is True
+    assert body["services"]["llm"]["status"] == "degraded"
+    assert (await client.get("/health")).json()["status"] == "degraded"
+
+
+async def test_a_missing_model_on_an_old_ollama_names_the_version_first(pinned):
+    """`ollama pull` on an Ollama older than the model needs fails with a message about
+    the file format; the probe says which version is needed before that happens."""
+    async with _mock_client(_ollama("mistral:7b", version="0.19.0")) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["status"] == "error"
+    assert result["detail"].startswith("Ollama 0.19.0 is older than 0.20.0")
+    assert "https://ollama.com/download" in result["detail"]
+    assert "ollama pull gemma4:e4b" in result["detail"]
+    assert result["reports"]["ollama_version"] == "0.19.0"
+
+
+async def test_a_missing_model_on_a_new_enough_ollama_names_the_pull(pinned):
+    async with _mock_client(_ollama("mistral:7b", version="0.20.0")) as mock:
+        result = await health_module._probe_llm(mock)
+
+    assert result["detail"] == "gemma4:e4b is not pulled. Run: ollama pull gemma4:e4b"
+
+
+@pytest.mark.parametrize(
+    ("found", "needed", "older"),
+    [
+        ("0.19.0", "0.20.0", True),
+        ("0.20.0", "0.20.0", False),
+        ("0.34.2", "0.20.0", False),
+        ("0.9.9", "0.20.0", True),
+        ("0.20.0-rc1", "0.20.0", False),
+        ("garbage", "0.20.0", False),
+    ],
+)
+def test_version_comparison_is_numeric_not_lexical(monkeypatch, found, needed, older):
+    monkeypatch.setattr(health_module, "OLLAMA_MIN_VERSION", needed)
+    assert health_module._too_old(found) is older
 
 
 async def test_llm_probe_names_the_pull_command_when_the_model_is_missing(
@@ -201,6 +326,7 @@ async def test_llm_probe_names_the_pull_command_when_the_model_is_missing(
     the same family does not count either — the model that is configured is the one the
     persona is sent to."""
     monkeypatch.setattr(health_module, "OLLAMA_MODEL", "gemma3:4b")
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL_DIGEST", "")
 
     async with _mock_client(_tags("gemma3:12b", "mistral:7b")) as mock:
         result = await health_module._probe_llm(mock)
@@ -217,6 +343,7 @@ async def test_llm_probe_treats_an_untagged_name_as_latest(
     monkeypatch, configured, pulled
 ):
     monkeypatch.setattr(health_module, "OLLAMA_MODEL", configured)
+    monkeypatch.setattr(health_module, "OLLAMA_MODEL_DIGEST", "")
 
     async with _mock_client(_tags(pulled)) as mock:
         result = await health_module._probe_llm(mock)

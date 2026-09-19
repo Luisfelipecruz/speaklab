@@ -14,10 +14,10 @@
  * - **Keyboard operable.** Space and Enter toggle playback, the arrow keys seek. That
  *   falls out of using real `<button>` and `<input type=range>` elements instead of divs
  *   with click handlers.
- * - **A caption slot.** Synthesised speech is always captioned. The transcript is passed
- *   in rather than fetched, because whoever renders a turn already
- *   has it and a second request for text that is already on the page would be a
- *   fabrication risk as well as a waste.
+ * - **A caption slot.** Synthesised speech is always captioned, and the caption is passed
+ *   in rather than fetched, because whoever renders the speech already has the text and
+ *   a second request for it would be a fabrication risk as well as a waste. A caller
+ *   that already prints the words beside the player leaves the slot empty: one copy.
  * - **A visible error state.** A failed load has to say so. The default behaviour of an
  *   `<audio>` element that cannot fetch its source is to sit there looking idle, which
  *   is indistinguishable from audio that has not been pressed yet.

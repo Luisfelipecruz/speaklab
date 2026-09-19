@@ -1,6 +1,6 @@
 # 0025 — Gemma 4 as the conversation and analysis model, with thinking off
 
-Status: accepted
+Status: accepted · §2 superseded by [0026](0026-the-measured-build-by-name.md)
 
 One language model serves the persona and the error detector, and it is `gemma4:latest`
 (8B, Q4_K_M, 9.6 GB, Ollama 0.20.0 or later), asked not to think on every request. This

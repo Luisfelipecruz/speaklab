@@ -142,6 +142,27 @@ async def test_history_is_newest_first_and_paginated(
     assert page["items"][0]["scenario_title"]
 
 
+async def test_a_reading_is_not_listed_as_a_conversation(
+    seeded, client, account, provider, voice, audio_root, db_session
+):
+    """A reading is scored in a sitting of its own — a session row with no scenario, no
+    turns and a status that stays `active`. In the history it would read as a
+    conversation that never started, so the history lists conversations only."""
+    from sqlalchemy import select
+
+    assert (await start(client)).status_code == 201
+    user_id = await db_session.scalar(
+        select(PracticeSession.user_id).order_by(PracticeSession.id.desc()).limit(1)
+    )
+    db_session.add(PracticeSession(user_id=user_id, mode="read_aloud", status="active"))
+    await db_session.commit()
+
+    page = (await client.get("/sessions")).json()
+
+    assert page["total"] == 1
+    assert [item["mode"] for item in page["items"]] == ["conversation"]
+
+
 async def test_the_second_page_is_the_rest(
     seeded, client, account, provider, voice, audio_root
 ):

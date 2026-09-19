@@ -64,6 +64,9 @@ test("nothing answered yet lists the questions by kind and draws nothing", async
   );
   expect(screen.getByText(/Nothing answered yet/)).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Your latest answers" })).not.toBeInTheDocument();
+  // The header says what is counted. What the language model adds is said once, on the
+  // card that carries it, and not again up here.
+  expect(screen.queryByText(/language model/)).not.toBeInTheDocument();
 });
 
 test("answers draw the history, say why a series is not drawn, and list the latest", async () => {

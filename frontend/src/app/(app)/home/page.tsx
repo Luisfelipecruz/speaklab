@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/card";
 import type { Progress, Recommendations, SessionPage } from "@/lib/api";
 import { serverRequestOrNull } from "@/lib/server-api";
+import { plural } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -177,7 +178,7 @@ export default async function HomePage() {
                           {session.scenario_title ?? "Read-aloud session"}
                         </Link>
                         <span className="text-xs text-muted-foreground">
-                          {when(session.started_at)} · {session.turn_count} turns
+                          {when(session.started_at)} · {plural(session.turn_count, "turn")}
                         </span>
                       </div>
                       <Badge
@@ -189,7 +190,7 @@ export default async function HomePage() {
                   ))}
                 </ul>
                 <Button asChild variant="link" size="sm" className="h-auto w-fit p-0">
-                  <Link href="/sessions">All {history.total} conversations</Link>
+                  <Link href="/sessions">All {plural(history.total, "conversation")}</Link>
                 </Button>
               </>
             ) : (

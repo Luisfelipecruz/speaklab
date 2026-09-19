@@ -257,7 +257,7 @@ export function AppSidebar({ facts }: { facts: ShellFacts | null }) {
             variant="secondary"
             className="mx-1 justify-start group-data-[collapsible=icon]:hidden"
           >
-            Progress figures are behind
+            Progress not yet counted
           </Badge>
         )}
       </SidebarFooter>

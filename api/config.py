@@ -15,7 +15,7 @@ import os
 
 # The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
 # fails when this number has no entry there, and a release is cut from that entry.
-VERSION = "0.20.0"
+VERSION = "0.21.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -56,7 +56,28 @@ HEALTH_PROBE_TIMEOUT_S = float(os.environ.get("HEALTH_PROBE_TIMEOUT_S", "1.5"))
 # ── Generation ──────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:latest")
+# A named build, never `latest`. Ollama's `gemma4` family carries several sizes under one
+# name, and `latest` is a pointer that moves when the library does; a fresh clone pulling
+# it could run a model of another size under figures measured on this one. Every number
+# the project publishes was measured on the build below, and the health probe compares
+# the pulled build's digest with it.
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
+MEASURED_MODEL = "gemma4:e4b"
+MEASURED_MODEL_DIGEST = (
+    "c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb"
+)
+# The digest the probe expects: the measured one when the measured model is configured,
+# whatever OLLAMA_MODEL_DIGEST says otherwise, and nothing when a different model is
+# configured without one. A pulled build with another digest is reported as `degraded`,
+# not `error`, because it answers; the figures just no longer describe it.
+OLLAMA_MODEL_DIGEST = os.environ.get(
+    "OLLAMA_MODEL_DIGEST",
+    MEASURED_MODEL_DIGEST if OLLAMA_MODEL == MEASURED_MODEL else "",
+)
+# The oldest Ollama that can run the measured model, from the model's own manifest. An
+# older Ollama fails `ollama pull` with a message about the format, so the probe names the
+# version before the pull is tried.
+OLLAMA_MIN_VERSION = os.environ.get("OLLAMA_MIN_VERSION", "0.20.0")
 
 # How long Ollama keeps the weights resident after a call. Its own default is five
 # minutes, which is short enough that a user who stops to think for six pays the model
