@@ -491,6 +491,8 @@ export interface PhonemeScore {
   word_idx: number;
   phone_idx: number;
   canonical_phone: string;
+  /** The same sound in words — "the vowel in \"see\"". Absent on an older response. */
+  canonical_name?: string;
   /**
    * What won the segment instead, or null. The null matters: where nothing clearly won,
    * the interface must not name a sound the model did not assert.
@@ -628,11 +630,20 @@ export function worstByWord(phonemes: PhonemeScore[]): Map<number, PhonemeScore>
  * the same sound written differently — and listing those would bury the two rows that
  * matter under two hundred that do not.
  */
+export interface ConfusionPair {
+  canonical: string;
+  /** The wanted sound in words, as the API names it. */
+  name: string;
+  heard: string;
+  count: number;
+  worst: number;
+}
+
 export function confusionPairs(
   phonemes: PhonemeScore[],
   floor: number,
-): { canonical: string; heard: string; count: number; worst: number }[] {
-  const tally = new Map<string, { canonical: string; heard: string; count: number; worst: number }>();
+): ConfusionPair[] {
+  const tally = new Map<string, ConfusionPair>();
   for (const phone of phonemes) {
     if (phone.gop >= floor || !phone.recognized_phone) continue;
     const canonical = phone.canonical_phone.replace(/[0-2]$/, "");
@@ -644,6 +655,7 @@ export function confusionPairs(
     } else {
       tally.set(key, {
         canonical,
+        name: phone.canonical_name ?? `/${canonical}/`,
         heard: phone.recognized_phone,
         count: 1,
         worst: phone.gop,

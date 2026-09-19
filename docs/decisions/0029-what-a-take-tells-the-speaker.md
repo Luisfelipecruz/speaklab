@@ -36,7 +36,17 @@ defects the same session uncovered.
    up to three words of the speaker's own script the sound was scored inside, because a
    sound is practised in words and theirs are the ones they are about to say again. The
    list appears on the script's page *and* under a take, which is where somebody is
-   standing when they ask.
+   standing when they ask — **and in the confusion table**, whose first column used to be
+   the code alone. A page that named a sound in one place and coded it in another left a
+   reader unable to tell that the two were about the same thing, which is the defect this
+   record exists to remove rather than to move. The code stays beside the name for exactly
+   that reason: two screens have to be visibly about one sound. Every scored phone carries
+   its name from the API, computed rather than stored, so read-aloud gains it too and a
+   phone scored long ago is named the moment it is read back.
+   **What came out instead keeps its own symbol.** It is whatever the acoustic model
+   asserted, in the model's own alphabet, and naming it in English would be claiming to
+   know which English sound it was meant to be — a claim from something that only reported
+   which of its own symbols scored highest.
 4. **Only the weakest few sounds are offered, and each prints what it counted.** The floor
    is the one `next_up` already used — two takes and five instances — because a sound
    heard twice describes the microphone as much as the mouth. `REHEARSAL_SOUNDS_SHOWN` is
@@ -96,6 +106,9 @@ defects the same session uncovered.
   stored with; the field is absent, which reads as null, and the screen shows those
   differences the way it did before. Nothing is re-derived, and a figure in an old take is
   still counted against its rate.
+- **The second column of the confusion table is still a symbol**, and it is the column a
+  reader is most likely to want in words. Reading `[i]` needs the alphabet; what makes the
+  row usable without it is the first column and the score beside it.
 - **The sounds list repeats the script page's own "next up" item.** The same sound is named
   in two places on purpose: one is the queue, the other is where somebody is standing.
 - **One more sentence and one more line of copy under every take**, on a page that was

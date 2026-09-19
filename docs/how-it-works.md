@@ -230,6 +230,10 @@ comparison and arithmetic, the same answer every time, and no model sees it.
 
 **A sound is named in words, beside your own.** The scorer thinks in `/IY/`; the screen
 says *the vowel in "see"* and lists up to three words of your script it was scored inside.
+The table of sounds that came out as something else names its first column the same way,
+with the code beside it, so a row there and the list above it are visibly about one sound;
+the sound that came out instead stays a symbol, because that is what the model asserted and
+nothing here knows which English sound it was meant to be.
 The names are written by hand and checked against the scorer's inventory when the service
 starts, so a sound cannot quietly lose its name. A take also says what is *not* measured:
 tone, intonation and stress are outside this product, and silence where somebody is

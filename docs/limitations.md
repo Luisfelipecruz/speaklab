@@ -130,6 +130,9 @@ that nothing in the other documents reads as a claim.
 - **Nothing here says whether the talk got better.** The counts say what one take
   contained, each beside the same count from the speaker's own previous take; whether the
   fourth is a better talk than the first is a judgement this product does not make.
+- **The sound that came out instead is shown as a symbol, not in words.** The first
+  column of that table — the sound you were aiming for — is named; the second is the
+  acoustic model's own alphabet, and reading it needs that alphabet.
 - **Tone, intonation and stress are not measured at all.** Nothing here is about how the
   words sounded together — only which words came out, how fast, and how each sound was
   made. A take says so on the page, because silence where somebody is looking for an

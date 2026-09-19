@@ -45,3 +45,27 @@ def test_the_five_a_real_speaker_ran_into_are_named_the_way_they_were_written():
     assert name_of("NG") == 'the "ng" at the end of "sing"'
     assert name_of("Z") == 'the "z" at the end of "is"'
     assert name_of("ER") == 'the vowel in "her"'
+
+
+def test_a_scored_phone_carries_its_name_beside_its_code():
+    """The wire shape a reading and a take both send.
+
+    Computed rather than stored, so a phone scored before this existed gains its name the
+    moment it is read back, and the naming table stays in one place.
+    """
+    from models.attempt import PhonemeScoreOut
+
+    scored = PhonemeScoreOut(
+        word="see",
+        word_idx=0,
+        phone_idx=0,
+        canonical_phone="IY1",
+        recognized_phone="i",
+        start_ms=0,
+        end_ms=60,
+        gop=-5.25,
+        posterior=0.1,
+    )
+
+    assert scored.canonical_phone == "IY1"
+    assert scored.canonical_name == 'the vowel in "see"'

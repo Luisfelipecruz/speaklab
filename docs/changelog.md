@@ -26,6 +26,11 @@ all of it arithmetic over counts that already existed.
   words of your own script the sound was scored inside, on the script's page and again
   under a take. All thirty-nine names are hand-written and checked against the scorer's
   inventory at import.
+- **The confusion table names the sound you were aiming for**, with its code kept beside
+  it, so a row there and the same sound named further up the page are visibly one thing.
+  Every scored phone carries its name from the API, so readings gained it too. What came
+  out instead keeps its own symbol: that is what the acoustic model asserted, and naming
+  it in English would be a claim about which English sound was meant.
 - **Every measure of a take sits beside the same measure of your previous take** of those
   words — words a minute, how long it took, the share of the time paused, the fillers, the
   differences — written out rather than drawn as an arrow, because an arrow has a
