@@ -36,7 +36,7 @@ def test_every_page_and_asset_is_written(site):
         assert (out / page.output).is_file(), page.output
     for name in ("style.css", "site.js", "favicon.svg", "404.html", "sitemap.xml"):
         assert (out / name).is_file(), name
-    assert (out / "docs" / "walkthrough.png").is_file()
+    assert (out / "docs" / "cover.png").is_file()
 
 
 def test_no_link_depends_on_the_address_the_site_is_served_from(site):
@@ -115,7 +115,7 @@ def repository(tmp_path: Path, files: dict[str, str]) -> Path:
     (root / "docs" / "decisions" / "0001-first.md").write_text(
         "# 0001 — First\n\nStatus: accepted\n", encoding="utf-8"
     )
-    (root / "docs" / "walkthrough.png").write_bytes(b"\x89PNG")
+    (root / "docs" / "cover.png").write_bytes(b"\x89PNG")
     for name, text in files.items():
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,7 +172,7 @@ def test_links_between_pages_are_relative_to_where_each_page_is(tmp_path):
         {
             "docs/decisions/0002-second.md": (
                 "# 0002 — Second\n\n[how](../how-it-works.md#x) [first](0001-first.md) "
-                "[plan](../../eval/golden/) ![image](../walkthrough.png)\n"
+                "[plan](../../eval/golden/) ![image](../cover.png)\n"
             ),
             "eval/golden/manifest.json": "{}",
         },
@@ -186,7 +186,7 @@ def test_links_between_pages_are_relative_to_where_each_page_is(tmp_path):
     assert 'href="../how-it-works.html#x"' in page
     assert 'href="0001-first.html"' in page
     assert f'href="{REPOSITORY_URL}/tree/{REVISION}/eval/golden"' in page
-    assert 'src="../docs/walkthrough.png"' in page
+    assert 'src="../docs/cover.png"' in page
 
 
 def test_a_date_anywhere_but_the_changelog_fails_the_build(tmp_path):

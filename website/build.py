@@ -33,7 +33,7 @@ HERE = Path(__file__).resolve().parent
 REPOSITORY = "Luisfelipecruz/speaklab"
 REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
 SITE_URL = "https://luisfelipecruz.github.io/speaklab/"
-SOCIAL_IMAGE = "docs/walkthrough.png"
+SOCIAL_IMAGE = "docs/cover.png"
 MARKER = ".speaklab-site"
 SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
 # Dates belong in the changelog. Every other document describes the system as it is.

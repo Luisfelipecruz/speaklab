@@ -16,9 +16,9 @@
 
 </div>
 
-![A conversation after it has ended: each correction marked on the words it was about and listed under the turn](docs/walkthrough.png)
+![SpeakLab: an English speaking coach that runs on your own laptop. One exchange from a conversation on the stack: the persona's spoken opening, the learner's turn as heard with its correction, the spoken reply with the turn's timings, and the counts underneath; beside it, the stack it runs on](docs/cover.png)
 
-<sub>A correction exactly as the model proposed it: it fixed the verb and not the question — *how much does it cost* — and filed it under word order. That is why every correction is measured, and why detection stands at 0.500 precision, below its own bar.</sub>
+<sub>One exchange from a conversation run on this stack, rendered as a panel rather than screenshotted. The persona's opening line as Piper spoke it, the learner's turn as Whisper heard it with the correction the analysis proposed, the reply Gemma 3 wrote and Piper spoke, and the turn's timings — heard, thought, spoke. The waveforms are the recordings' own envelopes and the counts are the session report's. Every word and number is as the system produced it; only the layout is not the app's.</sub>
 
 Practise spoken English against models that run on your machine: a role-play with a persona who answers out loud, a passage read aloud and scored sound by sound, or a work question answered in one go.
 Everything that moves on a chart is counted by code from what you said — the speed, the verb forms you used, each correction on the words it was about, how an answer was built — and a language model explains the numbers without ever producing one.
@@ -32,18 +32,33 @@ Nothing leaves the machine, and every figure here is measured and names what pro
   viewing to a courier at your door. Hold to speak: Whisper writes it down, a local model
   answers in character, and Piper says the answer. When the conversation ends, each
   correction is marked on the words it was about.
+
+  ![A conversation in progress: the persona's spoken turn, the learner's turn with its recording, and the record button, with the last turn timed underneath — heard, thought, spoke](docs/screens/talk.png)
+
 - **Read a passage aloud and see it scored sound by sound.** Twelve passages, aligned
   against what you said and scored per phoneme — Goodness of Pronunciation, from an
   acoustic model that heard the waveform, not a language model reading a transcript.
+
+  ![A passage read aloud: what was heard, the word error rate against the passage, and the sounds worth practising — the sound the text asked for, the one that came out, how often, and the worst score](docs/screens/read.png)
+
 - **Answer a work question in one go — *Make your point*.** Thirteen prompts. The reasons,
   examples, steps, contrasts and summing up in your answer are counted and marked on your
   words, with a model's notes and a shorter version of your own answer beside the counts.
+
+  ![A spoken answer counted: words, words a minute, time paused and fillers, then reasons, examples, steps, contrasts and summings-up, each marked on the transcript](docs/screens/answer.png)
+
 - **See your grammar in your own sentences.** Every correction grouped by kind in the
   sentence you said it in; each verb form as a count — *right 9 of 13* — and never a
   percentage; any sentence said again and compared with what the recogniser heard.
+
+  ![The grammar page: a notice on what the corrections are worth, corrections by kind with the sentence they were in and a button to say it again, and the verb forms used with how often each was right](docs/screens/grammar.png)
+
 - **Follow progress that refuses to overclaim.** One row per week, a hole with a reason
   where a week had too little speech, pronunciation as a distance from your own recent
   readings, and recommendations that print the measurement that chose them.
+
+  ![The progress page: counts of conversations, turns, words, scored readings and sounds; what to practise next, ranked from stored corrections and the weakest sounds and marked as thin evidence; and the four families with nothing measured yet](docs/screens/progress.png)
+
 - **Keep your data.** Nothing leaves the machine, and your whole history exports as one
   JSON document.
 
