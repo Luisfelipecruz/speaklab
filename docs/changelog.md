@@ -50,6 +50,15 @@ one dropped connection no longer.
   bargain!", 723 ms.
 - The account behind the screens: the badge read 1 beside a History page listing none;
   now both read none.
+- `make eval` at the code commit, 16 min 53 s, all five suites: S4 not run, S5 0.500 over
+  6, S6 1.72 %, S7 not met — unchanged. Moved run to run: persona replies clean 8 of 9 (one
+  did not end with its question), gave its instructions away 2 of 150, stepped out of the
+  scene 15 of 150 — above the 4 to 10 seen before, 7 of the 15 on the phrasing that names
+  the phrase, 1 in the letting agent's scene; the seven figure questions 70 of 70; a
+  mistake said aloud heard as its correction 1 of 89, a corrected one heard as something
+  else 1 of 89; articles, prepositions and false friends heard as said 18, 17 and 18 of
+  20; the spoken answers' median time 4470 ms. API 1 084 — 1 046 pass, 38 skip; frontend
+  331 / 52; site 46 tests, 39 pages.
 
 ---
 
