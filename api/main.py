@@ -26,6 +26,7 @@ from routers.drills import router as drills_router
 from routers.grammar import router as grammar_router
 from routers.health import router as health_router
 from routers.passages import router as passages_router
+from routers.presentations import router as presentations_router
 from routers.progress import router as progress_router
 from routers.scenarios import router as scenarios_router
 from routers.sessions import router as sessions_router
@@ -77,6 +78,11 @@ TAGS = [
         "name": "answers",
         "description": "A spoken answer to a work question: how it was said and how "
         "it was built, counted by code.",
+    },
+    {
+        "name": "presentations",
+        "description": "A script of your own, rehearsed section by section: what was "
+        "heard against what was written, how it was said, and the sounds.",
     },
     {
         "name": "progress",
@@ -139,6 +145,9 @@ ROUTERS = (
     # A spoken answer to a work prompt: how it was said and how it was built, counted,
     # with a language model's feedback beside the counts.
     answers_router,
+    # A script the learner wrote, rehearsed section by section. After answers because it
+    # reuses their arithmetic, and last because it is the newest thing a reader meets.
+    presentations_router,
 )
 
 for router in ROUTERS:

@@ -3,7 +3,7 @@
 Three properties, on a scratch database of their own so nothing here can disturb the
 suite's seeded one:
 
-1. **`upgrade head` builds all fourteen tables** and every enum type.
+1. **`upgrade head` builds all eighteen tables** and every enum type.
 2. **`downgrade base` removes all of it**, types included. A downgrade that leaves an
    enum behind fails on the *next* upgrade, minutes later, as `type already exists` —
    so up, down and up again is run in one test.
@@ -40,7 +40,11 @@ EXPECTED_TABLES = {
     "language_errors",
     "passages",
     "phoneme_scores",
+    "presentation_sections",
+    "presentations",
     "progress_snapshots",
+    "rehearsal_phones",
+    "rehearsals",
     "scenarios",
     "sessions",
     "turns",
@@ -92,7 +96,7 @@ def _enums(url) -> set[str]:
         engine.dispose()
 
 
-def test_upgrade_head_creates_the_fourteen_tables(scratch):
+def test_upgrade_head_creates_the_eighteen_tables(scratch):
     upgrade(scratch)
 
     # alembic_version is Alembic's own bookkeeping, not part of the data model.

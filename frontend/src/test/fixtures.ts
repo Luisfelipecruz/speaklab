@@ -20,14 +20,19 @@ import type {
   MetricFamily,
   PassageDetail,
   PhonemeScore,
+  Presentation,
+  PresentationPage,
+  PresentationSummary,
   Progress,
   Recommendations,
   Repertoire,
   ScenarioSummary,
+  Section,
   SessionAnalysis,
   SessionDetail,
   SessionReportShape,
   SpokenAnswer,
+  Take,
   TrendSeries,
   Turn,
 } from "@/lib/api";
@@ -634,6 +639,110 @@ export function makeAnswersPage(overrides: Partial<AnswersPage> = {}): AnswersPa
       }),
     ],
     caveat: "One point per answer, whichever prompt it answered.",
+    ...overrides,
+  };
+}
+
+// ── Rehearsing a script ─────────────────────────────────────────────────────
+
+export function makeSection(overrides: Partial<Section> = {}): Section {
+  return {
+    id: 1,
+    idx: 0,
+    body: "Good morning. I am glad you came.",
+    word_count: 7,
+    target_seconds: null,
+    scorable: true,
+    unscorable_words: [],
+    takes: 0,
+    latest: null,
+    ...overrides,
+  };
+}
+
+export function makeTake(overrides: Partial<Take> = {}): Take {
+  return {
+    id: 7,
+    section_id: 1,
+    created_at: "2026-09-20T09:15:00Z",
+    wer: 0.14,
+    missed: 1,
+    duration_ms: 42_000,
+    speech_rate_wpm: 128,
+    fillers: 2,
+    pron_status: "scored",
+    median_gop: -1.2,
+    audio_url: "/audio/3",
+    transcript: "Good morning I am glad you came",
+    asr_confidence: 0.95,
+    fidelity: {
+      wer: 0.14,
+      reference_words: 7,
+      substitutions: 1,
+      deletions: 0,
+      insertions: 0,
+      words: [
+        { kind: "match", expected: "good", heard: "good", unsure: false },
+        { kind: "substitution", expected: "morning", heard: "warning", unsure: false },
+      ],
+      unsure_words: 0,
+      caveat: "Compared with your script word by word.",
+    },
+    delivery: {
+      words: 7,
+      duration_ms: 42_000,
+      speech_rate_wpm: 128,
+      articulation_rate: 150,
+      pause_ratio: 0.14,
+      mean_length_run: 9,
+      fillers: 2,
+      fillers_per_100_words: 28.6,
+    },
+    pronunciation: "ok",
+    pronunciation_detail: null,
+    phonemes: [],
+    summary: null,
+    target_seconds: null,
+    pace: null,
+    caveat: "Counted from this recording alone.",
+    ...overrides,
+  };
+}
+
+export function makePresentation(overrides: Partial<Presentation> = {}): Presentation {
+  return {
+    id: 3,
+    title: "Quarterly update",
+    word_count: 60,
+    created_at: "2026-09-20T09:00:00Z",
+    updated_at: "2026-09-20T09:20:00Z",
+    sections: [makeSection(), makeSection({ id: 2, idx: 1, body: "First the numbers.", word_count: 3 })],
+    ...overrides,
+  };
+}
+
+export function makePresentationPage(
+  overrides: Partial<PresentationPage> = {},
+): PresentationPage {
+  return {
+    presentation: makePresentation(),
+    next_up: [],
+    caveat: "Counted from your takes of this script only.",
+    ...overrides,
+  };
+}
+
+export function makePresentationSummary(
+  overrides: Partial<PresentationSummary> = {},
+): PresentationSummary {
+  return {
+    id: 3,
+    title: "Quarterly update",
+    word_count: 60,
+    sections: 2,
+    takes: 5,
+    created_at: "2026-09-20T09:00:00Z",
+    updated_at: "2026-09-20T09:20:00Z",
     ...overrides,
   };
 }

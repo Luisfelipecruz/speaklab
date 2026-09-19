@@ -392,6 +392,79 @@ def test_text_the_tokeniser_and_g2p_disagree_about_is_refused():
     assert response.status_code == 422
 
 
+# ── Which words can be scored at all ────────────────────────────────────────
+
+
+def phonemize(text: str) -> dict:
+    response = httpx.post(f"{PRON_URL}/phonemize", data={"text": text}, timeout=60.0)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_every_seeded_passage_is_scorable_word_by_word():
+    """All 12, checked the way a text is checked before anyone records it.
+
+    The passage-level check above says the whole text aligns. This says no single word in
+    any of them would have to be named to its writer — the same twelve, through the same
+    converter, one word at a time. The two can disagree, and the day they do it is the
+    per-word check that is wrong, because scoring uses the whole-text conversion.
+    """
+    with open(SEEDS, encoding="utf-8") as handle:
+        passages = {p["slug"]: p for p in json.load(handle)}
+
+    print()
+    for slug, (words, _phones) in EXPECTED.items():
+        result = phonemize(passages[slug]["body"])
+        assert result["unscorable"] == [], f"{slug}: {result['unscorable']}"
+        assert result["words"] == words, f"{slug}: {result['words']} words"
+        print(f"  ok  {slug:<30} {words:>3} words  0 unscorable")
+
+
+def test_the_words_that_would_desync_a_text_are_named_before_it_is_recorded():
+    """A number and a percentage, named; and the same text refused by the scorer.
+
+    Both halves matter. The naming is what a writer is shown, and the 422 is what the
+    naming predicts: the text that has these words in it cannot be scored at all, so the
+    words are the difference between a section scored and a section not. `Q3` is not among
+    them although it looks like the same kind of thing — the converter answers it in one
+    group, so it scores, against the phones of *q-three*.
+    """
+    text = "Revenue grew 12% in Q3 2026, per the API."
+    result = phonemize(text)
+    assert result["unscorable"] == ["12%", "2026"]
+    assert result["words"] == 7
+
+    from tests.conftest import silent_wav
+
+    refused = httpx.post(
+        f"{PRON_URL}/score",
+        files={"file": ("tiny.wav", silent_wav(400, 16000), "audio/wav")},
+        data={"text": text},
+        timeout=60.0,
+    )
+    assert refused.status_code == 422
+    assert "desync" in refused.json()["detail"]
+    print(f"\n  named {result['unscorable']}, and /score answers 422")
+
+
+def test_the_same_words_respelled_as_they_are_said_leave_nothing_unscorable():
+    """The advice on the page, checked against the converter that has to accept it.
+
+    Telling someone to spell a number the way they say it is only advice if the result
+    converts. It does: the sentence above, with its figures written out, has a phone group
+    for every word.
+    """
+    text = "Revenue grew twelve percent in Q3 twenty twenty-six, per the API."
+    result = phonemize(text)
+    assert result["unscorable"] == []
+    assert result["words"] == 11
+
+
+def test_an_empty_text_is_refused_rather_than_answered_with_nothing():
+    response = httpx.post(f"{PRON_URL}/phonemize", data={"text": "   "}, timeout=30.0)
+    assert response.status_code == 422
+
+
 # ── Latency ─────────────────────────────────────────────────────────────────
 
 

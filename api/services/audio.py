@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from config import AUDIO_ROOT, MAX_UPLOAD_BYTES
-from db_models import Attempt, AudioAsset, Turn, User
+from db_models import Attempt, AudioAsset, Rehearsal, Turn, User
 from models.audio import SourceMedia, Transcription
 from services.asr_client import transcribe
 
@@ -200,9 +200,10 @@ async def delete_unreferenced_assets(
 
     **Unreferenced is checked, not assumed.** An asset is content-addressed and unique
     per `(user_id, sha256)`, so one row can legitimately be pointed at by more than one
-    turn, and by a read-aloud attempt as well. Deleting on the strength of "this session
-    referenced it" would eventually take a recording out from under an attempt that was
-    still using it. The two `NOT EXISTS` checks below are what make this safe.
+    turn, by a read-aloud attempt, and by a take of a rehearsal. Deleting on the strength
+    of "this session referenced it" would eventually take a recording out from under a
+    reading that was still using it. The three `NOT EXISTS` checks below are what make
+    this safe.
 
     Files are **not** removed here. The rows are deleted, the caller commits, and only
     then does it unlink — the mirror of `store_recording`, which writes the file before
@@ -219,6 +220,9 @@ async def delete_unreferenced_assets(
     still_used_by_attempt = (
         select(Attempt.id).where(Attempt.audio_asset_id == AudioAsset.id).exists()
     )
+    still_used_by_take = (
+        select(Rehearsal.id).where(Rehearsal.audio_asset_id == AudioAsset.id).exists()
+    )
 
     orphans = list(
         (
@@ -227,6 +231,7 @@ async def delete_unreferenced_assets(
                     AudioAsset.id.in_(asset_ids),
                     ~still_used_by_turn,
                     ~still_used_by_attempt,
+                    ~still_used_by_take,
                 )
             )
         ).all()

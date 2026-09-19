@@ -157,6 +157,18 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         # up with the user in the same WHERE.
         ("GET", "/answers"),
         ("POST", "/answers"),
+        # A script of the learner's own. Scoped by a column on the presentation, and the
+        # sections and takes underneath it are reached only through one — a take fetched
+        # by its own id carries a `user_id` of its own for the same reason an answer does.
+        ("POST", "/presentations/preview"),
+        ("POST", "/presentations"),
+        ("GET", "/presentations"),
+        ("GET", "/presentations/{presentation_id}"),
+        ("PATCH", "/presentations/{presentation_id}/sections/{idx}"),
+        ("DELETE", "/presentations/{presentation_id}"),
+        ("POST", "/presentations/{presentation_id}/sections/{idx}/takes"),
+        ("GET", "/presentations/{presentation_id}/sections/{idx}/takes"),
+        ("GET", "/presentations/takes/{take_id}"),
     }
 
 

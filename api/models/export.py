@@ -2,9 +2,11 @@
 
 **Everything the account made.** Sessions with their turns, each turn with the
 measurements and corrections taken from it, every reading with its scored sounds, every
-spoken answer, and the weekly snapshots the progress page reads. Scenarios, passages and
-prompts are named by slug rather than copied: they are catalogue content, the same for
-every account, and not part of anybody's history.
+spoken answer, every script with its sections and every take of one, and the weekly
+snapshots the progress page reads. Scenarios, passages and prompts are named by slug
+rather than copied: they are catalogue content, the same for every account, and not part
+of anybody's history. A script is not — it is the account's own writing, and it is
+exported whole.
 
 **Recordings are addresses, not bytes.** Each is listed with its length, format and hash,
 and with the `/audio/{id}` path that streams it to its owner. A JSON document is no place
@@ -154,6 +156,51 @@ class ExportAnswer(ORMModel):
     created_at: datetime
 
 
+class ExportSection(ORMModel):
+    idx: int
+    body: str
+    word_count: int
+    target_seconds: int | None
+    scorable: bool
+    unscorable_words: list[str]
+
+
+class ExportPresentation(ORMModel):
+    """One script the account wrote, with the sections it is rehearsed in."""
+
+    id: int
+    title: str
+    script: str
+    word_count: int
+    audience_brief: str | None
+    created_at: datetime
+    updated_at: datetime
+    sections: list[ExportSection] = Field(default_factory=list)
+
+
+class ExportRehearsal(ORMModel):
+    """One take of one section: what was heard, how it was said, and its sounds."""
+
+    id: int
+    presentation_id: int | None = None
+    section_idx: int | None = None
+    audio_url: str | None = None
+    transcript: str
+    words: list[dict]
+    duration_ms: int | None
+    asr_confidence: float | None
+    asr_model: str | None
+    wer: float
+    alignment: dict
+    delivery: dict
+    pron_status: str
+    pron_detail: str | None
+    pron_summary: dict | None
+    phones: list[ExportPhone] = Field(default_factory=list)
+    scored_at: datetime | None
+    created_at: datetime
+
+
 class ExportSnapshot(ORMModel):
     period: str
     period_start: date
@@ -176,4 +223,6 @@ class HistoryExport(BaseModel):
     sessions: list[ExportSession] = Field(default_factory=list)
     readings: list[ExportReading] = Field(default_factory=list)
     answers: list[ExportAnswer] = Field(default_factory=list)
+    presentations: list[ExportPresentation] = Field(default_factory=list)
+    rehearsals: list[ExportRehearsal] = Field(default_factory=list)
     snapshots: list[ExportSnapshot] = Field(default_factory=list)

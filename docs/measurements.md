@@ -107,6 +107,14 @@ learner's speech will be worse by an amount that set cannot estimate.
 | … and whether it is a version at all | none of the 40 is the answer word for word; its words a median **0.72** of the answer's (0.32–0.99); the answer's content words kept, median **0.73**, least 0.32 | [evaluation.md](evaluation.md) |
 | The check on a shorter version | withholds **6 of 6** rewrites written to add a fact, and shows 6 of 6 faithful ones | [evaluation.md](evaluation.md) |
 
+## Rehearse
+
+| Measure | Figure | Source |
+|---|---|---|
+| **Which words of a script can be scored** | all **12 of 12** seeded passages are scorable word by word; `Revenue grew 12% in Q3 2026, per the API.` names `12%` and `2026` and nothing else — `Q3` converts in one group and scores, against the phones of *q-three*. The same text is refused by the scorer with a desync, which is what the naming predicts | `make pron-golden` |
+| … and what it costs to ask | **3 ms** for a 120-word section, converted word by word, against 2 ms for the same text converted whole | the converter in the `pron` container |
+| **One take, on the live stack** | a human recording of a nine-word line, rehearsed against that line: **9 of 9 words matched**, 191 words a minute, no pauses, **35 phones scored**, median GOP 0.0, the three weakest all inside *curiosity* | `POST /presentations/{id}/sections/{idx}/takes` against the running stack |
+
 ## Progress
 
 | Measure | Figure | Source |

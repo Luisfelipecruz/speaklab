@@ -204,3 +204,90 @@ def test_flatten_is_the_single_definition_of_position_n(g2p_module):
         (1, "cat", 1, "AE1"),
         (1, "cat", 2, "T"),
     ]
+
+
+# ── The words that cannot be scored at all ──────────────────────────────────
+
+# What real `g2p_en` 2.1.0 returns for each of these tokens converted on its own, with a
+# space where it closed a group. They are the shapes that desync a passage: the tokeniser
+# counts a word when it sees a letter, and the converter counts one whenever it has
+# something to say. `test_gop.py` asserts the same tokens against the live service, which
+# is the half of the contract a stub cannot hold.
+CONVERTED = {
+    "Revenue": ["R", "EH1", "V", "AH0", "N", "UW2"],
+    "grew": ["G", "R", "UW1"],
+    "12%": ["T", "W", "EH1", "L", "V"],
+    "in": ["IH0", "N"],
+    "Q3": ["K", "TH", "R", "IY1"],
+    # fmt: off
+    "2026": ["T", "W", "EH1", "N", "T", "IY0", " ",
+             "T", "W", "EH2", "N", "T", "IY0", "S", "K", "AY1", "Z"],
+    "2026,": ["T", "W", "EH1", "N", "T", "IY0", " ",
+              "T", "W", "EH2", "N", "T", "IY0", "S", "K", "AY1", "Z", " ", ","],
+    # fmt: on
+    "per": ["P", "ER1"],
+    "the": ["DH", "AH0"],
+    "API.": ["AA1", "P", "IY0", " ", "."],
+    "e.g.": ["F", "AO1", "R", " ", "IH0", "G", "Z", "AE1", "M", "P", "AH0", "L"],
+    "—": [],
+    "cat": ["K", "AE1", "T"],
+    "sat": ["S", "AE1", "T"],
+}
+
+
+def converter(token):
+    """A stub with the real converter's answers in it, loud about anything unmeasured.
+
+    Raising on an unknown token is the point: it pins the unit under conversion. If this
+    ever converted whole texts instead of words, every test below would fail here rather
+    than quietly measure something else.
+    """
+    return CONVERTED[token]
+
+
+def test_a_number_is_named_because_the_converter_makes_words_the_text_has_none_of(
+    g2p_module,
+):
+    """`2026` is no word to the tokeniser and two to the converter.
+
+    Left in the text it does not fail on its own: it adds phone groups nothing owns, and
+    every phone after it is attributed to the word before. The whole passage is then
+    refused, naming none of the words responsible — which is why they are found one at a
+    time, before anything is recorded.
+    """
+    assert g2p_module.unscorable_words("in 2026", converter) == ["2026"]
+
+
+def test_a_text_the_converter_matches_word_for_word_names_nothing(g2p_module):
+    assert g2p_module.unscorable_words("the cat sat", converter) == []
+
+
+def test_a_standalone_em_dash_is_not_named(g2p_module):
+    """It is no word and no phones — the two counts agree, so there is nothing to fix."""
+    assert g2p_module.unscorable_words("the cat — sat", converter) == []
+
+
+def test_an_abbreviation_that_becomes_two_words_is_named(g2p_module):
+    """One word by the letter rule, two by the converter: `e.g.` is read *for example*."""
+    assert g2p_module.unscorable_words("e.g. the cat", converter) == ["e.g"]
+
+
+def test_the_spelling_named_is_the_one_the_writer_can_find(g2p_module):
+    """Edge marks off, case as written: it has to be searchable in their own text."""
+    assert g2p_module.unscorable_words("grew in 2026,", converter) == ["2026"]
+
+
+def test_a_word_named_twice_is_listed_once(g2p_module):
+    assert g2p_module.unscorable_words("2026 the 2026", converter) == ["2026"]
+
+
+def test_what_is_named_is_what_a_number_does_not_what_a_symbol_looks_like(g2p_module):
+    """The rule is the two counts, not a list of suspicious characters.
+
+    `12%` is named because the converter makes a word of it and the tokeniser does not.
+    `Q3` is not, although it looks the same kind of thing: the converter answers it in one
+    group, so it scores — against the phones of *q-three*, which is how it would be read
+    aloud.
+    """
+    text = "Revenue grew 12% in Q3 2026, per the API."
+    assert g2p_module.unscorable_words(text, converter) == ["12%", "2026"]

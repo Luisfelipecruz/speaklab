@@ -109,6 +109,28 @@ that nothing in the other documents reads as a claim.
 - **Whether practising here makes anyone clearer.** The counts say what an answer
   contains, and a count is not clarity. That needs a person and weeks.
 
+## Rehearse
+
+- **A sentence longer than a section stays one section.** The split cuts at sentence ends
+  and nowhere else, so a 200-word sentence is saved whole and over the cap. It is still
+  compared and counted; its sounds take longer to score than a section's budget assumes,
+  and nothing warns the writer beyond the word count on the page.
+- **Which words can be scored is only known with the pronunciation service running.** It
+  is profiled and off by default, so on a fresh clone every section is saved as scorable
+  and the page says the check did not happen. A script saved that way keeps that answer
+  until it is saved again — there is no re-check, and a section with a number in it will
+  simply have no sounds on every take.
+- **A word the converter cannot phonemise is named, not handled.** The fix is the
+  writer's: spell the figure the way it is said. Until they do, that section has a
+  comparison and timings and no sounds at all, and there is no partial scoring of the words
+  around it.
+- **A take cannot be scored again.** It is scored once, from the bytes in the request, so
+  a take recorded while the scorer was down has no sounds and no way to get them but
+  recording again. That is the price of not refusing accounts that keep no audio.
+- **Nothing here says whether the talk got better.** The counts say what one take
+  contained and the takes sit side by side; whether the fourth is a better talk than the
+  first is a judgement this product does not make.
+
 ## Progress
 
 - **The progress page has almost nothing to show, and criterion S7 is not met.** S7 asks

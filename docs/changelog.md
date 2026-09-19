@@ -7,6 +7,56 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.23.0] — 2026-09-20 · rehearse a script of your own
+
+Paste the script of a talk and say it back a section at a time: every take is compared
+with what you wrote word by word, timed and counted, and scored sound by sound, and the
+takes sit side by side.
+
+### Added
+
+- **Rehearse**, at `/rehearse`. A pasted script is split into sections of about a
+  paragraph — blank lines first, then sentence ends where a piece is over 120 words — and
+  the split is shown before anything is saved, with sections that can be joined. What is
+  saved is checked against the script word for word, so a boundary moves and a sentence
+  cannot be quietly rewritten. No model is involved anywhere in the split.
+  [Decision 0028](decisions/0028-rehearsing-a-presentation.md).
+- **A take**: one recording of one section, transcribed, compared with the section by the
+  alignment a reading is scored with, counted like a spoken answer, and scored sound by
+  sound in the background. The words missed, changed and added are marked on the script,
+  the ones the recogniser was unsure of are marked as such, and the takes are listed
+  newest first with what each was worth.
+- **The words that cannot be turned into phones are named when the script is saved**, not
+  when the first take fails. `pron` gained `POST /phonemize`, which converts each word of a
+  text on its own and reports the ones where the tokeniser and the converter disagree — a
+  number, a symbol, an abbreviation. Those sections keep their comparison, their timings
+  and their counts; the page names the words and what to do about them.
+- **A take on an account that keeps no recordings is scored anyway.** The scoring job is
+  handed the recording rather than reading it back from disk, so retention costs the
+  replay and nothing else, and the page says so before the take rather than after.
+- **What to rehearse next**, four counts, each printing its own measurement: the section
+  furthest from its script, the phone with the lowest mean score, a section over the time
+  you set for it, and the filler said most often. Nothing from a language model, and
+  nothing that moves the progress page — a script you wrote and said forty times is
+  practice, not a sample of how you speak unprepared.
+- **Nine operations under `/presentations`**, four tables (migration `0008`), and the
+  export carries every script with its sections and every take with its sounds.
+
+### Measured
+
+- All 12 of 12 seeded passages are scorable word by word.
+  `Revenue grew 12% in Q3 2026, per the API.` names `12%` and `2026` and nothing else, and
+  the same text is refused by the scorer with a desync — which is what the naming predicts.
+  Written out as `twelve percent` and `twenty twenty-six`, nothing is named.
+- Converting a 120-word section word by word costs 3 ms, against 2 ms for the same text
+  converted whole.
+- One take on the live stack, a human recording of a nine-word line rehearsed against that
+  line: 9 of 9 words matched, 191 words a minute, no pauses, 35 phones scored, median GOP
+  0.0, the three weakest all inside *curiosity*. Deleting the script took the take and its
+  recording with it, and the recording's own address answered 404 afterwards.
+
+---
+
 ## [0.22.0] — 2026-09-19 · a persona that answers the question, and counts that agree
 
 The letting agent answers a question asked with a figure instead of selling past it, the

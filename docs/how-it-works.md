@@ -193,6 +193,46 @@ word the speaker never said into any of 40 labelled answers, so none is withheld
 was withheld for 9 of the 40 — and the check withholds 6 of 6 rewrites written to add a
 fact while letting 6 of 6 faithful ones through.
 
+## Rehearse
+
+**Paste the script of a talk and say it back, a section at a time.** The split is
+arithmetic: blank lines are kept as the parts the writer meant, a paragraph over 120 words
+is cut at sentence ends into the fewest pieces that fit, and a piece too short to be worth
+practising is joined to the one before it. A sentence longer than a section on its own is
+left whole, because the only place to cut it is inside a sentence. It is shown before
+anything is saved and a boundary can be moved; what is saved is checked against the script
+word for word, so a boundary moves and a sentence cannot be quietly rewritten. No model is
+involved anywhere in this.
+
+**Which words can be scored is decided before you record.** Scoring sounds needs one group
+of phones per word, and a number, a symbol or an abbreviation breaks that: to the converter
+`2026` is two words and `12%` is one where the text has none. Those sections still get
+everything else — the comparison, the timings, the counts — and the words are named on the
+page rather than skipped, because a word silently dropped is a sound never scored and
+nothing on screen would say so. Written the way they are said, they convert.
+
+**Every take is counted three ways and judged in none.** What was heard against what you
+wrote, word by word, by the same alignment a reading is scored with, with the words the
+recogniser was unsure of marked rather than excused. How it was said — words a minute, the
+share of the time paused, the fillers — the arithmetic a spoken answer gets. And the
+sounds, scored from the waveform by the same model that scores a reading. The only
+comparison is with a time you set yourself, and the takes sit side by side so the fourth
+can be read against the first.
+
+**What to rehearse next is four counts**, each printing its own measurement: the section
+furthest from its script and by how many words, the phone with the lowest mean score and in
+how many takes, a section over the target you set, and the filler said most often across
+your takes. Nothing here comes from a language model, and none of it moves the progress
+page: a script you wrote and said forty times is practice, not a sample of how you speak
+unprepared.
+
+**Measured.** A human recording of a nine-word line, rehearsed against that line on the
+live stack: every word matched, 191 words a minute, 35 phones scored, median GOP 0.0, and
+the three weakest phones all inside *curiosity*. All twelve seeded passages are scorable
+word by word; `Revenue grew 12% in Q3 2026, per the API.` names `12%` and `2026` and
+nothing else, and the same text is refused by the scorer — which is what the naming
+predicts.
+
 ## Progress
 
 Everything analysed is collapsed into one row per week, and the progress page reads those
