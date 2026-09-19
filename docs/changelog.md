@@ -54,6 +54,17 @@ takes sit side by side.
   line: 9 of 9 words matched, 191 words a minute, no pauses, 35 phones scored, median GOP
   0.0, the three weakest all inside *curiosity*. Deleting the script took the take and its
   recording with it, and the recording's own address answered 404 afterwards.
+- `make eval` at the code commit, 16 min 13 s, all five suites: S4 not run, S5 0.500 over
+  6, S6 1.72 %, S7 not met — unchanged. Moved run to run: persona replies clean 8 of 9 (one
+  did not end with its question) and judged in character 8 of 9; gave its instructions away
+  5 of 150, stepped out of the scene 4 of 150 — back inside the 4 to 10 seen before the
+  previous run's 15, and all four on the phrasing that says to stop acting; the seven
+  figure questions 70 of 70; a mistake said aloud heard as its correction 2 of 89, a
+  corrected one heard as the mistake 0 of 89; articles, prepositions and false friends
+  heard as said 17, 16 and 18 of 20; a spoken answer's fillers written down 21 of 24 and
+  its sentence count within one of the written in 6 of 12, the lowest measured; the
+  shorter version's median time 4228 ms. API 1 163 — 1 121 pass, 42 skip; frontend
+  56 suites / 351 tests; site 46 tests, 40 pages.
 
 ---
 
