@@ -18,7 +18,7 @@
 
 ![SpeakLab: an English speaking coach that runs on your own laptop. One exchange from a conversation on the stack: the persona's spoken opening, the learner's turn as heard with its correction, the spoken reply with the turn's timings, and the counts underneath; beside it, the stack it runs on](docs/cover.png)
 
-<sub>One exchange from a conversation run on this stack, rendered as a panel rather than screenshotted. The persona's opening line as Piper spoke it, the learner's turn as Whisper heard it with the correction the analysis proposed, the reply Gemma 3 wrote and Piper spoke, and the turn's timings — heard, thought, spoke. The waveforms are the recordings' own envelopes and the counts are the session report's. Every word and number is as the system produced it; only the layout is not the app's.</sub>
+<sub>One exchange from a conversation run on this stack at `0.20.0`, rendered as a panel rather than screenshotted. The persona's opening line as Piper spoke it, the learner's turn as Whisper heard it with the correction the analysis proposed, the reply Gemma 4 wrote and Piper spoke, and the turn's timings — heard, thought, spoke. The waveforms are the recordings' own envelopes and the counts are the session report's. Every word and number is as the system produced it; only the layout is not the app's.</sub>
 
 Practise spoken English against models that run on your machine: a role-play with a persona who answers out loud, a passage read aloud and scored sound by sound, or a work question answered in one go.
 Everything that moves on a chart is counted by code from what you said — the speed, the verb forms you used, each correction on the words it was about, how an answer was built — and a language model explains the numbers without ever producing one.
@@ -239,7 +239,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | | Criterion | Where it stands | Settled by |
 |---|---|---|---|
 | S1 | A clean clone reaches all-healthy with no manual editing — within five minutes, model downloads included, by §9.2 | **Met**: `make setup` 2 min 33 s, Whisper loaded at 2 min 43 s. Missed at 7 min 12 s by the same build on a slower connection | a cold copy of `main` and `make setup`; see [the first run](docs/measurements.md#the-first-run-measured-twice) |
-| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2684 ms over 20 turns, on Gemma 3. On a busy one, missed: 5356 ms at a load average of 17, and 5330 ms at 3.6–7.0 with another stack's containers working beside it; Gemma 4 with thinking off 4058 ms at 7.8–12, against Gemma 3's 4417 back to back | `make turn-latency` |
+| S2 | A whole conversation end to end, p95 turn latency ≤ 3 s | **Met** on a quiet machine: 2035 ms over 20 turns on Gemma 4 with thinking off, 2684 ms on Gemma 3. On a busy one, missed: 5356 ms at a load average of 17, and 5330 ms at 3.6–7.0 with another stack's containers working beside it; the two models back to back on a busy machine, Gemma 4 4058 ms at 7.8–12 against Gemma 3's 4417 | `make turn-latency` |
 | S3 | A read-aloud attempt returns per-phoneme GOP within 10 s | **Met**: 250 sounds of a 34-second reading scored in 7.5 s | `make pron-golden` |
 | S4 | GOP separates mispronounced from correct recordings of the same passage | **Never run.** It needs five minutes of a person's voice, following [the protocol](eval/golden/pron/README.md) | `make eval` |
 | S5 | Error detection ≥ 0.70 precision on the hand-labelled turns | **Undecidable**: 0.500 over 6 scored proposals | `make eval` |

@@ -78,6 +78,11 @@ models back to back on the same machine:
 | Recognition, median | 1400 ms | 1424 ms |
 | Synthesis tail, median | 734 ms | 525 ms |
 
+The same twenty turns on Gemma 4 with thinking off on a quiet machine, at a load average
+of 0.7–1.6: p95 **2035 ms**, median 1849; recognition 826 ms, generation 810 (p95 1041)
+and a synthesis tail of 174 ms at the median; no cold model load. Gemma 3's quiet figure is
+2684 ms.
+
 Both miss the 3 s budget on that machine, where recognition alone takes 1.4 s; generation is
 level, and the token estimator's error on Gemma 4's counts is +5.5 % mean, −5.5 % at worst,
 inside the 1.25 margin the context window is sized from.
@@ -110,4 +115,4 @@ tokens.
   provider then takes `think` per call and the detector asks for it.
 - A model with a real system channel is configured: the persona's twice-anchoring is
   built for a model without one, and its cost is thirty tokens a turn.
-- The quiet-machine S2 figure is re-taken on Gemma 4 and misses where Gemma 3 met it.
+- A quiet-machine S2 run on Gemma 4 misses where Gemma 3 met it.
