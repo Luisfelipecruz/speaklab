@@ -31,7 +31,16 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh }),
 }));
 
-const SECTIONS = ["Home", "Scenarios", "Read aloud", "History", "Grammar", "Progress"];
+const SECTIONS = [
+  "Home",
+  "Scenarios",
+  "Read aloud",
+  "History",
+  "Grammar",
+  "Make your point",
+  "Rehearse",
+  "Progress",
+];
 
 function auth(status: AuthStatus, signOut = jest.fn()): UseAuth {
   return {

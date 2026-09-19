@@ -35,7 +35,12 @@ from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 
 import gop as gop_module
 import phone_map as pm
-from g2p import TextAlignmentError, words_with_phones
+from g2p import (
+    TextAlignmentError,
+    surface_words,
+    unscorable_words,
+    words_with_phones,
+)
 
 log = logging.getLogger("speaklab.pron")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -283,3 +288,26 @@ async def score(
         "model": MODEL_NAME,
         "latency_ms": round((time.perf_counter() - started) * 1000),
     }
+
+
+@app.post("/phonemize")
+async def phonemize(text: str = Form(...)) -> dict[str, Any]:
+    """Which words of a text can be turned into phones, and which cannot."""
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="no reference text")
+    if len(text) > MAX_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"reference text is {len(text)} characters; the limit is {MAX_TEXT_CHARS}",
+        )
+    if state.error is not None:
+        raise HTTPException(status_code=503, detail=f"model unavailable: {state.error}")
+    if state.g2p is None:
+        raise HTTPException(
+            status_code=503, detail="the dictionary is still loading; retry shortly"
+        )
+
+    # In a thread for the same reason `/score` converts there: the dictionary and the
+    # tagger are synchronous work, short but not free, and the event loop is shared.
+    unscorable = await asyncio.to_thread(unscorable_words, text, state.g2p)
+    return {"words": len(surface_words(text)), "unscorable": unscorable}

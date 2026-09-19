@@ -31,6 +31,7 @@ import {
   MessagesSquareIcon,
   MicIcon,
   PresentationIcon,
+  ScrollTextIcon,
   SpellCheckIcon,
   TrendingUpIcon,
 } from "lucide-react";
@@ -119,6 +120,12 @@ const SECTIONS: readonly Section[] = [
     label: "Make your point",
     icon: PresentationIcon,
     hint: "Answer a work question out loud, and see how it was built",
+  },
+  {
+    href: "/rehearse",
+    label: "Rehearse",
+    icon: ScrollTextIcon,
+    hint: "Your own script, section by section",
   },
   {
     href: "/progress",

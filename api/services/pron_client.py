@@ -4,6 +4,8 @@ The same shape as `asr_client`, for the same reason: the API holds no weights an
 media library, it holds an address and a client, and the error taxonomy is the part worth
 writing by hand.
 
+Two calls go out: a recording and the text it was meant to be, for per-phone scores, and
+a text on its own, to find the words that cannot be scored before anything is recorded.
 Four outcomes reach the caller and they are genuinely different facts:
 
 - `PronUnavailable` — nobody answered, or the service answered 5xx. **This is the normal
@@ -24,14 +26,14 @@ Four outcomes reach the caller and they are genuinely different facts:
 """
 
 import httpx
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from config import PRON_TIMEOUT_S, PRON_URL
 from models.attempt import PronScoring
 
 
 class PronError(Exception):
-    """Base for every failure of the scoring call."""
+    """Base for every failure of a call to this service."""
 
 
 class PronUnavailable(PronError):
@@ -66,6 +68,31 @@ def _detail_of(response: httpx.Response) -> str:
     return response.text[:200]
 
 
+def _raise_for_status(response: httpx.Response) -> None:
+    """Turn a status code into the one of the four failures it actually is.
+
+    Shared by every call to this service, so that a new endpoint cannot classify a 503
+    as a rejection and have the caller store "the text was refused" for a container that
+    was still loading.
+    """
+    if response.status_code == 500:
+        detail = _detail_of(response)
+        if "phone map" in detail.lower():
+            raise PronMisconfigured(detail)
+        raise PronUnavailable(f"HTTP 500: {detail}")
+    if response.status_code >= 500:
+        raise PronUnavailable(f"HTTP {response.status_code}: {_detail_of(response)}")
+    if response.status_code >= 400:
+        raise PronRejected(_detail_of(response), response.status_code)
+
+
+class Phonemized(BaseModel):
+    """How many words of a text can be scored, and which ones cannot be."""
+
+    words: int = Field(ge=0)
+    unscorable: list[str] = Field(default_factory=list)
+
+
 async def score(
     data: bytes,
     text: str,
@@ -96,20 +123,41 @@ async def score(
         except httpx.RequestError as exc:
             raise PronUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
-        if response.status_code == 500:
-            detail = _detail_of(response)
-            if "phone map" in detail.lower():
-                raise PronMisconfigured(detail)
-            raise PronUnavailable(f"HTTP 500: {detail}")
-        if response.status_code >= 500:
-            raise PronUnavailable(
-                f"HTTP {response.status_code}: {_detail_of(response)}"
-            )
-        if response.status_code >= 400:
-            raise PronRejected(_detail_of(response), response.status_code)
+        _raise_for_status(response)
 
         try:
             return PronScoring.model_validate(response.json())
+        except (ValueError, ValidationError) as exc:
+            raise PronProtocolError(f"unexpected response shape: {exc}") from exc
+    finally:
+        if owned:
+            await client.aclose()
+
+
+async def phonemize(text: str, client: httpx.AsyncClient | None = None) -> Phonemized:
+    """Ask which words of a text the scorer cannot turn into phones.
+
+    Asked once, when the text is written, rather than once per recording: a word the
+    converter and the tokeniser disagree about costs the whole text its phone scores, and
+    the person who wrote it is the only one who can respell it. The four failures are the
+    same four `score` has, and they mean the same things — in particular, a stack with no
+    pronunciation service raises `PronUnavailable`, and the caller is expected to carry
+    on without knowing.
+    """
+    owned = client is None
+    if client is None:
+        client = httpx.AsyncClient(timeout=PRON_TIMEOUT_S)
+
+    try:
+        try:
+            response = await client.post(f"{PRON_URL}/phonemize", data={"text": text})
+        except httpx.RequestError as exc:
+            raise PronUnavailable(f"{type(exc).__name__}: {exc}") from exc
+
+        _raise_for_status(response)
+
+        try:
+            return Phonemized.model_validate(response.json())
         except (ValueError, ValidationError) as exc:
             raise PronProtocolError(f"unexpected response shape: {exc}") from exc
     finally:

@@ -1,6 +1,6 @@
 # Data model
 
-Fourteen tables, four enum types, seven Alembic revisions. This document explains the
+Eighteen tables, four enum types, eight Alembic revisions. This document explains the
 shape; `api/alembic/versions/` is what actually builds it, starting from
 `0001_initial_schema.py`, and `api/db_models/` is what reads and writes it.
 
@@ -50,6 +50,10 @@ a hardware change reads a new headset as improvement.
 | `turns` | One utterance: transcript, word timings, ASR confidence and model |
 | `attempts` | One read-aloud reading: passage, audio, transcript, WER, scoring status |
 | `answers` | One spoken answer to a prompt: transcript, word timings, what was counted, the model's feedback |
+| `presentations` | One script the learner pasted, kept whole, with the listener's brief when one has been written |
+| `presentation_sections` | One rehearsable piece of it: the text, its word count, the time it is meant to take, and the words that cannot be turned into phones |
+| `rehearsals` | One take of one section: transcript, word timings, the alignment against the section, the delivery counts, and the state of its sound scoring |
+| `rehearsal_phones` | One scored phone of one take — the columns `phoneme_scores` holds for a reading |
 
 `answers` is not a kind of session. A session is a conversation, and an answer written as
 one would be analysed like a turn and counted into the weekly figures built from turns, so
@@ -58,6 +62,15 @@ fluency numbers), `structure` (signposts, sentences, repeats, restarts — every
 including the ones no page shows yet) and `feedback` (the model's, with its check and
 status) as JSONB, read whole; `again_of` points at the answer a second attempt says again.
 The recording is never kept.
+
+A script is kept whole as well as split, so the split can be redone without asking for
+the text again, and `rehearsals.audio_asset_id` is nullable where `attempts.audio_asset_id`
+is not: a reading can be scored again later and needs its waveform, while a take is scored
+once, as it arrives, and an account that keeps no recordings loses only the replay.
+`rehearsal_phones` is a table of its own rather than a nullable column beside
+`phoneme_scores`, because the phone trends are built from passages every speaker reads —
+mixing in text a learner chose would let them move their own baseline by choosing what to
+write.
 
 `turns.words` is JSONB — `[{w, start_ms, end_ms, logprob}]` straight off the recogniser.
 It is read whole, for one purpose (the §7.1 fluency metrics), and never queried across
@@ -164,16 +177,18 @@ transaction.
 ## 3. Why JSONB, five times
 
 `scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.target_errors`,
-`scenarios.rubric`, `passages.phoneme_focus`, `turns.words`, `sessions.report`, and the
-five families on `progress_snapshots`.
+`scenarios.rubric`, `passages.phoneme_focus`, `turns.words`, `sessions.report`,
+`presentation_sections.unscorable_words`, `rehearsals.words`, `rehearsals.alignment`,
+`rehearsals.delivery`, `rehearsals.pron_summary`, and the five families on
+`progress_snapshots`.
 
 Two different reasons, worth keeping apart:
 
 - **Lists that are filtered by containment** — `target_grammar`, `target_errors`,
   `phoneme_focus`. The query is `@>`, one indexable predicate, and GIN indexes it when the
   seed set outgrows a sequential scan over a dozen rows.
-- **Documents read whole for one screen** — `rubric`, `words`, `report`, and the progress
-  families. Nothing queries inside them across rows. The set of fluency measures is still
+- **Documents read whole for one screen** — `rubric`, `words`, `report`, a take's
+  `alignment`, `delivery` and `pron_summary`, and the progress families. Nothing queries inside them across rows. The set of fluency measures is still
   moving, and a schema migration per metric added is a tax on exactly the experimentation
   this project exists for — the progress rollup added three keys to `sample_counts` without
   touching the schema.
@@ -223,6 +238,11 @@ it differently, and then `alembic revision --autogenerate` emits a drop-and-recr
 something that never changed. `test_migrations.py` asserts the two agree by running
 Alembic's own `compare_metadata` against a migrated database and requiring an **empty**
 diff — which is also what catches a column added to a model and never migrated.
+
+`0008` is the one revision that creates tables using an enum it does not own:
+`rehearsals.pron_status` reuses `attempt_status`, declared with `create_type=False`, and
+the revision neither creates nor drops it. Two enums with the same four values would be two
+vocabularies to keep in step.
 
 The downgrade drops the enum types as well as the tables. A downgrade that leaves a type
 behind fails on the *next* upgrade, as `type "session_mode" already exists`, minutes after

@@ -15,7 +15,7 @@ import os
 
 # The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
 # fails when this number has no entry there, and a release is cut from that entry.
-VERSION = "0.22.0"
+VERSION = "0.23.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -473,3 +473,30 @@ ANSWER_HISTORY_LIMIT = int(os.environ.get("ANSWER_HISTORY_LIMIT", "60"))
 
 # Earlier answers listed under one prompt, newest first.
 ANSWERS_PER_PROMPT = int(os.environ.get("ANSWERS_PER_PROMPT", "10"))
+
+
+# ── Rehearsing a presentation ───────────────────────────────────────────────
+
+# The most words in one section. A seeded passage is 73 to 79 words and is scored sound
+# by sound in about seven and a half seconds, against a ten-second budget; 120 words is
+# roughly fifty seconds of speech and stays in the same order of work. It is also about
+# as much as anyone rehearses as one piece.
+REHEARSAL_SECTION_MAX_WORDS = int(os.environ.get("REHEARSAL_SECTION_MAX_WORDS", "120"))
+
+# The fewest, for the automatic split only. A tail of five words is the end of the
+# sentence before it rather than something to practise, so it is joined to the piece
+# before instead of standing on its own.
+REHEARSAL_SECTION_MIN_WORDS = int(os.environ.get("REHEARSAL_SECTION_MIN_WORDS", "8"))
+
+# The longest script accepted, about twenty-five sections. Beyond that the split is no
+# longer something a person can look over before saving, and the request refuses with the
+# count so the writer can see how far over they are.
+REHEARSAL_SCRIPT_MAX_WORDS = int(os.environ.get("REHEARSAL_SCRIPT_MAX_WORDS", "3000"))
+
+# Takes listed under one section, newest first. Older ones stay stored.
+REHEARSAL_TAKES_PER_SECTION = int(os.environ.get("REHEARSAL_TAKES_PER_SECTION", "10"))
+
+# How far off a section's target time counts as over or under it. Reading the same words
+# twice varies by more than a second or two, so a tighter band would report a difference
+# in the reading rather than in the pace.
+REHEARSAL_PACE_TOLERANCE = float(os.environ.get("REHEARSAL_PACE_TOLERANCE", "0.10"))

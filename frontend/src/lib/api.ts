@@ -1064,6 +1064,203 @@ export function refreshProgress(
   return request<Progress>(`/progress/refresh${queryString(params)}`, { method: "POST" });
 }
 
+// ── Rehearse: a script of your own, section by section ──────────────────────
+
+/** One step of the alignment between the section text and what was heard. */
+export interface AlignedWord {
+  kind: "match" | "substitution" | "deletion" | "insertion";
+  expected: string | null;
+  heard: string | null;
+  /** The recogniser's confidence in this word was under the floor. */
+  unsure: boolean;
+}
+
+/** How close a take was to the script, and where it differed. */
+export interface Fidelity {
+  wer: number;
+  reference_words: number;
+  substitutions: number;
+  deletions: number;
+  insertions: number;
+  words: AlignedWord[];
+  /** -1 when the recogniser's words could not be lined up with the compared text. */
+  unsure_words: number;
+  caveat: string;
+}
+
+/** One take as a row in a table. */
+export interface TakeSummary {
+  id: number;
+  section_id: number;
+  created_at: string;
+  wer: number;
+  /** Words of the section this take did not say as written. */
+  missed: number;
+  duration_ms: number | null;
+  speech_rate_wpm: number | null;
+  fillers: number;
+  pron_status: string;
+  median_gop: number | null;
+  audio_url: string | null;
+}
+
+/** ok | pending | unavailable | unscorable — and the rest of `pron`'s taxonomy. */
+export type TakePronunciation = string;
+
+export interface Take extends TakeSummary {
+  transcript: string;
+  asr_confidence: number | null;
+  fidelity: Fidelity;
+  delivery: Delivery;
+  pronunciation: TakePronunciation;
+  pronunciation_detail: string | null;
+  phonemes: PhonemeScore[];
+  summary: PronunciationSummary | null;
+  target_seconds: number | null;
+  /** under | on | over, when the section carries a target. */
+  pace: string | null;
+  caveat: string;
+}
+
+export interface Section {
+  id: number;
+  idx: number;
+  body: string;
+  word_count: number;
+  target_seconds: number | null;
+  /** False when a word in it cannot be turned into phones; it is still compared and counted. */
+  scorable: boolean;
+  unscorable_words: string[];
+  takes: number;
+  latest: TakeSummary | null;
+}
+
+export interface Presentation {
+  id: number;
+  title: string;
+  word_count: number;
+  created_at: string;
+  updated_at: string;
+  sections: Section[];
+}
+
+export interface PresentationSummary {
+  id: number;
+  title: string;
+  word_count: number;
+  sections: number;
+  takes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PresentationList {
+  items: PresentationSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SplitPreview {
+  sections: string[];
+  word_counts: number[];
+  /** One list per section, so the words can be named under the section they are in. */
+  unscorable: string[][];
+  /** ok | unavailable — whether the scorability check could be made at all. */
+  pron: string;
+}
+
+/** One thing to rehearse next, with the measurement that chose it. */
+export interface NextUp {
+  kind: "fidelity" | "sound" | "pace" | "filler";
+  title: string;
+  reason: string;
+  measured: number | null;
+  samples: number;
+  section_id: number | null;
+}
+
+export interface PresentationPage {
+  presentation: Presentation;
+  next_up: NextUp[];
+  caveat: string;
+}
+
+export interface PresentationCreate {
+  title: string;
+  script: string;
+  /** The writer's own boundaries, after seeing the preview. */
+  sections?: string[] | null;
+  target_seconds?: (number | null)[] | null;
+}
+
+export function previewPresentation(payload: PresentationCreate): Promise<SplitPreview> {
+  return request<SplitPreview>("/presentations/preview", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createPresentation(payload: PresentationCreate): Promise<Presentation> {
+  return request<Presentation>("/presentations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listPresentations(
+  params: { limit?: number; offset?: number } = {},
+): Promise<PresentationList> {
+  return request<PresentationList>(`/presentations${queryString(params)}`);
+}
+
+export function getPresentation(id: number): Promise<PresentationPage> {
+  return request<PresentationPage>(`/presentations/${id}`);
+}
+
+export function setSectionTarget(
+  id: number,
+  idx: number,
+  targetSeconds: number | null,
+): Promise<Section> {
+  return request<Section>(`/presentations/${id}/sections/${idx}`, {
+    method: "PATCH",
+    body: JSON.stringify({ target_seconds: targetSeconds }),
+  });
+}
+
+export function deletePresentation(id: number): Promise<void> {
+  return request<void>(`/presentations/${id}`, { method: "DELETE" });
+}
+
+export function postTake(
+  id: number,
+  idx: number,
+  audio: Blob,
+  filename = "take.webm",
+): Promise<Take> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  return request<Take>(`/presentations/${id}/sections/${idx}/takes`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+export function listTakes(
+  id: number,
+  idx: number,
+  params: { limit?: number } = {},
+): Promise<{ items: Take[] }> {
+  return request<{ items: Take[] }>(
+    `/presentations/${id}/sections/${idx}/takes${queryString(params)}`,
+  );
+}
+
+export function getTake(takeId: number): Promise<Take> {
+  return request<Take>(`/presentations/takes/${takeId}`);
+}
+
 /**
  * The points a chart can actually draw, in order.
  *

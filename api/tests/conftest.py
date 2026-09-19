@@ -635,7 +635,12 @@ def aligner(monkeypatch):
     `.texts` records the reference text each call was given. That is the assertion that
     matters most: scoring the wrong passage's words against this recording would produce
     a full set of plausible numbers about nothing.
+
+    One stub stands in for the service on both paths that call it — a reading and a take
+    of a rehearsal — because it is one service, and a test that stubbed only one of them
+    would reach a real container from the other or fail obscurely when none is there.
     """
+    from services import rehearsal_scoring as rehearsal_scoring_service
     from services import scoring as scoring_service
 
     class Aligner:
@@ -654,7 +659,71 @@ def aligner(monkeypatch):
 
     stub = Aligner()
     monkeypatch.setattr(scoring_service, "pron_score", stub)
+    monkeypatch.setattr(rehearsal_scoring_service, "pron_score", stub)
     return stub
+
+
+@pytest.fixture
+def phonemizer(monkeypatch):
+    """Replace the converter that decides which words of a section can be scored.
+
+    `.names` are the spellings it calls unscorable wherever they appear; `.error` is an
+    exception it raises instead, which is how the tests drive a pronunciation service
+    that is not running — the state a fresh clone is in.
+    """
+    from services import rehearsals as rehearsals_service
+    from services.pron_client import Phonemized
+
+    class Phonemizer:
+        def __init__(self):
+            self.names: list[str] = []
+            self.error: Exception | None = None
+            self.texts: list[str] = []
+
+        async def __call__(self, text, client=None):
+            self.texts.append(text)
+            if self.error is not None:
+                raise self.error
+            tokens = [token.strip(".,!?;:") for token in text.split()]
+            return Phonemized(
+                words=len(tokens),
+                unscorable=[name for name in self.names if name in tokens],
+            )
+
+    stub = Phonemizer()
+    monkeypatch.setattr(rehearsals_service, "pron_phonemize", stub)
+    return stub
+
+
+@pytest_asyncio.fixture
+async def rehearsal_scorer(db_engine):
+    """The take scorer, made deterministic, the way `scorer` does for a reading.
+
+    Different from `scorer` in one way that matters: a take's job is handed the recording
+    rather than reading it back from disk, because a take on an account that keeps no
+    audio has no file to read. So the recorded launch carries the bytes, and `drain()`
+    replays them exactly as the endpoint passed them in.
+    """
+    from services.rehearsal_scoring import get_rehearsal_scorer, score_take
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    class RecordingRehearsalScorer:
+        def __init__(self):
+            self.launched: list[tuple[int, bytes, str]] = []
+
+        def launch(self, rehearsal_id: int, data: bytes, reference: str) -> None:
+            self.launched.append((rehearsal_id, data, reference))
+
+        async def drain(self) -> None:
+            queued, self.launched = self.launched, []
+            for rehearsal_id, data, reference in queued:
+                await score_take(rehearsal_id, data, reference, factory)
+
+    stub = RecordingRehearsalScorer()
+    app.dependency_overrides[get_rehearsal_scorer] = lambda: stub
+    yield stub
+    app.dependency_overrides.pop(get_rehearsal_scorer, None)
 
 
 @pytest_asyncio.fixture

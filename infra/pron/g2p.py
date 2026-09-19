@@ -125,6 +125,34 @@ def words_with_phones(text: str, g2p) -> list[Word]:
     return [Word(i, surface[i], groups[i]) for i in range(len(surface))]
 
 
+def unscorable_words(text: str, g2p) -> list[str]:
+    """The words of a text that cannot be scored, because the two counts disagree.
+
+    Scoring needs one phone group per word, in the same order. A number, a symbol or an
+    abbreviation breaks that before anything is heard: ``2026`` is no word at all to the
+    tokeniser and two to the converter, ``12%`` is none and one, ``e.g.`` is one and two.
+    Inside a passage they do not fail on their own — they shift every phone after them
+    onto the wrong word, and the desync check then refuses the whole text.
+
+    So each whitespace token is converted on its own and its two counts compared, and the
+    ones that disagree are named to the person who wrote them, to be respelled the way
+    they are said. Converting a token alone loses the part-of-speech context that
+    resolves homographs, but a homograph is a choice between two sets of phones, never a
+    different number of groups, so the count asked for here is not what context changes.
+
+    The spelling comes back as it was written, edge marks off, so it can be found in the
+    text. A word named twice is listed once.
+    """
+    problems: list[str] = []
+    for token in text.split():
+        if len(phone_groups(g2p(token))) == len(surface_words(token)):
+            continue
+        spelling = token.strip(EDGE_PUNCTUATION) or token
+        if spelling not in problems:
+            problems.append(spelling)
+    return problems
+
+
 def flatten(words: list[Word]) -> list[tuple[int, str, int, str]]:
     """``[(word_idx, surface, phone_idx, phone), ...]`` — one entry per phone to score.
 

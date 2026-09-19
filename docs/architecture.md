@@ -140,7 +140,7 @@ system that is not true.
 
 Alembic owns the schema, and there is no `docker-entrypoint-initdb.d` script: an `init.sql`
 that also created tables would be a second source of truth that runs once, on an empty
-volume, and diverges after that. Fourteen tables, four enum types, seven revisions.
+volume, and diverges after that. Eighteen tables, four enum types, eight revisions.
 `api/db_models/` holds the columns and `api/models/` the wire shapes, because they answer
 different questions — `scenarios.persona_prompt` is loaded on every query and serialised by
 nothing. The tables, and why five columns are JSONB while two adjacent ones are not, are in
@@ -177,9 +177,35 @@ an enumeration of the table.
 
 **Export.** `GET /progress/export` returns everything an account holds as one JSON
 document, sent as a download: sessions with their turns and what was measured and corrected
-in each, readings with their scored sounds, spoken answers and the weekly snapshots, with
-each recording listed by the address that streams it rather than embedded. It takes no user
-id, so no request can export somebody else's.
+in each, readings with their scored sounds, spoken answers, every script with its sections
+and every take of one, and the weekly snapshots, with each recording listed by the address
+that streams it rather than embedded. It takes no user id, so no request can export
+somebody else's.
+
+### Rehearsing a script
+
+`/presentations` is the one place the learner supplies the text. A pasted script is split
+deterministically — blank lines first, then sentence ends where a piece is over the cap —
+and the split is shown before it is saved, because where one part of somebody's talk ends
+is theirs to decide. No model is involved in splitting, and the saved sections are checked
+against the script word for word, so a moved boundary is accepted and an edited sentence is
+refused.
+
+Scorability is decided then, not at the first recording. `pron` gains `POST /phonemize`,
+which converts each word of a text on its own and reports the ones where the tokeniser and
+the converter disagree — a number, a symbol, an abbreviation. Those words cost the section
+its per-phone scores, so they are named to the person who wrote them while the script is
+still on screen. With `pron` not running the question cannot be asked, and the sections are
+saved as scorable with the page saying the check did not happen.
+
+A take is one recording of one section, and it goes the way a reading does with one
+difference. Transcribe, compare against the section with the same alignment a reading uses,
+count the delivery as a spoken answer is counted, store; then the sounds are scored in a
+background job. The difference is that the job is handed the recording rather than reading
+it back from disk, because a take is scored once and an account with audio retention off
+keeps no waveform — everything but the replay still works. Nothing a take produces reaches
+the progress snapshots: a script somebody wrote and said forty times is practice, and the
+trends are built from conversation and from passages every speaker reads.
 
 ---
 

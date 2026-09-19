@@ -47,6 +47,11 @@ Nothing leaves the machine, and every figure here is measured and names what pro
 
   ![A spoken answer counted: words, words a minute, time paused and fillers, then reasons, examples, steps, contrasts and summings-up, each marked on the transcript](docs/screens/answer.png)
 
+- **Rehearse a script of your own.** Paste the text of a talk; it is split into sections
+  of about a paragraph, and you say each one as often as you like. Every take is compared
+  with what you wrote word by word, timed and counted, and scored sound by sound — and the
+  takes sit side by side, so the fourth can be read against the first.
+
 - **See your grammar in your own sentences.** Every correction grouped by kind in the
   sentence you said it in; each verb form as a count — *right 9 of 13* — and never a
   percentage; any sentence said again and compared with what the recogniser heard.
@@ -247,7 +252,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 084 — 1 046 pass, 38 need a model service | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 163 — 1 121 pass, 42 need a model service | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -298,7 +303,7 @@ carries its entry in the changelog as its notes.
 | [docs/decisions/](docs/decisions/) | Why a choice was made: twenty-three dated records, each kept as it was written |
 | [docs/changelog.md](docs/changelog.md) | One entry per milestone |
 | [PRD.md](PRD.md) | The product requirements and the measurement model |
-| API reference | <http://localhost:8002/docs> once the stack is up: 31 operations, each with a summary |
+| API reference | <http://localhost:8002/docs> once the stack is up: 40 operations, each with a summary |
 
 ---
 

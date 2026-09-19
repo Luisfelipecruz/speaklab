@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { GaugeIcon, MessagesSquareIcon, MicIcon } from "lucide-react";
+import { GaugeIcon, MessagesSquareIcon, MicIcon, ScrollTextIcon } from "lucide-react";
 
 import talk from "@/assets/talk.png";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,11 @@ const CLAIMS = [
     icon: MicIcon,
     title: "Pronunciation, sound by sound",
     body: "Passages built to bring out one group of sounds. Every sound you make is scored against the one the text asked for, and the report says which sound came out instead.",
+  },
+  {
+    icon: ScrollTextIcon,
+    title: "Your own script, rehearsed",
+    body: "Paste a talk and rehearse it a section at a time. Every take is compared with what you wrote, word by word, timed and counted, and scored sound by sound — and the takes sit side by side.",
   },
   {
     icon: GaugeIcon,
@@ -103,7 +108,7 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {CLAIMS.map(({ icon: Icon, title, body }) => (
           <Card key={title}>
             <CardHeader className="gap-2">

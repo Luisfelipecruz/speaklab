@@ -22,13 +22,25 @@ from db_models import (
     Passage,
     PhonemeScore,
     PracticeSession,
+    Presentation,
+    PresentationSection,
     ProgressSnapshot,
+    Rehearsal,
+    RehearsalPhone,
     Scenario,
     Turn,
 )
 from tests.conftest import register_account
 
-HISTORY = ("recordings", "sessions", "readings", "answers", "snapshots")
+HISTORY = (
+    "recordings",
+    "sessions",
+    "readings",
+    "answers",
+    "presentations",
+    "rehearsals",
+    "snapshots",
+)
 
 
 @pytest.fixture
@@ -155,6 +167,50 @@ async def practised(client, account, db_session, seeded):
             feedback={"status": "ok"},
         )
     )
+    script = Presentation(
+        user_id=user_id,
+        title="Quarterly update",
+        script="Good morning. We shipped it.",
+        word_count=5,
+    )
+    db_session.add(script)
+    await db_session.flush()
+    section = PresentationSection(
+        presentation_id=script.id,
+        idx=0,
+        body="Good morning. We shipped it.",
+        word_count=5,
+        scorable=True,
+        unscorable_words=[],
+    )
+    db_session.add(section)
+    await db_session.flush()
+    take = Rehearsal(
+        section_id=section.id,
+        user_id=user_id,
+        audio_asset_id=reading_audio.id,
+        transcript="good morning we shipped it",
+        words=[],
+        duration_ms=4200,
+        wer=0.0,
+        alignment={"words": [], "reference_words": 5},
+        delivery={"word_count": 5},
+        pron_status="scored",
+        scored_at=datetime.now(timezone.utc),
+    )
+    db_session.add(take)
+    await db_session.flush()
+    db_session.add(
+        RehearsalPhone(
+            rehearsal_id=take.id,
+            word="shipped",
+            word_idx=3,
+            phone_idx=0,
+            canonical_phone="SH",
+            recognized_phone="SH",
+            gop=-0.2,
+        )
+    )
     db_session.add(
         ProgressSnapshot(
             user_id=user_id,
@@ -171,6 +227,8 @@ async def practised(client, account, db_session, seeded):
         "prompt": prompt.slug,
         "turn_audio": turn_audio.id,
         "reading_audio": reading_audio.id,
+        "presentation": script.id,
+        "take": take.id,
     }
 
 
@@ -269,3 +327,35 @@ async def test_another_account_exports_only_its_own_empty_history(
     assert body["account"]["id"] == stranger["id"]
     for key in HISTORY:
         assert body[key] == []
+
+
+async def test_a_script_is_exported_whole_with_its_sections(client, practised):
+    """A script is the account's own writing, so it is copied rather than named.
+
+    The catalogue — scenarios, passages, prompts — is named by slug, because it is the
+    same for everybody and belongs to the project. A talk somebody wrote belongs to them,
+    and a history that carried only its id would be a history of nothing.
+    """
+    body = (await client.get("/progress/export")).json()
+
+    assert len(body["presentations"]) == 1
+    script = body["presentations"][0]
+    assert script["title"] == "Quarterly update"
+    assert script["script"] == "Good morning. We shipped it."
+    assert script["audience_brief"] is None
+    assert [section["idx"] for section in script["sections"]] == [0]
+    assert script["sections"][0]["scorable"] is True
+
+
+async def test_a_take_names_the_script_and_the_section_it_belongs_to(client, practised):
+    """Both, so the file can be read without joining two lists by hand."""
+    body = (await client.get("/progress/export")).json()
+
+    assert len(body["rehearsals"]) == 1
+    take = body["rehearsals"][0]
+    assert take["presentation_id"] == practised["presentation"]
+    assert take["section_idx"] == 0
+    assert take["transcript"] == "good morning we shipped it"
+    assert take["alignment"]["reference_words"] == 5
+    assert take["audio_url"] == f"/audio/{practised['reading_audio']}"
+    assert [phone["canonical_phone"] for phone in take["phones"]] == ["SH"]
