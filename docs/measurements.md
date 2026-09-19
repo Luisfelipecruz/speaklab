@@ -51,8 +51,8 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 
 | Measure | Figure | Source |
 |---|---|---|
-| **A whole spoken turn, p95 over 20** | **2684 ms** against 3000 ms — met, at a load average of 1.7–5.0 | `make turn-latency` |
-| … on a busy machine | 7283 ms at load 10–16, 5356 ms at load 16.7–18.0, and 5330 ms at load 3.6–7.0 with another stack's containers working beside it — the same code; the quiet figure has not been reproduced since | `make turn-latency` |
+| **A whole spoken turn, p95 over 20** | **2035 ms** against 3000 ms — met, on Gemma 4 with thinking off at a load average of 0.7–1.6; median 1849, recognition 826, generation 810 and a synthesis tail of 174 ms at the median. Gemma 3 met it at 2684 ms, at a load of 1.7–5.0 | `make turn-latency` |
+| … on a busy machine | 7283 ms at load 10–16, 5356 ms at load 16.7–18.0, and 5330 ms at load 3.6–7.0 with another stack's containers working beside it — the same code, on Gemma 3 | `make turn-latency` |
 | … the two models back to back | Gemma 4 with thinking off **4058 ms** (median 2875) at load 7.8–12, Gemma 3 4417 ms (median 3493) at load 2.6–8.5; generation median 869 against 888 ms, recognition 1.4 s on both | `make turn-latency`, [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | Thinking, on a persona reply | **0.64–0.70 s** with `think: false`, 1.6–3.5 s left to the model's default, warm, three runs each | [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | Turn stages, median | recognition 1146 ms · generation 872 ms · synthesis tail 235 ms | `make turn-latency` |

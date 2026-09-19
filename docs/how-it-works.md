@@ -32,8 +32,8 @@ out of the role, and quoting its own brief — and a model judge, itself scored 
 labelled replies, says whether a reply stayed in character. Corrections wait for the
 report: a practice partner that corrects every sentence is not a conversation.
 
-**Measured.** A whole turn — recognition, reply and voice — takes 2684 ms at p95 on a quiet
-machine, against 3 s. Between 6 and 8 of 9 probe replies break none of the five rules, and
+**Measured.** A whole turn — recognition, reply and voice — takes 2035 ms at p95 on a quiet
+machine, against 3 s, and took 2684 ms on Gemma 3. Between 6 and 8 of 9 probe replies break none of the five rules, and
 what fails is the sentence cap the persona itself states; the judge agrees with the labels
 on 8 of 10 and misses the same two every time. Asked to step outside the scene, the persona
 gives its instructions away 16 times in 200 across ten phrasings, against 59 before the

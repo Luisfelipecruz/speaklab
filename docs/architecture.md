@@ -259,9 +259,10 @@ text-to-speech endpoint that nothing asks for.
 ## 7. The conversation turn
 
 `POST /sessions/{id}/turns` takes a recording and returns the persona's reply, spoken, with
-both turns stored — in one request. A whole turn takes 2684 ms at p95 on a quiet machine,
-against 3 s: recognition 1146 ms, generation 872 ms and a synthesis tail of 235 ms at the
-median.
+both turns stored — in one request. A whole turn takes 2035 ms at p95 on a quiet machine,
+against 3 s: recognition 826 ms, generation 810 ms and a synthesis tail of 174 ms at the
+median; on Gemma 3 it took 2684 ms, with recognition 1146, generation 872 and a tail of
+235 ms.
 
 ### A database connection is held for milliseconds of the turn's seconds
 
