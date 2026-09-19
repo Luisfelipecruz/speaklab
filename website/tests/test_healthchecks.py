@@ -7,7 +7,6 @@ so the frontend could serve every request and still be reported unhealthy. A hea
 made with `wget` therefore names the numeric loopback address.
 """
 
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
