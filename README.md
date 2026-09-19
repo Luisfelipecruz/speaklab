@@ -16,9 +16,9 @@
 
 </div>
 
-![A conversation after it has ended: each correction marked on the words it was about and listed under the turn](docs/walkthrough.png)
+![SpeakLab: an English speaking coach that runs on your own laptop. A conversation after it has ended, each correction marked on the words it was about and listed under the turn, beside the stack it runs on](docs/cover.png)
 
-<sub>A correction exactly as the model proposed it: it fixed the verb and not the question — *how much does it cost* — and filed it under word order. That is why every correction is measured, and why detection stands at 0.500 precision, below its own bar.</sub>
+<sub>The conversation screen on the running stack: the persona's turns are spoken by Piper, and each correction on the learner's turns is exactly as the language model proposed it. Two of the three carry the wrong category — *visit → visited* is not adjective order — which is why every correction is measured, and why detection stands at 0.500 precision, below its own bar.</sub>
 
 Practise spoken English against models that run on your machine: a role-play with a persona who answers out loud, a passage read aloud and scored sound by sound, or a work question answered in one go.
 Everything that moves on a chart is counted by code from what you said — the speed, the verb forms you used, each correction on the words it was about, how an answer was built — and a language model explains the numbers without ever producing one.
