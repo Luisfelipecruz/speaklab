@@ -137,6 +137,42 @@ async def test_the_context_window_is_stated_on_every_request():
     assert seen["num_predict"] > 0
 
 
+async def test_thinking_is_declined_on_every_request():
+    """A model that can think does so unless the request says not to, and the answer
+    then arrives seconds later with the thought in a field this client never reads.
+    Both the whole-reply and the streamed request carry the field."""
+    seen: list[object] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content).get("think", "absent"))
+        return (
+            ndjson(delta("ok"), final())
+            if b'"stream": true' in request.content
+            else (chat_response("ok"))
+        )
+
+    provider = provider_with(handler)
+    await provider.complete(MESSAGES)
+    [event async for event in provider.stream(MESSAGES)]
+
+    assert seen == [False, False]
+
+
+async def test_thinking_is_allowed_when_the_setting_turns_it_on(monkeypatch):
+    from services.llm import ollama
+
+    monkeypatch.setattr(ollama, "LLM_THINK", True)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return chat_response("ok")
+
+    await provider_with(handler).complete(MESSAGES)
+
+    assert seen["think"] is True
+
+
 # ── The taxonomy ────────────────────────────────────────────────────────────
 
 

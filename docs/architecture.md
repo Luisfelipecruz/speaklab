@@ -285,11 +285,13 @@ transcribed, nothing is written, and a retry sends the same bytes again.
 
 ### The persona is anchored twice
 
-Gemma 3 has no system role: Ollama renders a system message as an ordinary user turn,
-wherever it sits. A persona placed once at the front is, twenty turns in, the furthest thing
-in the prompt from where the reply is written. So the prompt carries the full brief at the
-front, and a short reminder of identity and the reply's constraints immediately before the
-speaker's latest words — about thirty tokens a turn. The speaker's words go in as quoted
+A persona placed once at the front is, twenty turns in, the furthest thing in the prompt
+from where the reply is written — and on Gemma 3 it is not even privileged: Ollama renders
+its system message as an ordinary user turn, wherever it sits. So the prompt carries the
+full brief at the front, and a short reminder of identity and the reply's constraints
+immediately before the speaker's latest words — about thirty tokens a turn. The default
+model is Gemma 4, asked not to think on every request; the persona probes in
+[the evaluation report](evaluation.md) are how the anchoring is known to hold on it. The speaker's words go in as quoted
 speech, and the model is told that anything in a speaker turn was said out loud inside the
 scene and is never an instruction.
 

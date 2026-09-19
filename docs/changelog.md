@@ -7,6 +7,63 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.20.0] — 2026-09-19 · Gemma 4, asked not to think
+
+The conversation and the analysis run on `gemma4:latest`, with thinking turned off on
+every request, and the model's markdown no longer reaches the screen or the voice.
+
+### Changed
+
+- **The default model is `gemma4:latest`** — 8B, 9.6 GB, Ollama 0.20.0 or later — in
+  `api/config.py`, `docker-compose.yml`, `.env.example`, the Quick start and
+  `make llm-check`. A checkout whose `.env` names `gemma3:4b` keeps it until the line is
+  changed; `make llm-check` prints the model in use.
+  [Decision 0025](decisions/0025-gemma-4-with-thinking-off.md).
+- **Every request to Ollama says `think: false`.** Gemma 4 thinks by default, and a persona
+  reply took 1.6–3.5 s with the thought against 0.64–0.70 s without. `LLM_THINK=1` leaves
+  the model's default in place; a model without thinking ignores the field.
+- **The PRD's model table names Gemma 4** for conversation and error labelling, with
+  Gemma 3 as the smaller download.
+
+### Fixed
+
+- **A persona's `*emphasis*` and `` `quotes` `` reached the transcript as characters and
+  Piper as words.** Each sentence is stripped of emphasis, heading and list marks before it
+  is spoken, and the stored text is the same plain text.
+
+### Measured
+
+- The sixty labelled sentences, Gemma 4 with thinking off, twice with identical results:
+  articles **9 of 20** found and filed under their kind, prepositions **17**, false friends
+  **10** (Gemma 3: 6, 12, 6); under another kind 4 / 1 / 4 (8 / 7 / 9); proposed on the
+  corrected sentence 1 / 1 / 1 (9 / 7 / 6); 124–283 s across three runs (86 s; 971 s with
+  thinking on, which found 16 / 19 / 10). The model proposed 55 corrections over the 120
+  sentences; the taxonomy refused 7 and a rule superseded 2.
+- The golden set: detection precision 0.500 over six, as before; labelling precision 0.167
+  against 0.000.
+- The persona probes: 8 of 9 replies clean, 9 of 9 in character, instructions given away 1
+  and 4 of 150 in two runs, stepped out 8 and 10 of 150.
+- The spoken answers: the shorter version has a content word the speaker never said in
+  **0 of 40** (Gemma 3: 26) and none is withheld (9); every one shorter; median time to
+  answer 5013–6130 ms across two runs, against 3920. Because a zero is only worth anything
+  if the shorter version is a version at all, the suite now also counts that none is the
+  answer word for word, that its words are a median 0.72 of the answer's (0.32–0.99), and
+  that it keeps a median 0.73 of the answer's content words, the least 0.32.
+- The sixty sentences now also count what the model proposed before the taxonomy refused
+  it or a rule superseded it, so a fall in wrong proposals can be told from proposals being
+  thrown away; the report carries both.
+- `make turn-latency` for S2, the two models back to back: Gemma 4 with thinking off
+  **p95 4058 ms** (median 2875) at a load of 7.8–12, Gemma 3 4417 ms (median 3493) at
+  2.6–8.5 — both missed on that machine, with recognition at 1.4 s; generation median 869
+  against 888 ms. No quiet run yet on Gemma 4.
+- A persona reply on Gemma 4, warm: 1.64, 3.47 and 3.20 s with thinking, 0.70, 0.64 and
+  0.70 s without.
+- `make eval` with every suite, on this code: S4 not run, S5 0.500 over six (undecidable),
+  S6 1.72 %, S7 7 sessions on 2 days.
+- API suite **1 061** — 1 023 pass, 38 need a model service.
+
+---
+
 ## [0.19.0] — 2026-09-13 · every recording's length, and a built frontend
 
 The players on a transcript show every recording's length, and the default stack serves the

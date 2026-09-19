@@ -8,8 +8,8 @@ others.
 history, because it does not: instruction adherence decays with distance, and the
 system message is the furthest thing from the model's next token in a long conversation.
 
-There is a wrinkle specific to this model, measured rather than assumed. **Gemma 3 has no
-system role.** Ollama's template for it renders a `system` message as an ordinary
+There is a wrinkle measured on Gemma 3 rather than assumed, and the prompt is built for
+it whichever Gemma is configured. **Gemma 3 has no system role.** Ollama's template for it renders a `system` message as an ordinary
 `<start_of_turn>user` block, wherever it happens to sit in the list:
 
     {{- if or (eq .Role "user") (eq .Role "system") }}<start_of_turn>user
@@ -396,6 +396,28 @@ def _ends_a_sentence(candidate: str) -> bool:
     return len(word) > 1 and word.lower() not in _ABBREVIATIONS
 
 
+# Markdown the model writes into speech. A persona asked to talk still emphasises with
+# asterisks and quotes with backticks; both were reaching the screen as characters and
+# the voice as words. The paired forms are unwrapped, and a mark left unpaired — an
+# emphasis that opened in one sentence and closed in the next — is removed on its own.
+# An underscore inside a word is not a mark.
+_EMPHASIS = re.compile(r"(?<!\w)(\*{1,3}|_{1,3}|~~|`+)(?=\S)(.+?)(?<=\S)\1(?!\w)")
+_STRAY_MARKS = re.compile(r"[*`]+")
+_LINE_MARKS = re.compile(r"^[ \t]*(#{1,6}[ \t]+|[-*+][ \t]+)", re.MULTILINE)
+
+
+def plain_speech(text: str) -> str:
+    """The text as it is to be shown and said: no emphasis marks, no heading or list
+    marks, nothing a voice would read out as a symbol."""
+    text = _LINE_MARKS.sub("", text)
+    previous = None
+    while previous != text:
+        previous = text
+        text = _EMPHASIS.sub(r"\2", text)
+    text = _STRAY_MARKS.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
+
+
 class SentenceAccumulator:
     """Deltas in, complete sentences out.
 
@@ -542,6 +564,11 @@ async def generate_reply(
         state.client = client
 
         def dispatch(sentence: str) -> None:
+            # What is spoken is what will be stored, and a sentence that was only marks
+            # is nothing to say.
+            sentence = plain_speech(sentence)
+            if not sentence:
+                return
             state.tasks.append(
                 asyncio.create_task(speak(sentence, voice=voice, client=client))
             )
@@ -577,7 +604,7 @@ async def generate_reply(
         synthesis_ms = round((time.perf_counter() - synthesis_started) * 1000)
 
     reply = Reply(
-        text=completion.text.strip(),
+        text=plain_speech(completion.text),
         model=completion.model,
         prompt_tokens=completion.prompt_tokens,
         completion_tokens=completion.completion_tokens,

@@ -78,7 +78,7 @@ def _ollama_ready() -> bool:
         tags = httpx.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
         if not tags.is_success:
             return False
-        model = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+        model = os.environ.get("OLLAMA_MODEL", "gemma4:latest")
         return any(
             entry["name"].startswith(model.split(":")[0])
             for entry in tags.json().get("models", [])

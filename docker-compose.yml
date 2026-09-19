@@ -114,7 +114,7 @@ services:
       # slower, for no benefit. Set OLLAMA_BASE_URL=http://ollama:11434 to use the
       # container instead (Linux with a GPU, or CI).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:latest}
       LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-120}
       LLM_MAX_INPUT_TOKENS: ${LLM_MAX_INPUT_TOKENS:-4000}
       LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
@@ -292,7 +292,7 @@ services:
     # self-contained stack matters more than throughput.
     #
     # Pinned to an exact release, so the container serves the model the same way every
-    # time. Gemma 3 needs 0.6.0 or later.
+    # time. Gemma 4 needs 0.20.0 or later.
     image: ollama/ollama:0.34.0
     profiles: ["llm"]
     volumes:

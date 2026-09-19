@@ -113,6 +113,27 @@ def _vocabulary(text: str) -> set[str]:
     return known
 
 
+def kept(answer: str, rewrite: str) -> tuple[int, int]:
+    """How many of the answer's content words the rewrite keeps, over how many it had.
+
+    The check above only says that a rewrite adds nothing; a rewrite that keeps almost
+    nothing passes it too, and is not a shorter version of the answer. Counted by lemma,
+    once each, so "failed" in the answer is kept by "fails" in the rewrite.
+    """
+    doc = parse(answer)
+    if doc is None:
+        return 0, 0
+    lemmas: set[str] = set()
+    for token in doc:
+        if token.pos_ not in _CONTENT or token.is_stop:
+            continue
+        if not any(character.isalnum() for character in token.lower_):
+            continue
+        lemmas.add(token.lemma_.lower())
+    known = _vocabulary(rewrite)
+    return sum(1 for lemma in lemmas if lemma in known), len(lemmas)
+
+
 def invented(answer: str, context: str, rewrite: str) -> list[str]:
     """Content words in `rewrite` that are in neither `answer` nor `context`, once each.
 

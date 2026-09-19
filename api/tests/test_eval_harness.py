@@ -752,6 +752,13 @@ def test_the_three_kinds_of_mistake_are_reported_heard_and_found():
                 "found_by_llm": 6,
             },
         },
+        "proposals": {
+            "sentences": 40,
+            "proposed": 31,
+            "rejected": 4,
+            "superseded": 1,
+            "reasons": {"punctuation_only": 3, "span_too_long": 1},
+        },
     }
     results = {
         "asr": asr_result(),
@@ -770,6 +777,11 @@ def test_the_three_kinds_of_mistake_are_reported_heard_and_found():
     assert "#### Articles, prepositions and false friends, found" in errors
     assert "| False friends | 19 | 0.316 [" in errors
     assert "— rules 0, model 6 | 4 | 3 | 10 | 2 | 1 |" in errors
+    assert (
+        "The model proposed 31 corrections over the 40 sentences and their corrected "
+        "forms; the taxonomy refused 4 (punctuation_only 3, span_too_long 1), and a rule "
+        "had already made 1."
+    ) in errors
 
 
 # ── Spoken answers ──────────────────────────────────────────────────────────
@@ -843,6 +855,9 @@ def answers_result() -> dict:
         "dropped_notes": 0,
         "median_latency_ms": 2900,
         "withheld_examples": [{"prompt": "choose-a-candidate", "invented": ["skills"]}],
+        "verbatim": 1,
+        "word_share": {"median": 0.62, "min": 0.31, "max": 1.0},
+        "kept_share": {"median": 0.8, "min": 0.4},
     }
 
 
@@ -870,6 +885,9 @@ def test_the_models_feedback_is_reported_with_its_denominators_and_by_set():
     assert "| `gemma3:4b` on 40 labelled answers | |" in lines
     assert "**0.225 [" in lines
     assert "| — withheld, held out answers | 0.125 [" in lines
+    assert "| Shorter version that is the answer word for word | 0.025 [" in lines
+    assert "| Its words, as a share of the answer's | median 0.62, 0.31–1.00 |" in lines
+    assert "| The answer's content words it keeps | median 0.80, least 0.40 |" in lines
     assert "choose-a-candidate: skills" in lines
 
 

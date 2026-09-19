@@ -696,6 +696,23 @@ def _kinds_found(found: dict | None) -> list[str]:
             f"{counts.get('fixed', 0)} | {counts['other_kind']} | {counts['missed']} | "
             f"{counts['elsewhere']} | {counts['corrected_flagged']} |"
         )
+    proposals = found.get("proposals")
+    if proposals:
+        # What the model wanted to say before the taxonomy and the rules had their say,
+        # so a fall in wrong proposals can be told from proposals being refused.
+        reasons = ", ".join(
+            f"{reason} {count}"
+            for reason, count in sorted(proposals["reasons"].items())
+        )
+        lines += [
+            "",
+            f"The model proposed {proposals['proposed']} corrections over the "
+            f"{proposals['sentences']} sentences and their corrected forms; the taxonomy "
+            f"refused {proposals['rejected']}"
+            + (f" ({reasons})" if reasons else "")
+            + f", and a rule had already made {proposals['superseded']}. The counts "
+            "above are what was stored.",
+        ]
     lines += [
         "",
         "A scenario draws out a kind of mistake, as far as the product can tell, only as "
@@ -762,6 +779,20 @@ def _answer_feedback(answers: dict) -> list[str]:
     lines += [
         f"| Shorter version with fewer sentences than the answer | "
         f"{scoring.proportion(answers['shorter'], rewrites).format()} |",
+    ]
+    if answers.get("word_share"):
+        # Whether it is a version of the answer at all: a rewrite that adds nothing can
+        # still be the answer word for word, or a fragment of it.
+        share, kept = answers["word_share"], answers["kept_share"]
+        lines += [
+            f"| Shorter version that is the answer word for word | "
+            f"{scoring.proportion(answers['verbatim'], rewrites).format()} |",
+            f"| Its words, as a share of the answer's | median {share['median']:.2f}, "
+            f"{share['min']:.2f}–{share['max']:.2f} |",
+            f"| The answer's content words it keeps | median {kept['median']:.2f}, "
+            f"least {kept['min']:.2f} |",
+        ]
+    lines += [
         f"| Notes about how the answer sounded, dropped | {answers['dropped_notes']} |",
         f"| Median time to answer | {_fmt(answers.get('median_latency_ms'), 0)} ms |",
         "",

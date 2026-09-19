@@ -45,7 +45,7 @@ print("Conversations will not work until this is fixed. Everything else does.")
 if llm["status"] == "unreachable":
     print(f"Nothing answered at {llm['url']}, as seen from inside the api container.")
     print("  1. Install Ollama from https://ollama.com/download and start it.")
-    print("  2. ollama pull gemma3:4b   (or whatever OLLAMA_MODEL is set to in .env)")
+    print("  2. ollama pull gemma4   (or whatever OLLAMA_MODEL is set to in .env)")
     print("  On Linux, start Ollama with OLLAMA_HOST=0.0.0.0 so containers can reach it.")
 print("Then: make llm-check")
 sys.exit(1)
@@ -164,7 +164,7 @@ llm-up:                            ## Run Ollama in a container instead of on th
 	@echo "On macOS a container cannot use the GPU, so this runs on the CPU. It is meant"
 	@echo "for a Linux host with a GPU, or for CI."
 	docker compose --profile llm up -d ollama
-	docker compose --profile llm exec ollama ollama pull $${OLLAMA_MODEL:-gemma3:4b}
+	docker compose --profile llm exec ollama ollama pull $${OLLAMA_MODEL:-gemma4:latest}
 	@echo ""
 	@echo "The API still uses the host's Ollama. To switch, set"
 	@echo "  OLLAMA_BASE_URL=http://ollama:11434"

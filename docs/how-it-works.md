@@ -20,7 +20,7 @@ exist yet is in [limitations.md](limitations.md).
 a goal and a level, and a declared set of grammar forms and kinds of mistake it is written
 to draw out. Hold the button to speak and release it: the recording is transcribed by
 Whisper with a timing and a confidence for every word, answered in character by
-`gemma3:4b`, and spoken by Piper — one request, stored whole or not at all. Ending the
+`gemma4:latest`, and spoken by Piper — one request, stored whole or not at all. Ending the
 session writes the report.
 
 **The persona stays a persona.** It is given its full brief at the front of the prompt and a
@@ -180,9 +180,10 @@ side by side on the same counts, with no pass mark. See
 [decision 0019](decisions/0019-make-your-point.md).
 
 **Measured.** Said by a synthetic voice, 21–23 of 24 fillers, 12–13 of 13 words said twice
-and every signpost reach the transcript. `gemma3:4b`'s shorter version is withheld for 9 of
-40 labelled answers — 2 of 16 held out — and the check withholds 6 of 6 rewrites written to
-add a fact while letting 6 of 6 faithful ones through.
+and every signpost reach the transcript. `gemma4:latest`'s shorter version puts no content
+word the speaker never said into any of 40 labelled answers, so none is withheld — Gemma 3's
+was withheld for 9 of the 40 — and the check withholds 6 of 6 rewrites written to add a
+fact while letting 6 of 6 faithful ones through.
 
 ## Progress
 

@@ -24,7 +24,7 @@ which command, which figure. A change nobody can measure is hard to accept here.
 ## Setting up
 
 The [Quick start](README.md#quick-start) is the whole setup: Docker, Ollama on the host
-with `gemma3:4b` pulled, then `make setup`. Every step is idempotent, so it is also the
+with `gemma4` pulled, then `make setup`. Every step is idempotent, so it is also the
 command to run after pulling.
 
 ## Before you open a pull request

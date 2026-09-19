@@ -359,7 +359,7 @@ Measured on the target machine (Apple M4 Max, 128 GB, 16 cores).
 | Upload + ffmpeg decode | ≤ 200 ms |
 | ASR (`small.en`, ~6 s of audio) | ≤ 700 ms |
 | Grammar analysis (parallel with generation) | ≤ 400 ms |
-| LLM reply (`gemma3:4b`, ~80 tokens, host Ollama on Metal) | ≤ 1500 ms |
+| LLM reply (`gemma4:latest`, ~80 tokens, host Ollama on Metal) | ≤ 1500 ms |
 | TTS (Piper) | ≤ 400 ms |
 | **Conversational turn, p95** | **≤ 3000 ms** |
 | Read-aloud scoring, async, p95 | ≤ 10 s |
@@ -399,7 +399,7 @@ graph TB
         AUD[("audio volume")]
     end
 
-    OLL["Ollama — gemma3:4b<br/>host :11434, Metal"]
+    OLL["Ollama — gemma4:latest<br/>host :11434, Metal"]
 
     FE -->|"audio + REST"| API
     API --> DB
@@ -467,13 +467,13 @@ speaklab/
 | Role | Choice | Rationale | Fallback |
 |---|---|---|---|
 | ASR | `faster-whisper small.en`, int8 | CT2 avoids torch entirely. Word-level timestamps and per-word logprobs are required by §7.1 and §7.5, and Whisper gives both | `base.en` if the latency budget is missed; `medium.en` for offline re-scoring |
-| Conversation | `gemma3:4b` via host Ollama | 4B is the right size for a ≤1.5 s reply on Metal while holding a persona | `gemma3:12b` for quality on a slower budget |
+| Conversation | `gemma4:latest` (8B) via host Ollama, thinking off | With thinking off its reply is as fast as a 4B model's on Metal while holding a persona; with it on, seconds go on a thought nobody hears | `gemma3:4b` for a 3.3 GB download on a small disk |
 | TTS | Piper, `en_US-lessac-medium` | ONNX, CPU, faster than real time, ~60 MB. Naturalness is adequate for an interlocutor | Kokoro-82M if voice quality becomes the complaint |
 | Phoneme acoustics | wav2vec2 CTC phoneme model | Frame-level phone posteriors are the only honest input to GOP | See §14 R1 |
 | Forced alignment | `torchaudio.functional.forced_align` | CTC forced alignment in the stdlib of the framework already present. No Kaldi, no MFA install | Charsiu's frame classifier if the torchaudio path underperforms |
 | G2P | `g2p_en` (CMUdict + neural fallback) | ARPAbet with stress; handles out-of-vocabulary words | `phonemizer`/espeak-ng for IPA if the phone set must match an IPA-trained model |
 | Grammar parsing | spaCy `en_core_web_sm` | Morphological features (`Tense`, `Aspect`, `VerbForm`, `Mood`) and dependency labels give §7.3 and §7.1 without a model call |
-| Error labelling | `gemma3:4b`, constrained JSON | Proposes labels only from the closed taxonomy; a rule layer validates spans and drops anything unmatched (FR-19) |
+| Error labelling | `gemma4:latest`, constrained JSON | Proposes labels only from the closed taxonomy; a rule layer validates spans and drops anything unmatched (FR-19) |
 
 **Deliberately absent:** LangChain and LlamaIndex. The orchestration here is a handful of
 HTTP calls and a token budget; a framework would hide the parts worth defending. Also
