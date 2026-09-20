@@ -118,6 +118,17 @@ learner's speech will be worse by an amount that set cannot estimate.
 | … what leaving the figures out changes | on that script, the first section's word error rate falls from **0.200 to 0.171** and the third's from **0.140 to 0.116**; the other two hold no figure and do not move | the four stored takes |
 | **The sounds one script named** | *the vowel in "see"* −3.79 over 15 instances in 4 takes, *the "th" in "this"* −3.43 over 16, *the "ng" at the end of "sing"* −3.29 over 6 in 3, *the "z" at the end of "is"* −2.72 over 14, *the vowel in "her"* −2.67 over 19. The words offered beside them are the speaker's own | `GET /presentations/{id}` against the running stack |
 
+## Hearing a sound
+
+| Measure | Figure | Source |
+|---|---|---|
+| **One word, spoken** | **23 ms**, median of eight — 21 to 24 — against 320 ms for an eighty-token reply. A word not asked for before: 22 to 38 ms | `GET /speak/{word}` against the running stack |
+| … a word the caller already holds | **1.9 ms**, median of five — 1.5 to 2.7 — and nothing is synthesised: the validator is built from the voice, the word and the pinned settings, so it is answered before the voice is called | the same route, with `If-None-Match` |
+| **The voice, left to itself, does not repeat a word** | eight renderings of each of five words: the longest against the shortest spreads **18 % to 59 %** — *is* 0.42–0.56 s, *calls* 0.59–0.70, *see* 0.42–0.57, *think* **0.39–0.63**, *fewer* 0.48–0.59 | the voice in its container, [decision 0030](decisions/0030-hearing-the-sound.md) |
+| … and pinned, it does | both noise settings at zero: one identical rendering in three runs for all five words, and byte-identical over five consecutive requests to the live route. Pinning the duration noise alone fixes the length and still gives three different waveforms | the same |
+| **What the closed set refuses** | a correctly spelled word sitting in a script this system holds is **404** for an account that does not own that script and **200** for the one that does | `api/tests/test_speak.py` |
+| **Sounds that can be heard** | **39 of 39** — every phone in the inventory has an example word, and every one of them is spoken | `api/tests/test_speak.py` |
+
 ## Progress
 
 | Measure | Figure | Source |

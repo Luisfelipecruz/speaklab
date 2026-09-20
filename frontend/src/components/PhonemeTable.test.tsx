@@ -169,3 +169,37 @@ test("a response with no name falls back to the code rather than showing nothing
 
   expect(screen.getAllByText("/TH/").length).toBeGreaterThan(0);
 });
+
+
+test("the sound you were aiming for can be heard; what came out instead cannot", () => {
+  const missed = makePhoneme({
+    word_idx: 1,
+    canonical_phone: "TH",
+    canonical_name: 'the "th" in "think"',
+    canonical_example: "think",
+    recognized_phone: "s",
+    gop: -9.4,
+  });
+
+  render(<PhonemeTable phonemes={[missed]} summary={SUMMARY} />);
+
+  // The first column: a word this project chose, so it can be offered.
+  expect(screen.getByRole("button", { name: 'Hear "think"' })).toBeInTheDocument();
+  // The second: the acoustic model's own symbol. Synthesising it would assert an
+  // English sound nothing ever claimed, so there is exactly one button on the row.
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+});
+
+test("a sound with no word behind it gets no button rather than a broken one", () => {
+  const unnamed = makePhoneme({
+    word_idx: 1,
+    canonical_phone: "TH",
+    recognized_phone: "s",
+    gop: -9.4,
+  });
+  delete (unnamed as { canonical_example?: string | null }).canonical_example;
+
+  render(<PhonemeTable phonemes={[unnamed]} summary={SUMMARY} />);
+
+  expect(screen.queryAllByRole("button")).toHaveLength(0);
+});

@@ -29,6 +29,7 @@ from routers.passages import router as passages_router
 from routers.presentations import router as presentations_router
 from routers.progress import router as progress_router
 from routers.scenarios import router as scenarios_router
+from routers.speak import router as speak_router
 from routers.sessions import router as sessions_router
 from routers.turns import router as turns_router
 
@@ -68,6 +69,10 @@ TAGS = [
     {
         "name": "audio",
         "description": "Stored recordings, streamed to their owner and to nobody else.",
+    },
+    {
+        "name": "speak",
+        "description": "One word from a closed set, spoken, so a named sound can be heard.",
     },
     {
         "name": "grammar",
@@ -148,6 +153,10 @@ ROUTERS = (
     # A script the learner wrote, rehearsed section by section. After answers because it
     # reuses their arithmetic, and last because it is the newest thing a reader meets.
     presentations_router,
+    # One word, spoken, so that a sound this system names can also be heard. Last of all
+    # because it belongs to no feature in particular: the screens that name a sound are
+    # spread across read-aloud and rehearsal, and this serves both.
+    speak_router,
 )
 
 for router in ROUTERS:

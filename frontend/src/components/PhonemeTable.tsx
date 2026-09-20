@@ -15,6 +15,11 @@
  * symbol: it is whatever the acoustic model asserted, in the model's own alphabet, and
  * naming it would mean claiming to know which English sound it was meant to be.
  *
+ * **The first column can be played; the second cannot, and that is deliberate.** The
+ * wanted sound has a word behind it that this project chose, so it can be offered to
+ * hear. What came out has only the model's symbol — synthesising that would be asserting
+ * an English sound nothing in this system ever claimed.
+ *
  * Only substitutions below the reading's own weakest band are listed. Every scored phone
  * has a `recognized_phone`, including the ones that were produced perfectly well — often
  * the same sound under a different symbol — and listing all of them would bury the two
@@ -27,6 +32,7 @@
 import {
   Table,
 } from "@/components/PhonemeTable.helpers";
+import { SpeakButton } from "@/components/SpeakButton";
 import { confusionPairs, type PhonemeScore, type PronunciationSummary } from "@/lib/api";
 
 export interface PhonemeTableProps {
@@ -52,8 +58,9 @@ export function PhonemeTable({ phonemes, summary }: PhonemeTableProps) {
       caption="Each row is a sound the text asked for where something else scored higher — so what came out was closer to that other sound than to the one you were aiming for. The score is the lowest the wanted sound got: the further below zero, the further off it was."
       head={["The sound you were aiming for", "Closer to", "Times", "Lowest score"]}
       rows={pairs.map((pair) => [
-        <span key="c" className="flex flex-wrap items-baseline gap-2">
+        <span key="c" className="flex flex-wrap items-center gap-2">
           <span>{pair.name}</span>
+          {pair.example && <SpeakButton word={pair.example} />}
           <span className="font-mono text-xs text-muted-foreground">/{pair.canonical}/</span>
         </span>,
         <span key="h" className="font-mono text-sm">[{pair.heard}]</span>,

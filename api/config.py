@@ -204,6 +204,12 @@ TTS_RETRY_PAUSE_S = float(os.environ.get("TTS_RETRY_PAUSE_S", "0.5"))
 # March" should not be something only the container's environment remembers.
 PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
 
+# How long a browser may keep one spoken word. A day, because the audio is a pure
+# function of the voice, the word and the pinned noise settings — none of which change
+# between deployments — and the response's ETag is built from exactly those, so a stale
+# entry cannot survive a voice change anyway.
+SPEAK_CACHE_SECONDS = int(os.environ.get("SPEAK_CACHE_SECONDS", "86400"))
+
 # ── Pronunciation ───────────────────────────────────────────────────────────
 
 # Generous, like ASR_TIMEOUT_S and for the same reason: a cold pron container is

@@ -69,3 +69,37 @@ def test_a_scored_phone_carries_its_name_beside_its_code():
 
     assert scored.canonical_phone == "IY1"
     assert scored.canonical_name == 'the vowel in "see"'
+
+
+def test_every_sound_has_a_word_that_carries_it():
+    """Thirty-nine names, thirty-nine words. A name with no word is a button that 404s."""
+    from services.phone_names import EXAMPLE_WORDS, PHONE_NAMES
+
+    assert set(EXAMPLE_WORDS) == set(PHONE_NAMES)
+    assert all(word.isalpha() or "'" in word for word in EXAMPLE_WORDS.values())
+
+
+def test_the_two_names_that_do_not_say_in_are_read_like_the_rest():
+    """The reason the word is taken from the end of the name rather than after `in`.
+
+    Most names read *the "f" in "fine"*. Two do not — a sound heard at the end of a word
+    is named there — and a reading that looked for `in "…"` would drop exactly those
+    two, one of which is the sound this naming was asked for in the first place.
+    """
+    from services.phone_names import example_word_of
+
+    assert example_word_of("Z") == "is"
+    assert example_word_of("NG") == "sing"
+    assert example_word_of("F") == "fine"
+
+
+def test_a_sound_nobody_has_named_offers_no_word_rather_than_a_guess():
+    from services.phone_names import example_word_of
+
+    assert example_word_of("XX") is None
+
+
+def test_stress_does_not_hide_the_word():
+    from services.phone_names import example_word_of
+
+    assert example_word_of("IY1") == example_word_of("IY") == "see"

@@ -135,6 +135,30 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   return body as T;
 }
 
+// ── Hearing a word ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch one spoken word as audio the browser can play.
+ *
+ * A blob rather than an `<audio src>` pointing at the route: the session lives in an
+ * httpOnly cookie, and a media element only sends one cross-origin if it is marked for
+ * credentials, which is a quiet failure when it is forgotten. Going through `fetch`
+ * uses the same path as every other authenticated call.
+ *
+ * The HTTP cache still does its job here — a word already held is revalidated against
+ * the route's ETag and answered without being synthesised again.
+ */
+export async function speakWord(word: string): Promise<Blob> {
+  const response = await fetch(
+    `${PUBLIC_API_URL}/speak/${encodeURIComponent(word)}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) {
+    throw new ApiError(`Could not play "${word}".`, response.status);
+  }
+  return response.blob();
+}
+
 // ── Health ──────────────────────────────────────────────────────────────────
 
 /**
@@ -494,6 +518,12 @@ export interface PhonemeScore {
   /** The same sound in words — "the vowel in \"see\"". Absent on an older response. */
   canonical_name?: string;
   /**
+   * The word inside that name, which is the word a button can offer to play. Carried by
+   * the API rather than cut out of `canonical_name` here: two of the names are phrased
+   * differently, and a reader that guessed would lose exactly those two sounds.
+   */
+  canonical_example?: string | null;
+  /**
    * What won the segment instead, or null. The null matters: where nothing clearly won,
    * the interface must not name a sound the model did not assert.
    */
@@ -634,6 +664,8 @@ export interface ConfusionPair {
   canonical: string;
   /** The wanted sound in words, as the API names it. */
   name: string;
+  /** The word that carries the wanted sound, or null if this sound has no name. */
+  example: string | null;
   heard: string;
   count: number;
   worst: number;
@@ -656,6 +688,7 @@ export function confusionPairs(
       tally.set(key, {
         canonical,
         name: phone.canonical_name ?? `/${canonical}/`,
+        example: phone.canonical_example ?? null,
         heard: phone.recognized_phone,
         count: 1,
         worst: phone.gop,

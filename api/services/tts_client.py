@@ -77,13 +77,21 @@ def _raise_for_status(response: httpx.Response) -> None:
 
 
 def _payload(
-    text: str, voice: str | None, length_scale: float | None
+    text: str,
+    voice: str | None,
+    length_scale: float | None,
+    noise_scale: float | None = None,
+    noise_w_scale: float | None = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {"text": text}
     if voice is not None:
         body["voice"] = voice
     if length_scale is not None:
         body["length_scale"] = length_scale
+    if noise_scale is not None:
+        body["noise_scale"] = noise_scale
+    if noise_w_scale is not None:
+        body["noise_w_scale"] = noise_w_scale
     return body
 
 
@@ -92,6 +100,8 @@ async def speak(
     voice: str | None = None,
     length_scale: float | None = None,
     client: httpx.AsyncClient | None = None,
+    noise_scale: float | None = None,
+    noise_w_scale: float | None = None,
 ) -> Speech:
     """Text in, one complete WAV out.
 
@@ -99,6 +109,10 @@ async def speak(
     That is not only convenience: the cases worth testing here are a timeout, a 503 and
     a 200 carrying an HTML error page, and none of those can be produced on demand by a
     service that works.
+
+    The two noise arguments pin the voice's randomness. Left out, speech varies between
+    calls the way speech does; set to zero, the same text returns the same bytes, which
+    is what a word offered as a model to imitate has to do.
     """
     owned = client is None
     if client is None:
@@ -107,7 +121,8 @@ async def speak(
     try:
         try:
             response = await client.post(
-                f"{TTS_URL}/synthesize", json=_payload(text, voice, length_scale)
+                f"{TTS_URL}/synthesize",
+                json=_payload(text, voice, length_scale, noise_scale, noise_w_scale),
             )
         except httpx.RequestError as exc:
             raise TtsUnavailable(f"{type(exc).__name__}: {exc}") from exc

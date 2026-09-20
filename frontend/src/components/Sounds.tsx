@@ -6,6 +6,11 @@
  * in their mouth to listen to — so each one is named as *the vowel in "see"*, and the
  * words beside it are theirs, taken from the script they were scored in.
  *
+ * **Each of the speaker's own words can be played.** The sound is worth hearing in the
+ * words they have to say rather than in a specimen, so the button sits on *their* `is`
+ * and `calls` — and the label says it plays that word, not that the word is being said
+ * correctly.
+ *
  * **Every row prints what it counted**: how many times the sound was scored, across how
  * many takes, and the mean score. A row that cannot show its measurement is advice, and
  * this product does not give advice. The score is stated as a distance, not as a mark:
@@ -13,6 +18,7 @@
  * under the list says so rather than leaving a negative number to be read as a grade.
  */
 
+import { SpeakButton } from "@/components/SpeakButton";
 import type { SoundOut } from "@/lib/api";
 
 export function Sounds({
@@ -39,8 +45,14 @@ export function Sounds({
           >
             <span className="font-medium">{sound.name}</span>
             {sound.words.length > 0 && (
-              <span className="text-sm text-muted-foreground">
-                in your {sound.words.join(", ")}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span>in your</span>
+                {sound.words.map((word) => (
+                  <span key={word} className="inline-flex items-center gap-1">
+                    <span>{word}</span>
+                    <SpeakButton word={word} />
+                  </span>
+                ))}
               </span>
             )}
             <span className="ml-auto text-xs text-muted-foreground">
