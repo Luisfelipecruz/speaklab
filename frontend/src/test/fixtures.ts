@@ -215,6 +215,7 @@ export function makePhoneme(overrides: Partial<PhonemeScore> = {}): PhonemeScore
     word_idx: 0,
     phone_idx: 0,
     canonical_phone: "DH",
+    canonical_name: 'the "th" in "this"',
     recognized_phone: "ð",
     start_ms: 0,
     end_ms: 60,
@@ -681,9 +682,16 @@ export function makeTake(overrides: Partial<Take> = {}): Take {
       substitutions: 1,
       deletions: 0,
       insertions: 0,
+      figures: 0,
       words: [
         { kind: "match", expected: "good", heard: "good", unsure: false },
-        { kind: "substitution", expected: "morning", heard: "warning", unsure: false },
+        {
+          kind: "substitution",
+          expected: "morning",
+          heard: "warning",
+          unsure: false,
+          kind_of_difference: "different-word",
+        },
       ],
       unsure_words: 0,
       caveat: "Compared with your script word by word.",
@@ -727,7 +735,9 @@ export function makePresentationPage(
   return {
     presentation: makePresentation(),
     next_up: [],
+    sounds: [],
     caveat: "Counted from your takes of this script only.",
+    sounds_caveat: "Scored from your takes of this script.",
     ...overrides,
   };
 }

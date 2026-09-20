@@ -17,10 +17,11 @@ phone correctly in 10 cases out of 10 — including the one case the threshold m
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from models.audio import SourceMedia
 from models.common import ORMModel, Slug
+from services import phone_names
 
 # ── What the pron service returns ───────────────────────────────────────────
 
@@ -103,7 +104,13 @@ class AttemptCreate(BaseModel):
 
 
 class PhonemeScoreOut(ORMModel):
-    """One stored phone score, as the heatmap reads it."""
+    """One stored phone score, as the heatmap reads it.
+
+    `canonical_name` is the sound in words — *the vowel in "see"* — computed rather than
+    stored, so the naming table stays in one place and an old row gains a name the moment
+    it is read. The code stays beside it: it is what the scorer thinks in, and a reader
+    comparing two screens needs to see that they are talking about the same sound.
+    """
 
     word: str
     word_idx: int
@@ -114,6 +121,11 @@ class PhonemeScoreOut(ORMModel):
     end_ms: int | None
     gop: float
     posterior: float | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def canonical_name(self) -> str:
+        return phone_names.name_of(self.canonical_phone)
 
 
 class AttemptOut(ORMModel):

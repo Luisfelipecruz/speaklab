@@ -128,8 +128,27 @@ that nothing in the other documents reads as a claim.
   a take recorded while the scorer was down has no sounds and no way to get them but
   recording again. That is the price of not refusing accounts that keep no audio.
 - **Nothing here says whether the talk got better.** The counts say what one take
-  contained and the takes sit side by side; whether the fourth is a better talk than the
-  first is a judgement this product does not make.
+  contained, each beside the same count from the speaker's own previous take; whether the
+  fourth is a better talk than the first is a judgement this product does not make.
+- **The sound that came out instead is shown as a symbol, not in words.** The first
+  column of that table — the sound you were aiming for — is named; the second is the
+  acoustic model's own alphabet, and reading it needs that alphabet.
+- **Tone, intonation and stress are not measured at all.** Nothing here is about how the
+  words sounded together — only which words came out, how fast, and how each sound was
+  made. A take says so on the page, because silence where somebody is looking for an
+  answer reads as "nothing found".
+- **There is nothing to compare a pace against but your own last take.** No corpus of good
+  presentations has been measured here, so no words-a-minute norm is quoted and none
+  should be inferred from the tiles. A target is whatever the speaker sets, and the one
+  the page offers is the length of a take they chose.
+- **Sorting a difference into a kind is string comparison, and it is sometimes wrong.**
+  Two long words that agree for four characters and then diverge — *presentation* and
+  *president* — are called one word with a changed ending. Measured on twenty-five real
+  pairs from one speaker it sorts all of them the way a person would; that is twenty-five
+  pairs of one speaker's English.
+- **A take recorded before differences were sorted is not re-derived.** Its words carry no
+  kind, so they are shown as they were, and a number it counted against the speaker stays
+  counted in its stored rate.
 
 ## Progress
 

@@ -11,9 +11,15 @@
  * underneath, and it says why on hover: a difference at a word the recogniser doubted is
  * the likeliest place for a mistake that is the microphone's rather than the speaker's.
  * Dropping those words from the comparison would quietly improve the noisiest takes.
+ *
+ * **A word said differently is tinted by what kind of difference it is** — a lost ending,
+ * a different word, or a number written as a figure. The tint separates the kinds and
+ * ranks nothing: none of the three is worse than the others to look at, and the one that
+ * is not the speaker's doing at all says so when the pointer rests on it.
  */
 
 import type { AlignedWord } from "@/lib/api";
+import { DIFFERENCE_TINT, DIFFERENCE_TITLE } from "@/lib/differences";
 
 const UNSURE_TITLE = "The recogniser was not sure it heard this word.";
 
@@ -38,6 +44,9 @@ export function FidelityText({ words }: FidelityTextProps) {
           <s>struck</s> then a word — said differently
         </li>
         <li className="italic">italic — said, not in the script</li>
+        <li className={DIFFERENCE_TINT.ending}>an ending lost or gained</li>
+        <li className={DIFFERENCE_TINT["different-word"]}>a different word</li>
+        <li className={DIFFERENCE_TINT.figure}>a number written as a figure</li>
       </ul>
     </div>
   );
@@ -71,10 +80,14 @@ function Word({ word }: { word: AlignedWord }) {
     );
   }
 
+  const difference = word.kind_of_difference ?? null;
+  const tint = difference ? DIFFERENCE_TINT[difference] : "";
+  const said = difference ? DIFFERENCE_TITLE[difference] : "Said differently.";
+
   return (
-    <span title={title ?? "Said differently."}>
+    <span title={title ?? said}>
       <s className="text-muted-foreground">{word.expected}</s>{" "}
-      <span className={`font-medium ${unsure}`}>{word.heard}</span>{" "}
+      <span className={`font-medium ${tint} ${unsure}`}>{word.heard}</span>{" "}
     </span>
   );
 }

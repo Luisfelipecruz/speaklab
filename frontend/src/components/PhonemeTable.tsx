@@ -1,11 +1,19 @@
 /**
- * The confusion pairs in a reading, rendered as `/θ/ → /s/ ×34`.
+ * The confusion pairs in a reading: the sound the text wanted, and what came out instead.
  *
  * **This is the screen read-aloud is for.** A GOP of −9.4 is a number; "you produced /s/
  * four times where English wants /θ/" is something a person can practise. On the probe
  * set the acoustic model named the substituted phone correctly in 10 cases out of 10 —
  * including the one probe whose *threshold* missed — so the second column is the more
  * reliable half of this table, not the decorative one.
+ *
+ * **The wanted sound is named in words, with its code beside it.** The code is what the
+ * scorer thinks in and it is the only thing this table used to show, which left a reader
+ * unable to join a row here to the same sound named anywhere else on the page. The name
+ * comes first because it is the part anybody can act on; the code stays because two
+ * screens have to be visibly about the same thing. What came out instead keeps its own
+ * symbol: it is whatever the acoustic model asserted, in the model's own alphabet, and
+ * naming it would mean claiming to know which English sound it was meant to be.
  *
  * Only substitutions below the reading's own weakest band are listed. Every scored phone
  * has a `recognized_phone`, including the ones that were produced perfectly well — often
@@ -41,10 +49,13 @@ export function PhonemeTable({ phonemes, summary }: PhonemeTableProps) {
 
   return (
     <Table
-      caption="Sounds where another sound scored higher than the one the text asked for: the sound the text wanted, the one that came out instead, how often, and the lowest score the wanted sound got — the further below zero, the further off it was."
-      head={["Wanted", "Heard", "Times", "Lowest score"]}
+      caption="Each row is a sound the text asked for where something else scored higher — so what came out was closer to that other sound than to the one you were aiming for. The score is the lowest the wanted sound got: the further below zero, the further off it was."
+      head={["The sound you were aiming for", "Closer to", "Times", "Lowest score"]}
       rows={pairs.map((pair) => [
-        <span key="c" className="font-mono text-sm">/{pair.canonical}/</span>,
+        <span key="c" className="flex flex-wrap items-baseline gap-2">
+          <span>{pair.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">/{pair.canonical}/</span>
+        </span>,
         <span key="h" className="font-mono text-sm">[{pair.heard}]</span>,
         <span key="n">{pair.count}</span>,
         <span key="w" className="font-mono text-sm tabular-nums">{pair.worst.toFixed(2)}</span>,

@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { SectionRehearsal } from "@/app/(app)/rehearse/[id]/[idx]/SectionRehearsal";
 import { Page, PageHeader } from "@/components/PageHeader";
@@ -35,6 +35,9 @@ export default async function SectionPage({
   ]);
 
   const section = page?.presentation.sections.find((item) => item.idx === Number(idx));
+  const sections = page?.presentation.sections ?? [];
+  const previous = sections.find((item) => item.idx === Number(idx) - 1) ?? null;
+  const next = sections.find((item) => item.idx === Number(idx) + 1) ?? null;
 
   if (!page || !section) {
     return (
@@ -65,12 +68,37 @@ export default async function SectionPage({
         }
         title={`Section ${section.idx + 1} of ${page.presentation.sections.length}`}
         description={`${section.word_count} words.`}
+        actions={
+          // Either side of the section, so a talk can be walked through in the order it
+          // is given rather than through the script page between every part of it.
+          <>
+            {previous && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/rehearse/${id}/${previous.idx}`}>
+                  <ChevronLeft aria-hidden="true" />
+                  Previous section
+                </Link>
+              </Button>
+            )}
+            {next && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/rehearse/${id}/${next.idx}`}>
+                  Next section
+                  <ChevronRight aria-hidden="true" />
+                </Link>
+              </Button>
+            )}
+          </>
+        }
       />
 
       <SectionRehearsal
         presentationId={page.presentation.id}
         section={section}
         earlier={takes?.items ?? []}
+        nextIdx={next ? next.idx : null}
+        sounds={page.sounds}
+        soundsCaveat={page.sounds_caveat}
       />
     </Page>
   );

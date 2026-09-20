@@ -49,8 +49,11 @@ Nothing leaves the machine, and every figure here is measured and names what pro
 
 - **Rehearse a script of your own.** Paste the text of a talk; it is split into sections
   of about a paragraph, and you say each one as often as you like. Every take is compared
-  with what you wrote word by word, timed and counted, and scored sound by sound — and the
-  takes sit side by side, so the fourth can be read against the first.
+  with what you wrote word by word, timed and counted, and scored sound by sound, with
+  every figure set beside the same figure from your own previous take. A word that came out
+  differently says which kind of difference it is — a lost ending, a different word, or a
+  number the recogniser wrote as a digit, which is not counted against you — and a sound is
+  named as *the vowel in "see"* rather than `/IY/`, in words from your own script.
 
 - **See your grammar in your own sentences.** Every correction grouped by kind in the
   sentence you said it in; each verb form as a count — *right 9 of 13* — and never a
@@ -252,7 +255,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 163 — 1 121 pass, 42 need a model service | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 243 — 1 201 pass, 42 need a model service | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on

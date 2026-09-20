@@ -491,6 +491,8 @@ export interface PhonemeScore {
   word_idx: number;
   phone_idx: number;
   canonical_phone: string;
+  /** The same sound in words — "the vowel in \"see\"". Absent on an older response. */
+  canonical_name?: string;
   /**
    * What won the segment instead, or null. The null matters: where nothing clearly won,
    * the interface must not name a sound the model did not assert.
@@ -628,11 +630,20 @@ export function worstByWord(phonemes: PhonemeScore[]): Map<number, PhonemeScore>
  * the same sound written differently — and listing those would bury the two rows that
  * matter under two hundred that do not.
  */
+export interface ConfusionPair {
+  canonical: string;
+  /** The wanted sound in words, as the API names it. */
+  name: string;
+  heard: string;
+  count: number;
+  worst: number;
+}
+
 export function confusionPairs(
   phonemes: PhonemeScore[],
   floor: number,
-): { canonical: string; heard: string; count: number; worst: number }[] {
-  const tally = new Map<string, { canonical: string; heard: string; count: number; worst: number }>();
+): ConfusionPair[] {
+  const tally = new Map<string, ConfusionPair>();
   for (const phone of phonemes) {
     if (phone.gop >= floor || !phone.recognized_phone) continue;
     const canonical = phone.canonical_phone.replace(/[0-2]$/, "");
@@ -644,6 +655,7 @@ export function confusionPairs(
     } else {
       tally.set(key, {
         canonical,
+        name: phone.canonical_name ?? `/${canonical}/`,
         heard: phone.recognized_phone,
         count: 1,
         worst: phone.gop,
@@ -1067,12 +1079,17 @@ export function refreshProgress(
 // ── Rehearse: a script of your own, section by section ──────────────────────
 
 /** One step of the alignment between the section text and what was heard. */
+/** What kind of difference a substituted word is. Null on anything else. */
+export type DifferenceKind = "figure" | "ending" | "different-word";
+
 export interface AlignedWord {
   kind: "match" | "substitution" | "deletion" | "insertion";
   expected: string | null;
   heard: string | null;
   /** The recogniser's confidence in this word was under the floor. */
   unsure: boolean;
+  /** Null on a match, and on a take recorded before differences were sorted. */
+  kind_of_difference?: DifferenceKind | null;
 }
 
 /** How close a take was to the script, and where it differed. */
@@ -1082,10 +1099,23 @@ export interface Fidelity {
   substitutions: number;
   deletions: number;
   insertions: number;
+  /** Substituted words that are the same number written two ways, left out of `wer`. */
+  figures: number;
   words: AlignedWord[];
   /** -1 when the recogniser's words could not be lined up with the compared text. */
   unsure_words: number;
   caveat: string;
+}
+
+/** One sound across a script's takes, named in words. */
+export interface SoundOut {
+  phone: string;
+  name: string;
+  instances: number;
+  takes: number;
+  mean_gop: number;
+  /** Up to three words of the script this sound was scored inside. */
+  words: string[];
 }
 
 /** One take as a row in a table. */
@@ -1183,7 +1213,9 @@ export interface NextUp {
 export interface PresentationPage {
   presentation: Presentation;
   next_up: NextUp[];
+  sounds: SoundOut[];
   caveat: string;
+  sounds_caveat: string;
 }
 
 export interface PresentationCreate {

@@ -19,11 +19,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Info, Loader2, Mic, Square } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Info, Loader2, Mic, Square } from "lucide-react";
 
+import { DifferenceGroups } from "@/components/DifferenceGroups";
 import { FidelityText } from "@/components/FidelityText";
 import { PhonemeHeatmap } from "@/components/PhonemeHeatmap";
 import { PhonemeTable } from "@/components/PhonemeTable";
+import { Sounds } from "@/components/Sounds";
 import { StatTile } from "@/components/StatTile";
 import { Table } from "@/components/PhonemeTable.helpers";
 import { Waveform } from "@/components/Waveform";
@@ -36,12 +39,14 @@ import { useRecorder } from "@/hooks/useRecorder";
 import {
   ApiError,
   type Section,
+  type SoundOut,
   type Take,
   getTake,
   postTake,
   setSectionTarget,
 } from "@/lib/api";
 import { clock } from "@/lib/answers";
+import { before, takeSentence } from "@/lib/takes";
 
 /** 1.5 s apart; 40 of them is a minute, against a budget of ten seconds for a section. */
 const POLL_MS = 1500;
@@ -60,14 +65,27 @@ function rounded(value: number | null): string {
   return value === null ? "—" : String(Math.round(value));
 }
 
+function pauses(take: Take): string | null {
+  const ratio = take.delivery.pause_ratio;
+  return ratio === null ? null : `${Math.round(ratio * 100)}%`;
+}
+
 export function SectionRehearsal({
   presentationId,
   section,
   earlier,
+  nextIdx = null,
+  sounds = [],
+  soundsCaveat = "",
 }: {
   presentationId: number;
   section: Section;
   earlier: Take[];
+  /** The section after this one, or null when this is the last. */
+  nextIdx?: number | null;
+  /** The script's weakest sounds, shown where the take is rather than a page away. */
+  sounds?: SoundOut[];
+  soundsCaveat?: string;
 }) {
   const recorder = useRecorder();
   const { user } = useAuth();
@@ -268,7 +286,42 @@ export function SectionRehearsal({
         </Alert>
       )}
 
-      {shown && <TakeView take={shown} section={section} />}
+      {shown && (
+        <TakeView
+          take={shown}
+          section={section}
+          sounds={sounds}
+          soundsCaveat={soundsCaveat}
+          previous={before(takes, shown)}
+          sentence={takeSentence(shown, takes)}
+          onTargetFromTake={
+            shown.duration_ms
+              ? () => void saveTarget(Math.round(shown.duration_ms! / 1000))
+              : undefined
+          }
+        />
+      )}
+
+      {shown && (
+        // Somebody who has just said a section says it again or says the next one, and
+        // both should be reachable from where they are standing rather than back through
+        // the script.
+        <div>
+          <Button asChild variant="outline">
+            {nextIdx === null ? (
+              <Link href={`/rehearse/${presentationId}`}>
+                Back to the whole script
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            ) : (
+              <Link href={`/rehearse/${presentationId}/${nextIdx}`}>
+                Rehearse the next section
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            )}
+          </Button>
+        </div>
+      )}
 
       {takes.length > 0 && (
         <section aria-labelledby="the-takes" className="flex flex-col gap-3">
@@ -300,31 +353,89 @@ export function SectionRehearsal({
   );
 }
 
-function TakeView({ take, section }: { take: Take; section: Section }) {
+function TakeView({
+  take,
+  section,
+  sounds,
+  soundsCaveat,
+  previous,
+  sentence,
+  onTargetFromTake,
+}: {
+  take: Take;
+  section: Section;
+  sounds: SoundOut[];
+  soundsCaveat: string;
+  /** The take before this one of the same section, if there is one. */
+  previous: Take | null;
+  /** What this take was, assembled from the counts. Null when there is nothing to say. */
+  sentence: string | null;
+  /** Writes this take's own length as the section's target. */
+  onTargetFromTake?: () => void;
+}) {
   return (
     <section aria-labelledby={`take-${take.id}`} className="flex flex-col gap-6">
       <h2 id={`take-${take.id}`} className="text-lg font-semibold tracking-tight">
         What was heard
       </h2>
 
+      {sentence && <p className="max-w-[70ch] text-base">{sentence}</p>}
+
       <FidelityText words={take.fidelity.words} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <DifferenceGroups words={take.fidelity.words} />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatTile
           label={`of ${take.fidelity.reference_words} words missed or changed`}
           value={take.missed}
+          against={previous ? `was ${previous.missed} last take` : undefined}
         />
-        <StatTile label="words a minute" value={rounded(take.speech_rate_wpm)} />
         <StatTile
+          label="words a minute"
+          value={rounded(take.speech_rate_wpm)}
+          against={
+            previous?.speech_rate_wpm
+              ? `was ${rounded(previous.speech_rate_wpm)} last take`
+              : undefined
+          }
+        />
+        <StatTile
+          // Without a target there is nothing to be over or under, so the tile says what
+          // the number is. It used to say the bare word "long", which reads as a verdict
+          // nobody made and nothing here could support.
           label={
             take.pace && take.target_seconds
               ? `${PACE_WORD[take.pace]} of ${clock(take.target_seconds * 1000)}`
-              : "long"
+              : "how long it took"
           }
           value={clock(take.duration_ms)}
+          against={previous ? `was ${clock(previous.duration_ms)} last take` : undefined}
         />
-        <StatTile label={take.fillers === 1 ? "filler" : "fillers"} value={take.fillers} />
+        <StatTile
+          label="of the time in pauses"
+          value={pauses(take) ?? "—"}
+          against={
+            previous && pauses(previous) ? `was ${pauses(previous)} last take` : undefined
+          }
+        />
+        <StatTile
+          label={take.fillers === 1 ? "filler" : "fillers"}
+          value={take.fillers}
+          against={previous ? `was ${previous.fillers} last take` : undefined}
+        />
       </div>
+
+      {!take.target_seconds && onTargetFromTake && (
+        // A target the speaker took from their own reading is defensible. An invented
+        // one — "a presentation should run at 130 words a minute" — is not: no corpus of
+        // good presentations has been measured here, so none is quoted.
+        <div>
+          <Button type="button" variant="outline" size="sm" onClick={onTargetFromTake}>
+            Set this section&rsquo;s target to {clock(take.duration_ms)}
+          </Button>
+        </div>
+      )}
 
       <p className="flex max-w-3xl gap-2 rounded-lg border border-chart-2/40 bg-chart-2/10 p-3 text-sm leading-relaxed">
         <Info className="mt-1 size-4 shrink-0 text-chart-2" aria-hidden="true" />
@@ -347,6 +458,14 @@ function TakeView({ take, section }: { take: Take; section: Section }) {
         take.pronunciation_detail && (
           <p className="max-w-3xl text-sm text-muted-foreground">{take.pronunciation_detail}</p>
         )}
+
+      <Sounds sounds={sounds} caveat={soundsCaveat} />
+
+      <p className="max-w-[70ch] text-sm text-muted-foreground">
+        Tone, intonation and stress are not measured here. Nothing on this page is about
+        how the words sounded together — only which words came out, how fast, and how each
+        sound was made.
+      </p>
 
       {take.pronunciation === "ok" && take.phonemes.length > 0 && (
         <div className="flex flex-col gap-6">

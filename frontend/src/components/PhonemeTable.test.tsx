@@ -103,9 +103,27 @@ test("the most frequent substitution comes first", () => {
   render(
     <PhonemeTable
       phonemes={[
-        makePhoneme({ word_idx: 0, canonical_phone: "V", recognized_phone: "b", gop: -6.0 }),
-        makePhoneme({ word_idx: 1, canonical_phone: "TH", recognized_phone: "s", gop: -9.4 }),
-        makePhoneme({ word_idx: 2, canonical_phone: "TH", recognized_phone: "s", gop: -8.0 }),
+        makePhoneme({
+          word_idx: 0,
+          canonical_phone: "V",
+          canonical_name: 'the "v" in "very"',
+          recognized_phone: "b",
+          gop: -6.0,
+        }),
+        makePhoneme({
+          word_idx: 1,
+          canonical_phone: "TH",
+          canonical_name: 'the "th" in "think"',
+          recognized_phone: "s",
+          gop: -9.4,
+        }),
+        makePhoneme({
+          word_idx: 2,
+          canonical_phone: "TH",
+          canonical_name: 'the "th" in "think"',
+          recognized_phone: "s",
+          gop: -8.0,
+        }),
       ]}
       summary={SUMMARY}
     />,
@@ -114,4 +132,40 @@ test("the most frequent substitution comes first", () => {
   const cells = screen.getAllByText(/^\/(TH|V)\/$/);
   expect(cells[0]).toHaveTextContent("/TH/");
   expect(cells[1]).toHaveTextContent("/V/");
+});
+
+test("the sound aimed for is named in words, with its code kept beside it", () => {
+  render(
+    <PhonemeTable
+      phonemes={[
+        makePhoneme({
+          word_idx: 1,
+          canonical_phone: "TH",
+          canonical_name: 'the "th" in "think"',
+          recognized_phone: "s",
+          gop: -9.4,
+        }),
+      ]}
+      summary={SUMMARY}
+    />,
+  );
+
+  // Both, and in that order: the name is what a reader can act on, the code is what makes
+  // this row and the named list above it visibly the same sound.
+  expect(screen.getByText('the "th" in "think"')).toBeInTheDocument();
+  expect(screen.getByText("/TH/")).toBeInTheDocument();
+});
+
+test("a response with no name falls back to the code rather than showing nothing", () => {
+  const unnamed = makePhoneme({
+    word_idx: 1,
+    canonical_phone: "TH",
+    recognized_phone: "s",
+    gop: -9.4,
+  });
+  delete (unnamed as { canonical_name?: string }).canonical_name;
+
+  render(<PhonemeTable phonemes={[unnamed]} summary={SUMMARY} />);
+
+  expect(screen.getAllByText("/TH/").length).toBeGreaterThan(0);
 });

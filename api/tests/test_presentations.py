@@ -17,6 +17,8 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 
 from db_models import AudioAsset, Presentation, Rehearsal, RehearsalPhone
+from config import REHEARSAL_SOUNDS_SHOWN
+from models.common import ARPABET_PHONES
 from models.presentation import SectionOut, TakeSummary
 from services import rehearsals
 from services.pron_client import PronUnavailable
@@ -652,7 +654,9 @@ def test_the_sound_named_is_the_lowest_one_measured_often_enough():
     items = rehearsals.next_up([section(0)], means, {})
 
     assert [item.kind for item in items] == ["sound"]
-    assert items[0].title == "the /TH/ sound"
+    # Named in words rather than in code: /TH/ is what the model thinks in and is not
+    # something the person who recorded the take can act on.
+    assert items[0].title == 'the "th" in "think"'
     assert items[0].reason == "12 instances across 3 takes, mean score -8.2"
 
 
@@ -778,3 +782,51 @@ def test_a_word_said_that_is_not_in_the_script_is_an_insertion():
     assert ("insertion", "big") in kinds
     assert alignment["insertions"] == 1
     assert alignment["reference_words"] == 3
+
+
+# ── The sounds a script names ───────────────────────────────────────────────
+
+
+def test_the_sounds_are_named_weakest_first_with_the_speakers_own_words():
+    """What the script page offers to work on, in the order it offers it.
+
+    The five the owner's four takes actually produced, with their measured means, so the
+    ordering is tested against a real profile rather than an invented one.
+    """
+    means = [
+        ("IY", -3.79, 15, 4),
+        ("DH", -3.43, 16, 4),
+        ("NG", -3.29, 6, 3),
+        ("Z", -2.72, 14, 4),
+        ("ER", -2.67, 19, 4),
+    ]
+    words = {"IY": ["peels", "these", "we"], "DH": ["the", "this"]}
+
+    found = rehearsals.sounds_of(means, words)
+
+    assert [sound.phone for sound in found] == ["IY", "DH", "NG", "Z", "ER"]
+    assert found[0].name == 'the vowel in "see"'
+    assert found[0].words == ["peels", "these", "we"]
+    assert found[0].instances == 15
+    assert found[0].takes == 4
+    assert found[0].mean_gop == -3.79
+    assert found[2].words == []
+
+
+def test_a_sound_heard_once_or_in_one_take_is_not_offered():
+    means = [("ZH", -9.9, 2, 1), ("TH", -8.2, 12, 1), ("S", -0.4, 40, 4)]
+
+    found = rehearsals.sounds_of(means, {})
+
+    assert [sound.phone for sound in found] == ["S"]
+
+
+def test_only_a_handful_of_sounds_are_offered_at_once():
+    means = [
+        (phone, -float(index), 10, 3) for index, phone in enumerate(ARPABET_PHONES)
+    ]
+
+    found = rehearsals.sounds_of(means, {})
+
+    assert len(found) == REHEARSAL_SOUNDS_SHOWN
+    assert [sound.phone for sound in found] == list(ARPABET_PHONES[-1:-6:-1])
