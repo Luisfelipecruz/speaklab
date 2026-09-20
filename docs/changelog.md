@@ -68,6 +68,22 @@ all of it arithmetic over counts that already existed.
   −3.29 over 6 in 3, *the "z" at the end of "is"* −2.72 over 14, *the vowel in "her"* −2.67
   over 19 — with *billing*, *calling*, *publishing* and *is*, *calls*, *becomes* offered
   beside them from the speaker's own script.
+- The confusion table on that speaker's latest take, once its first column was named: *the
+  "th" in "think"* closer to a `[f]` at −6.37 in **worth**, *the "th" in "this"* closer to a
+  `[t]` at −6.25 in **with**, and *the vowel in "her"* closer to a `[uː]` at −9.19 in
+  **fewer** — the same word the comparison counts as a lost ending.
+- `make eval` at the code commit, 19 min 6 s, all five suites: S4 not run, S5 0.500 over 6,
+  S6 1.72 %, S7 not met — unchanged. **Every figure that moves run to run landed inside its
+  published range and none had to be widened.** Persona replies clean 7 of 9 (one over the
+  sentence cap, one that did not end with its question) and judged in character 9 of 9; gave
+  its instructions away 3 of 150 and described them 1, against 5 and 0 in the previous run;
+  stepped out of the scene 9 of 150, 6 of them on the phrasing that says to stop acting; the
+  seven figure questions 70 of 70; a mistake said aloud heard as its correction 1 of 89 and
+  a corrected one heard as the mistake 0 of 89; articles, prepositions and false friends
+  heard as said 17, 17 and 18 of 20; a spoken answer's fillers written down 22 of 24 and its
+  sentence count within one of the written in 11 of 12, against the previous run's 6; the
+  shorter version's median time 4269 ms. API 1 243 — 1 201 pass, 42 skip; frontend 59 suites
+  / 392 tests; site 46 tests, 41 pages.
 
 ---
 
