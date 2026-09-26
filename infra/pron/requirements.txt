@@ -33,7 +33,7 @@ transformers==5.17.0
 # arrangement asr and tts use. It arrives transitively through transformers regardless;
 # pinned because the cache layout it writes is a thing this image depends on.
 # It no longer fetches vocab.json — that file is vendored, see the Dockerfile.
-huggingface_hub==1.32.0
+huggingface_hub==2.0.0
 
 # Grapheme-to-phoneme. Emits ARPAbet with stress digits, which is what phone_map.py
 # translates. It needs two NLTK corpora and they are downloaded at BUILD time — a
