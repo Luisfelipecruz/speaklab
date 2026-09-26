@@ -293,7 +293,7 @@ services:
     #
     # Pinned to an exact release, so the container serves the model the same way every
     # time. Gemma 4 needs 0.20.0 or later.
-    image: ollama/ollama:0.34.1
+    image: ollama/ollama:0.34.3
     profiles: ["llm"]
     volumes:
       - ollama_models:/root/.ollama
