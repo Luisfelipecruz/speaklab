@@ -27,7 +27,7 @@ setuptools==84.0.0
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
 # is dead weight, which is why vocab.json is read as JSON rather than through a
 # tokenizer class.
-transformers==5.17.0
+transformers==5.18.0
 
 # Pulls the weights down at run time onto the shared model_cache volume, the same
 # arrangement asr and tts use. It arrives transitively through transformers regardless;
@@ -47,7 +47,7 @@ numpy==2.5.3
 # MP4/AAC — exactly what MediaRecorder produces — and not `torchaudio.load`, which
 # requires torchcodec. PyAV is the ffmpeg libraries in-process, as in infra/asr, and it
 # removes the need for an ffmpeg binary in this image.
-av==18.1.0
+av==19.0.0
 
 fastapi==0.141.1
 uvicorn[standard]==0.53.0
