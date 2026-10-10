@@ -14,7 +14,7 @@ faster-whisper==1.2.1
 # and it is already a faster-whisper dependency, so pinning it costs nothing and gains
 # the source metadata (container format, sample rate, channels) that the API stores on
 # the audio_assets row.
-av==18.1.0
+av==19.0.1
 
 # Imported directly, to hand CTranslate2 the float32 buffer it wants. It arrives
 # transitively through ctranslate2 regardless; pinned because it is imported here.
