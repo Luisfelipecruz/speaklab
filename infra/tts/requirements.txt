@@ -23,5 +23,5 @@ onnxruntime==1.30.0
 # onnxruntime regardless; pinned because it is imported here.
 numpy==2.5.3
 
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
+fastapi==0.143.0
+uvicorn[standard]==0.54.0

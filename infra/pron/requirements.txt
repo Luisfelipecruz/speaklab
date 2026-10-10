@@ -49,6 +49,6 @@ numpy==2.5.3
 # removes the need for an ffmpeg binary in this image.
 av==18.1.0
 
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32
