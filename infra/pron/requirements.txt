@@ -41,7 +41,7 @@ huggingface_hub==1.32.0
 g2p_en==2.1.0
 nltk==3.10.3
 
-numpy==2.5.3
+numpy==2.5.4
 
 # Decodes whatever the browser recorded. Not `soundfile`, which cannot open WebM/Opus or
 # MP4/AAC — exactly what MediaRecorder produces — and not `torchaudio.load`, which
@@ -49,6 +49,6 @@ numpy==2.5.3
 # removes the need for an ffmpeg binary in this image.
 av==18.1.0
 
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
+fastapi==0.143.3
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32
