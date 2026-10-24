@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.25.0] — 2026-09-20 · hear the sound
+## [0.25.0] — 2026-10-24 · hear the sound
 
 Naming a sound is not the same as being able to make it. Every place this product names a
 sound can now play it, in a word you have to say. One route, one word, from a set the
@@ -44,6 +44,22 @@ built, which in nine milestones of using it had never been done.
 - **A word already in the browser is not synthesised again.** Because the audio is a pure
   function of the voice, the word and those settings, the response carries a validator
   built from exactly those — so a repeat request is answered before the voice is called.
+
+### Security
+
+- **Next.js 16.4.3**, from 16.3.5, with `eslint-config-next` beside it. **sharp 0.35.5**
+  and **source-map-js 1.2.2** come with it. Trivy, the scan CI runs on every pull request,
+  counted **seven** HIGH and CRITICAL advisories with a fixed release in the frontend's
+  lockfile:
+  - three critical in Next.js: remote code execution through the image optimiser,
+    `use cache` functions and `next/og`;
+  - two high in Next.js: a denial of service through Server Actions, and a server-side
+    request forgery in the image optimiser;
+  - one high in sharp, through librsvg, and one high in source-map-js.
+
+  Every one was fixed in a release published after this version was first measured.
+  After the update Trivy counts **none**. Nothing else in the lockfile moved, and the
+  frontend's own code is unchanged.
 
 ### Measured
 
