@@ -255,6 +255,32 @@ word by word; `Revenue grew 12% in Q3 2026, per the API.` names `12%` and `2026`
 nothing else, and the same text is refused by the scorer — which is what the naming
 predicts.
 
+## Hearing a sound
+
+**Anywhere a sound is named, it can be played.** `GET /speak/{word}` returns one word
+spoken by the same voice the conversation uses. The button sits beside each of your own
+words on the sounds list, and on the first column of the confusion table — the sound the
+text asked for, named as *the "z" at the end of "is"*. The label says *hear "is"*: what
+plays is one synthetic reading of one word, not a standard to be marked against.
+
+**The word is not yours to choose.** It is checked against a closed set before anything
+is synthesised — the example words in the phone names, the words of the shipped passages,
+and the words of your own scripts — and anything else is a 404. There is no route that
+speaks text you supply. What came out instead of the sound you wanted is never spoken
+either: that is the acoustic model's own symbol, and saying it aloud would assert an
+English sound nothing claimed.
+
+**The same word always sounds the same.** The voice draws noise in two places, so
+ordinary speech varies between calls the way speech does; this one route pins both to
+zero. A word held up to be imitated has to be the same thing twice, and because it is,
+the response carries a validator built from the voice, the word and those settings — so a
+word you already have is returned without being made again.
+
+**Measured.** One word takes 23 ms, against 320 ms for an eighty-token reply; a word the
+browser already holds takes 1.9 ms and is not synthesised at all. Left unpinned, eight
+renderings of one word spread 18 % to 59 % in length. See
+[decision 0030](decisions/0030-hearing-the-sound.md).
+
 ## Progress
 
 Everything analysed is collapsed into one row per week, and the progress page reads those

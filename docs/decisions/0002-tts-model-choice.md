@@ -1,6 +1,6 @@
 # 0002 — Piper, and the thread count that decides whether the budget is met
 
-Status: accepted
+Status: accepted · §2 of "Two deliberate choices" narrowed by [0030](0030-hearing-the-sound.md)
 
 ---
 
@@ -168,8 +168,11 @@ complaint, and it is a voice swap rather than a rewrite.
 without it the service cannot meet its own budget under ordinary contention, and the fix
 belongs in the voice service rather than in the conversation code.
 
-**2. There is no TTS route in the API.** `POST /synthesize` is a model-service internal
-API, never exposed to the browser. No FR asks for one: FR-6 and FR-7 deliver reply audio
+**2. There is no TTS route in the API.** Narrowed by
+[0030](0030-hearing-the-sound.md): one route now reaches the voice, `GET /speak/{word}`,
+and it speaks a single word from a set this system chose rather than text a caller
+supplies. The rest of this paragraph still holds. `POST /synthesize` is a model-service
+internal API, never exposed to the browser. No FR asks for one: FR-6 and FR-7 deliver reply audio
 as part of a session turn, and it reaches the browser through the ownership-checked
 `GET /audio/{asset_id}` — the same answer, for the same reason, as there being no upload
 endpoint for audio.

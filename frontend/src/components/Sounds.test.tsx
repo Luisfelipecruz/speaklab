@@ -40,10 +40,14 @@ test("a sound is read as a sound, not as the code the model thinks in", () => {
   expect(screen.queryByText(/\/IY\//)).not.toBeInTheDocument();
 });
 
-test("the words beside a sound are the speaker's own", () => {
+test("the words beside a sound are the speaker's own, each one playable", () => {
   render(<Sounds sounds={MEASURED} caveat={CAVEAT} />);
 
-  expect(screen.getByText("in your peels, these, we")).toBeInTheDocument();
+  expect(screen.getByText("in your")).toBeInTheDocument();
+  for (const word of ["peels", "these", "we"]) {
+    expect(screen.getByText(word)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Hear "${word}"` })).toBeInTheDocument();
+  }
 });
 
 test("every row prints what it counted", () => {

@@ -216,6 +216,7 @@ export function makePhoneme(overrides: Partial<PhonemeScore> = {}): PhonemeScore
     phone_idx: 0,
     canonical_phone: "DH",
     canonical_name: 'the "th" in "this"',
+    canonical_example: "this",
     recognized_phone: "ð",
     start_ms: 0,
     end_ms: 60,

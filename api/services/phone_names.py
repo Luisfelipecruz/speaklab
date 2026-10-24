@@ -17,6 +17,8 @@ example word contains the sound obviously and is one anybody reading this has sa
 
 from __future__ import annotations
 
+import re
+
 from models.common import ARPABET_PHONES
 
 # The example word carries the sound in the position it is most often noticed in. `Z` is
@@ -64,6 +66,27 @@ PHONE_NAMES: dict[str, str] = {
     "ZH": 'the "s" in "measure"',
 }
 
+# The word each name ends on, which is the word a speaker can be offered to hear. The
+# pattern anchors on the trailing quoted word rather than on `in "…"`, because two names
+# do not use that phrasing — `NG` is at the end of "sing" and `Z` is at the end of "is" —
+# and a pattern that assumed it would drop exactly those two silently.
+_EXAMPLE = re.compile(r'"([a-z\']+)"\s*$')
+
+EXAMPLE_WORDS: dict[str, str] = {}
+_unnamed: list[str] = []
+for _phone, _name in PHONE_NAMES.items():
+    _match = _EXAMPLE.search(_name)
+    if _match is None:  # pragma: no cover - import-time guard
+        _unnamed.append(_phone)
+    else:
+        EXAMPLE_WORDS[_phone] = _match.group(1)
+
+if _unnamed:  # pragma: no cover - import-time guard
+    raise RuntimeError(
+        "these phone names end on no quoted word, so no sound can be offered to hear: "
+        f"{_unnamed}"
+    )
+
 _missing = sorted(set(ARPABET_PHONES) - set(PHONE_NAMES))
 _extra = sorted(set(PHONE_NAMES) - set(ARPABET_PHONES))
 if _missing or _extra:  # pragma: no cover - import-time guard
@@ -83,3 +106,12 @@ def name_of(phone: str) -> str:
     """
     folded = phone.rstrip("012").upper()
     return PHONE_NAMES.get(folded, f"/{folded}/")
+
+
+def example_word_of(phone: str) -> str | None:
+    """The word that carries this sound, stress folded away, or None if it is unknown.
+
+    None rather than a fallback: the caller is deciding whether there is a word to
+    offer, and inventing one would put a button on a sound this table cannot speak.
+    """
+    return EXAMPLE_WORDS.get(phone.rstrip("012").upper())

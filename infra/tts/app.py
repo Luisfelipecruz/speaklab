@@ -217,15 +217,37 @@ class SynthesiseRequest(BaseModel):
     # slower speech without restarting the container.
     length_scale: float | None = Field(default=None, gt=0.1, le=3.0)
 
+    # This voice is stochastic: its duration predictor and its flow both draw noise, so
+    # the same text comes back a different length and a different waveform every call —
+    # measured here at 18 % to 59 % of the shorter duration across eight runs of one
+    # word. That is right for speech, which is what most of this service produces, and
+    # wrong for a specimen held up to be imitated, which has to be the same thing twice.
+    # Both at zero makes the output byte-identical. Left unset, the voice's own defaults
+    # apply and nothing about ordinary synthesis changes.
+    noise_scale: float | None = Field(default=None, ge=0.0, le=1.0)
+    noise_w_scale: float | None = Field(default=None, ge=0.0, le=1.0)
 
-def _chunks(text: str, length_scale: float) -> Iterator[tuple[int, np.ndarray]]:
+
+def _chunks(
+    text: str,
+    length_scale: float,
+    noise_scale: float | None = None,
+    noise_w_scale: float | None = None,
+) -> Iterator[tuple[int, np.ndarray]]:
     """One int16 array per sentence, in order. Blocking; called in a worker thread."""
     from piper.config import SynthesisConfig
 
     voice = state.voice
     assert voice is not None  # guarded by the caller
 
-    config = SynthesisConfig(length_scale=length_scale)
+    # None rather than a number for the noises: the voice's own configuration supplies
+    # them, and naming a default here would be this file asserting a value it did not
+    # measure.
+    config = SynthesisConfig(
+        length_scale=length_scale,
+        noise_scale=noise_scale,
+        noise_w_scale=noise_w_scale,
+    )
     for index, chunk in enumerate(voice.synthesize(text, syn_config=config)):
         yield index, chunk.audio_int16_array
 
@@ -327,7 +349,12 @@ async def synthesize(request: SynthesiseRequest) -> Response:
     scale = request.length_scale if request.length_scale is not None else LENGTH_SCALE
 
     def run() -> tuple[np.ndarray, int]:
-        parts = [pcm for _, pcm in _chunks(request.text, scale)]
+        parts = [
+            pcm
+            for _, pcm in _chunks(
+                request.text, scale, request.noise_scale, request.noise_w_scale
+            )
+        ]
         if not parts:
             return np.zeros(0, dtype=np.int16), 0
         return np.concatenate(parts), len(parts)
@@ -383,7 +410,9 @@ async def synthesize_stream(request: SynthesiseRequest) -> StreamingResponse:
 
         def produce() -> None:
             try:
-                for index, pcm in _chunks(request.text, scale):
+                for index, pcm in _chunks(
+                    request.text, scale, request.noise_scale, request.noise_w_scale
+                ):
                     payload = {
                         "index": index,
                         "audio_b64": base64.b64encode(pcm.tobytes()).decode("ascii"),

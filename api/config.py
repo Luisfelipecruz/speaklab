@@ -15,7 +15,7 @@ import os
 
 # The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
 # fails when this number has no entry there, and a release is cut from that entry.
-VERSION = "0.24.0"
+VERSION = "0.25.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -203,6 +203,12 @@ TTS_RETRY_PAUSE_S = float(os.environ.get("TTS_RETRY_PAUSE_S", "0.5"))
 # later voice are different audio for the same text, and "we changed the voice in
 # March" should not be something only the container's environment remembers.
 PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
+
+# How long a browser may keep one spoken word. A day, because the audio is a pure
+# function of the voice, the word and the pinned noise settings — none of which change
+# between deployments — and the response's ETag is built from exactly those, so a stale
+# entry cannot survive a voice change anyway.
+SPEAK_CACHE_SECONDS = int(os.environ.get("SPEAK_CACHE_SECONDS", "86400"))
 
 # ── Pronunciation ───────────────────────────────────────────────────────────
 

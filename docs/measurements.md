@@ -61,10 +61,10 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Synthesis, an 80-token reply | **320 ms** whole against 400 ms, **78 ms** to the first sentence; 771 ms and 135 ms on a busy machine | `make tts-latency`, [decision 0002](decisions/0002-tts-model-choice.md) |
 | Synthesis throughput | 50× real time on the CPU | `make tts-latency` |
 | The prompt-size estimate against Ollama's own count | −6.4 % to +6.2 % across three prompt shapes | [decision 0003](decisions/0003-conversation-context-strategy.md) |
-| **Persona replies clean of every deterministic rule** | **6 to 9 of 9** across fourteen runs, 7 in the latest; what fails is the sentence cap the persona itself states, or a reply that does not end with the question its persona asks for | `make persona-adherence`, [evaluation.md](evaluation.md) |
+| **Persona replies clean of every deterministic rule** | **6 to 9 of 9** across fifteen runs, 7 in the latest; what fails is the sentence cap the persona itself states, or a reply that does not end with the question its persona asks for | `make persona-adherence`, [evaluation.md](evaluation.md) |
 | The persona judge, against hand labels | **0.800** over ten replies; it misses the same two, the two the rules catch, in every run | [evaluation.md](evaluation.md) |
 | **An instruction spoken inside the scene** | the persona gave its instructions away **16 of 200** times over ten phrasings, against **59 of 200** before the speaker's words were quoted; on five phrasings written afterwards, 1 of 100 against 26 | [decision 0013](decisions/0013-an-instruction-spoken-in-the-scene.md) |
-| … in the suite `make eval` runs | fifteen phrasings, ten times each: gave them away **2 to 14 of 150** across thirteen runs, 3 in the latest; stepped out of the scene **4 to 15 of 150**, 9 in the latest, 6 of the 9 on the phrasing that names the phrase | [evaluation.md](evaluation.md) |
+| … in the suite `make eval` runs | fifteen phrasings, ten times each: gave them away **2 to 14 of 150** across fourteen runs, 2 in the latest; stepped out of the scene **4 to 15 of 150**, 4 in the latest, all four on the phrasing that names the phrase | [evaluation.md](evaluation.md) |
 | **A question with a figure in its answer** | seven questions to the letting agent, ten times each: the brief's figure in **70 of 70** replies, none quoting the brief; **22 of 70** named any figure before the brief carried the facts, 3 the right one | `make persona-adherence`, [decision 0027](decisions/0027-a-persona-that-answers-the-question.md) |
 
 ## Corrections and grammar
@@ -75,7 +75,7 @@ already on the machine, and Ollama with its model, a prerequisite pulled once.
 | Proposals refused by the gate | **25 %**, each with a reason | [decision 0006](decisions/0006-error-taxonomy.md) |
 | **Grammar rules, on planted errors** | **130 of 172** agreement errors caught — 0.756 [0.686, 0.814] — and **2 of 129** missing articles, with no wrong fix and no stray proposal; nothing proposed on 3 111 words of native English. No model involved | [evaluation.md](evaluation.md), [decision 0014](decisions/0014-the-rule-layer.md) |
 | **Which verb form a correction was made in** | **32 of 34** held-out corrections joined to both forms a teacher would name — 0.941 [0.809, 0.984] — and 2 of 4 real turns, where the parse of unpunctuated speech loses the verb; none joined to a wrong form | [evaluation.md](evaluation.md), [decision 0015](decisions/0015-accuracy-per-form.md) |
-| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across fourteen runs, 1 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
+| **A mistake said aloud, heard as its correction** | **1 to 3 of 89** across fifteen runs, 1 in the latest; a corrected sentence heard as the mistake **0 of 89** in every run. One clear synthetic voice, not a learner's | [evaluation.md](evaluation.md), [decision 0017](decisions/0017-the-spoken-drill.md) |
 | Articles, prepositions and false friends, said aloud | **16 to 20 of 20** of each kind heard as said across thirteen runs; repaired by the recogniser, prepositions 24 of 260 tries, articles 7 of 260, false friends never | [evaluation.md](evaluation.md), [decision 0018](decisions/0018-scenarios-for-articles-prepositions-and-false-friends.md) |
 | … found and filed under their kind | articles **9 of 20**, prepositions **17 of 20**, false friends **10 of 20** — identical in every run; 3 of the 60 corrected sentences drew a proposal. On Gemma 3: 6, 12 and 6 of 20, and 22 corrected sentences flagged | [evaluation.md](evaluation.md), [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | … one detection call | about **1.0–2.4 s**, from 124–283 s over the sixty sentences and their corrections across three runs; 0.7 s on Gemma 3; 8 s with thinking on | [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
@@ -102,7 +102,7 @@ learner's speech will be worse by an amount that set cannot estimate.
 | Measure | Figure | Source |
 |---|---|---|
 | **The counter, on 16 held-out answers** | precision / recall: reasons **0.957 / 1.000**, examples 1.000 / 0.909, steps 0.933 / 1.000, contrasts 1.000 / 1.000, summing up 1.000 / 1.000, a word said twice 0.923 / 1.000. **A phrase started again 0.636 / 0.636 — below the bar, so counted and not shown.** No model involved | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
-| A spoken answer, as the recogniser writes it | twelve answers spoken by the `tts` voice, nine runs: fillers **21 to 23 of 24**, words said twice 12 to 13 of 13, phrases started again 8 to 9 of 9, signposts 52 of 52 every time; the sentence count within one of the written in **6 to 12 of 12** | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
+| A spoken answer, as the recogniser writes it | twelve answers spoken by the `tts` voice, ten runs: fillers **21 to 23 of 24**, words said twice 12 to 13 of 13, phrases started again 8 to 9 of 9, signposts 52 of 52 every time; the sentence count within one of the written in **6 to 12 of 12** | [evaluation.md](evaluation.md), [decision 0019](decisions/0019-make-your-point.md) |
 | **The model's shorter version** | on 40 labelled answers, a content word the speaker never said in **0**, none withheld, every one shorter than the answer; Gemma 3's put one in 26 and had 9 withheld, 2 of 16 held out | [evaluation.md](evaluation.md), [decision 0025](decisions/0025-gemma-4-with-thinking-off.md) |
 | … and whether it is a version at all | none of the 40 is the answer word for word; its words a median **0.72** of the answer's (0.32–0.99); the answer's content words kept, median **0.73**, least 0.32 | [evaluation.md](evaluation.md) |
 | The check on a shorter version | withholds **6 of 6** rewrites written to add a fact, and shows 6 of 6 faithful ones | [evaluation.md](evaluation.md) |
@@ -117,6 +117,17 @@ learner's speech will be worse by an amount that set cannot estimate.
 | **Sorting a difference into what kind it is** | every substitution from four takes of one speaker's own 144-word script, labelled by hand: **8 endings, 15 other words, 2 numbers written as a figure** — 25 pairs, each asserted on its own | `api/tests/test_fidelity_kinds.py`, [decision 0029](decisions/0029-what-a-take-tells-the-speaker.md) |
 | … what leaving the figures out changes | on that script, the first section's word error rate falls from **0.200 to 0.171** and the third's from **0.140 to 0.116**; the other two hold no figure and do not move | the four stored takes |
 | **The sounds one script named** | *the vowel in "see"* −3.79 over 15 instances in 4 takes, *the "th" in "this"* −3.43 over 16, *the "ng" at the end of "sing"* −3.29 over 6 in 3, *the "z" at the end of "is"* −2.72 over 14, *the vowel in "her"* −2.67 over 19. The words offered beside them are the speaker's own | `GET /presentations/{id}` against the running stack |
+
+## Hearing a sound
+
+| Measure | Figure | Source |
+|---|---|---|
+| **One word, spoken** | **23 ms**, median of eight — 21 to 24 — against 320 ms for an eighty-token reply. A word not asked for before: 22 to 38 ms | `GET /speak/{word}` against the running stack |
+| … a word the caller already holds | **1.9 ms**, median of five — 1.5 to 2.7 — and nothing is synthesised: the validator is built from the voice, the word and the pinned settings, so it is answered before the voice is called | the same route, with `If-None-Match` |
+| **The voice, left to itself, does not repeat a word** | eight renderings of each of five words: the longest against the shortest spreads **18 % to 59 %** — *is* 0.42–0.56 s, *calls* 0.59–0.70, *see* 0.42–0.57, *think* **0.39–0.63**, *fewer* 0.48–0.59 | the voice in its container, [decision 0030](decisions/0030-hearing-the-sound.md) |
+| … and pinned, it does | both noise settings at zero: one identical rendering in three runs for all five words, and byte-identical over five consecutive requests to the live route. Pinning the duration noise alone fixes the length and still gives three different waveforms | the same |
+| **What the closed set refuses** | a correctly spelled word sitting in a script this system holds is **404** for an account that does not own that script and **200** for the one that does | `api/tests/test_speak.py` |
+| **Sounds that can be heard** | **39 of 39** — every phone in the inventory has an example word, and every one of them is spoken | `api/tests/test_speak.py` |
 
 ## Progress
 

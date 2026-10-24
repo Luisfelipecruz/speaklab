@@ -238,7 +238,9 @@ test("the script's weakest sounds are named on it, in words and with a measureme
   render(await PresentationDetailPage({ params: Promise.resolve({ id: "3" }) }));
 
   expect(screen.getByText('the vowel in "see"')).toBeInTheDocument();
-  expect(screen.getByText("in your peels, these")).toBeInTheDocument();
+  expect(screen.getByText("in your")).toBeInTheDocument();
+  expect(screen.getByText("peels")).toBeInTheDocument();
+  expect(screen.getByText("these")).toBeInTheDocument();
   expect(screen.getByText("15 times across 4 takes, mean score -3.8")).toBeInTheDocument();
 });
 

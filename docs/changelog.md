@@ -7,6 +7,87 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.25.0] — 2026-10-24 · hear the sound
+
+Naming a sound is not the same as being able to make it. Every place this product names a
+sound can now play it, in a word you have to say. One route, one word, from a set the
+system already chose — and the voice was listened to by a person before any of it was
+built, which in nine milestones of using it had never been done.
+
+### Added
+
+- **A play button wherever a sound is named.** On the sounds list it sits on each of your
+  own words — *the "z" at the end of "is" — in your **is**, **calls**, **becomes*** —
+  because a sound is worth hearing in the words you are about to say rather than in a
+  specimen. In the confusion table it sits on the first column, the sound the text asked
+  for. The label says *hear "is"* and never *hear the correct pronunciation*: what plays
+  is one synthetic reading by one voice, not a standard to be marked against.
+  [Decision 0030](decisions/0030-hearing-the-sound.md).
+- **`GET /speak/{word}`**, signed in, returning one word as audio. The word is checked
+  against a closed set first — the example words in the phone names, the shipped passages,
+  and your own scripts — using the same tokeniser that compares a script with what the
+  recogniser heard. Anything else is a 404 rather than a 400: the difference between *not
+  a word* and *not a word you may hear* is not the caller's to know. There is still no
+  route that speaks text you supply.
+- **Every scored phone carries the word that carries its sound**, so a screen offering a
+  sound to be heard asks for a word rather than cutting one out of a sentence. Two of the
+  thirty-nine names are phrased differently — a sound heard at the end of a word is named
+  there — and a reader that guessed at the phrasing would drop exactly those two.
+
+### Changed
+
+- **The voice can be asked for a rendering that does not change.** `POST /synthesize`
+  takes both of the voice's noise settings as optional overrides, and keeps its own
+  defaults when they are not given. Only the word route sets them, and it sets both to
+  zero. A persona's reply is speech and varies the way speech does; a word held up to be
+  imitated is a specimen and has to be the same thing twice.
+- **A word already in the browser is not synthesised again.** Because the audio is a pure
+  function of the voice, the word and those settings, the response carries a validator
+  built from exactly those — so a repeat request is answered before the voice is called.
+
+### Security
+
+- **Next.js 16.4.3**, from 16.3.5, with `eslint-config-next` beside it. **sharp 0.35.5**
+  and **source-map-js 1.2.2** come with it. Trivy, the scan CI runs on every pull request,
+  counted **seven** HIGH and CRITICAL advisories with a fixed release in the frontend's
+  lockfile:
+  - three critical in Next.js: remote code execution through the image optimiser,
+    `use cache` functions and `next/og`;
+  - two high in Next.js: a denial of service through Server Actions, and a server-side
+    request forgery in the image optimiser;
+  - one high in sharp, through librsvg, and one high in source-map-js.
+
+  Every one was fixed in a release published after this version was first measured.
+  After the update Trivy counts **none**. Nothing else in the lockfile moved, and the
+  frontend's own code is unchanged.
+
+### Measured
+
+- **The voice, judged by ear for the first time.** Ten recordings of the five words the
+  feature speaks, alone and inside a carrier phrase. Earlier work measured its latency,
+  its size and its format and nothing about how it sounds.
+- **Left to itself the voice does not say a word the same way twice**: eight renderings of
+  each of five words spread **18 % to 59 %** between shortest and longest, *think* running
+  0.39 s to 0.63 s. Both noise settings at zero give one identical rendering in three runs
+  for all five, and byte-identical audio over five consecutive live requests.
+- **One word takes 23 ms** — median of eight, 21 to 24 — against 320 ms for an
+  eighty-token reply. A word the caller already holds takes **1.9 ms** and is not
+  synthesised at all.
+- **39 of 39 sounds have a word that can be spoken.** A correctly spelled word sitting in
+  another account's script is a 404 for anyone but its owner.
+- API **1 264 — 1 222 pass, 42 skip**; frontend 60 suites / 399 tests; site 46 tests,
+  42 pages; 41 operations, 18 tables, no migration.
+- `make eval`, five of five suites: **no success criterion moved.** S4 not run, S5
+  undecidable at 0.500 over 6 scored proposals, S6 met at 1.72 % word error rate, S7 not
+  met at 7 sessions on 2 calendar days. Every moving figure landed inside its published
+  range and **none was widened**: the persona gave its instructions away 2 of 150 and
+  stepped out of the scene 4 of 150, both at the bottom of their ranges and all four
+  step-outs on the phrasing that names the phrase; replies clean on every rule 7 of 9;
+  a mistake said aloud heard as its correction 1 of 89; fillers 23 of 24; the sentence
+  count within one of the written in 11 of 12.
+
+---
+
 ## [0.24.0] — 2026-09-20 · say what the take was, not just what it measured
 
 The first real use of Rehearse found five things measured correctly and almost none of

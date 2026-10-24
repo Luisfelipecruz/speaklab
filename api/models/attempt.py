@@ -110,6 +110,11 @@ class PhonemeScoreOut(ORMModel):
     stored, so the naming table stays in one place and an old row gains a name the moment
     it is read. The code stays beside it: it is what the scorer thinks in, and a reader
     comparing two screens needs to see that they are talking about the same sound.
+
+    `canonical_example` is the word inside that name, carried separately so that a screen
+    offering the sound to be heard asks for a word rather than pulling one out of a
+    sentence. Two of the names do not have the shape the others do, and a reader that
+    guessed at them would quietly lose exactly those two sounds.
     """
 
     word: str
@@ -126,6 +131,11 @@ class PhonemeScoreOut(ORMModel):
     @property
     def canonical_name(self) -> str:
         return phone_names.name_of(self.canonical_phone)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def canonical_example(self) -> str | None:
+        return phone_names.example_word_of(self.canonical_phone)
 
 
 class AttemptOut(ORMModel):

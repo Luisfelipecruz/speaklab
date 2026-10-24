@@ -131,6 +131,10 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         ("GET", "/auth/me"),
         ("PATCH", "/auth/me"),
         ("GET", "/audio/{asset_id}"),
+        # Hearing a word. Scoped because the set it is checked against is partly the
+        # caller's own scripts: the same request is a 200 for one account and a 404 for
+        # another, and an unauthenticated caller has no scripts to be checked against.
+        ("GET", "/speak/{word}"),
         # Read-aloud. Scoped through the session, not through a column.
         ("POST", "/attempts"),
         ("GET", "/attempts"),
