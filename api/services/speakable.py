@@ -43,9 +43,14 @@ EXAMPLE_WORDS: frozenset[str] = frozenset(phone_names.EXAMPLE_WORDS.values())
 def _one_word(requested: str) -> str | None:
     """The single normalised word in `requested`, or None if it is not one word.
 
-    Two words, a digit, or punctuation that survives normalisation all fail here. A
-    request for `see the` is not a request for a word, and answering it with the first
-    one would be guessing at what was meant.
+    Two words fail here, and so do marks that normalise away to none. A request for
+    `see the` is not a request for a word, and answering it with the first one would be
+    guessing at what was meant.
+
+    A figure does not fail here. `2026` is one word to this tokeniser, so it goes on to
+    be judged by whether the asker's own text contains it, like anything else — there is
+    no separate rule about numbers, and inventing one would mean deciding on the
+    caller's behalf which of their own words they may hear.
     """
     words = wer.normalise(requested)
     return words[0] if len(words) == 1 else None
@@ -98,27 +103,4 @@ async def word_to_speak(db: AsyncSession, user: User, requested: str) -> str | N
     return None
 
 
-async def count_for(db: AsyncSession, user: User) -> int:
-    """How many distinct words this account may hear. Used by the tests and the docs.
-
-    Counted rather than estimated, because the figure is stated in the reference docs
-    and the set grows with every script the account writes.
-    """
-    words = set(EXAMPLE_WORDS)
-
-    bodies = await db.execute(select(Passage.body).where(Passage.is_active))
-    for body in bodies.scalars():
-        words.update(wer.normalise(body))
-
-    own = await db.execute(
-        select(PresentationSection.body)
-        .join(Presentation, PresentationSection.presentation_id == Presentation.id)
-        .where(Presentation.user_id == user.id)
-    )
-    for body in own.scalars():
-        words.update(wer.normalise(body))
-
-    return len(words)
-
-
-__all__ = ["EXAMPLE_WORDS", "count_for", "word_to_speak"]
+__all__ = ["EXAMPLE_WORDS", "word_to_speak"]
