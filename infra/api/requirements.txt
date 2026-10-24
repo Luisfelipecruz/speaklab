@@ -60,6 +60,10 @@ email-validator==2.3.0
 # reach their base forms and every rule that names a verb silently stops firing.
 spacy==3.8.16
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+# spaCy's hash tables, pinned because spaCy itself allows any 3.0.x: preshed 3.0.14
+# cannot load spaCy 3.8.16's tokenizer ("Python int too large to convert to C ssize_t"
+# in `Tokenizer._flush_specials`), so `spacy.load` fails before any text is seen.
+preshed==3.0.13
 
 # ── Tests and lint ──────────────────────────────────────────────────────────
 #

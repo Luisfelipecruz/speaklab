@@ -50,8 +50,8 @@ ALEMBIC_INI = os.path.join(API_ROOT, "alembic.ini")
 
 
 def sync_url(url: URL) -> URL:
-    """Drop the `+asyncpg` driver suffix. Alembic and CREATE DATABASE are synchronous."""
-    return url.set(drivername="postgresql")
+    """The same database through psycopg2. Alembic and CREATE DATABASE are synchronous."""
+    return url.set(drivername="postgresql+psycopg2")
 
 
 def named_database(suffix: str) -> URL:

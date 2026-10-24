@@ -32,10 +32,11 @@ DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://speaklab:speaklab_dev@localhost:5433/speaklab",
 )
 
-# Alembic runs migrations synchronously and psycopg2 cannot parse the `+asyncpg`
-# dialect suffix. Derived rather than configured separately so the two URLs cannot
-# drift apart and point at different databases.
-SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
+# Alembic runs migrations synchronously, through psycopg2. The driver is named rather
+# than left to the dialect: SQLAlchemy 2.1 reads a bare `postgresql://` as psycopg 3,
+# which is not installed. Derived rather than configured separately so the two URLs
+# cannot drift apart and point at different databases.
+SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "+psycopg2")
 
 # ── Model services ──────────────────────────────────────────────────────────
 #
