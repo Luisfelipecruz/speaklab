@@ -61,6 +61,14 @@ built, which in nine milestones of using it had never been done.
   another account's script is a 404 for anyone but its owner.
 - API **1 264 — 1 222 pass, 42 skip**; frontend 60 suites / 399 tests; site 46 tests,
   42 pages; 41 operations, 18 tables, no migration.
+- `make eval`, five of five suites: **no success criterion moved.** S4 not run, S5
+  undecidable at 0.500 over 6 scored proposals, S6 met at 1.72 % word error rate, S7 not
+  met at 7 sessions on 2 calendar days. Every moving figure landed inside its published
+  range and **none was widened**: the persona gave its instructions away 2 of 150 and
+  stepped out of the scene 4 of 150, both at the bottom of their ranges and all four
+  step-outs on the phrasing that names the phrase; replies clean on every rule 7 of 9;
+  a mistake said aloud heard as its correction 1 of 89; fillers 23 of 24; the sentence
+  count within one of the written in 11 of 12.
 
 ---
 
