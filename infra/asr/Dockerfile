@@ -3,7 +3,7 @@
 # Build context is this directory, not the repository root (docker-compose.yml), because
 # nothing here needs anything from the rest of the tree. That is also what keeps the
 # build cache useful: editing a router in api/ does not invalidate this image.
-FROM python:3.12.14-slim-trixie
+FROM python:3.12.15-slim-trixie
 
 # The security fixes Debian has published since the base image was built, and no package
 # added: the health check is a line of Python, and there is deliberately no ffmpeg —

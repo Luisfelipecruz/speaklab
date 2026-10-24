@@ -147,7 +147,7 @@ fmt-website:                       ## ruff --fix + black over website/, via a wr
 # read-only and only _site/ is written; links to files that are not pages point at the
 # commit checked out here.
 SITE_RUN = docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 \
-	-v "$$PWD:/repo:ro" -v "$$PWD/_site:/repo/_site" -w /repo python:3.12.14-slim-trixie
+	-v "$$PWD:/repo:ro" -v "$$PWD/_site:/repo/_site" -w /repo python:3.12.15-slim-trixie
 
 site:                              ## Build the project site into _site/; a broken link fails it
 	@mkdir -p _site
@@ -158,11 +158,11 @@ site:                              ## Build the project site into _site/; a brok
 
 site-serve:                        ## Serve _site/ on http://localhost:8004, after make site
 	docker run --rm -p 127.0.0.1:8004:8004 -v "$$PWD/_site:/site:ro" -w /site \
-		python:3.12.14-slim-trixie python -m http.server 8004
+		python:3.12.15-slim-trixie python -m http.server 8004
 
 release-notes:                     ## A release's notes from the changelog: make release-notes V=0.18.0
 	@test -n "$(V)" || { echo "usage: make release-notes V=0.18.0" >&2; exit 1; }
-	@docker run --rm -v "$$PWD:/repo:ro" -w /repo python:3.12.14-slim-trixie \
+	@docker run --rm -v "$$PWD:/repo:ro" -w /repo python:3.12.15-slim-trixie \
 		python website/release_notes.py $(V)
 
 # ── Model services ──────────────────────────────────────────────────────────

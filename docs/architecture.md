@@ -76,8 +76,8 @@ or downloads what it does not run.
   10001, and exits — a volume first written by an image that ran as root would otherwise
   hold files the services cannot replace.
 - **The security fixes the distribution has published since the base image was built**,
-  applied at build time, on a base pinned to its exact release (`python:3.12.14-slim`,
-  `node:24.21.0-alpine`, `postgres:16.15`). Dependabot proposes each new release as a
+  applied at build time, on a base pinned to its exact release (`python:3.12.15-slim`,
+  `node:24.22.0-alpine`, `postgres:16.15`). Dependabot proposes each new release as a
   change to that line.
 - **Its own health check**, in the Dockerfile: a line of Python for the four Python
   images, busybox `wget` for the frontend. No image installs a package to answer one.
@@ -147,8 +147,8 @@ nothing. The tables, and why five columns are JSONB while two adjacent ones are 
 [data-model.md](data-model.md).
 
 Two database URLs, derived from one so they cannot drift: `DATABASE_URL` with `+asyncpg`
-for requests, and `SYNC_DATABASE_URL` for Alembic, which runs synchronously and cannot parse
-the async dialect.
+for requests, and `SYNC_DATABASE_URL` with `+psycopg2` for Alembic, which runs synchronously
+and cannot parse the async dialect.
 
 Scenarios, passages and answer prompts are **seeded data, not fixtures**: real rows
 versioned as JSON in `api/seeds/` and loaded idempotently by slug with `make seed`. They sit
