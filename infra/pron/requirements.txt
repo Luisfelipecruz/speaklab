@@ -21,7 +21,7 @@ torchaudio==2.11.0
 # torch declares setuptools as a dependency, and PyTorch's CPU index serves a release old
 # enough to carry published vulnerabilities. Pinned here, so the second install replaces
 # it with a current one from PyPI.
-setuptools==84.0.0
+setuptools==84.2.1
 
 # Wav2Vec2ForCTC only. Note what is NOT imported: Wav2Vec2PhonemeCTCTokenizer, which
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
@@ -41,7 +41,7 @@ huggingface_hub==2.3.0
 g2p_en==2.1.0
 nltk==3.10.4
 
-numpy==2.5.3
+numpy==2.5.4
 
 # Decodes whatever the browser recorded. Not `soundfile`, which cannot open WebM/Opus or
 # MP4/AAC — exactly what MediaRecorder produces — and not `torchaudio.load`, which
@@ -49,6 +49,6 @@ numpy==2.5.3
 # removes the need for an ffmpeg binary in this image.
 av==19.0.2
 
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32
