@@ -87,8 +87,11 @@ await send("Network.enable");
 await send("Page.enable");
 await send("Runtime.enable");
 
+// A server-rendered button is in the page before React has hydrated it, and a press that
+// arrives first does nothing, so an element is pressed only once it carries React's props.
 async function boxOf(selector) {
-  return until(`the box of ${selector}`, `(() => { const el = ${selector}; if (!el) return null;
+  return until(`the box of ${selector}`, `(() => { const el = ${selector};
+    if (!el || !Object.keys(el).some((k) => k.startsWith("__reactProps$"))) return null;
     el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect();
     return r.width ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; })()`);
 }
