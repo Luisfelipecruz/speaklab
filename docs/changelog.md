@@ -7,6 +7,75 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.26.0] — 2026-10-25 · the app for this Mac
+
+SpeakLab without Docker. `make desktop` builds an app for the Mac it runs on, which starts
+the same services as processes — its own Postgres, the API, the three model services and
+the window — when it opens, and stops all of them when it quits. Every golden figure was
+earned again on the app's own services, and every one came out the same.
+
+### Added
+
+- **`SpeakLab.app`, built by `make desktop`.** A supervisor in Electron's main process runs
+  Compose's graph as processes: each starts when what it needs is done or ready, a process
+  that exits is started again after a pause that grows, and quitting stops everything in
+  reverse, Postgres last. The window opens as soon as the API answers. Nothing in the API,
+  the model services or the frontend changed to run there.
+  [Decision 0031](decisions/0031-the-desktop-build.md).
+- **The first launch fetches the speech weights** — 1.75 GB at pinned revisions, each file
+  checked against its SHA-256, resumed if it stops — and opens on registration.
+- **A status window** while the app starts, and whenever something needs you: Ollama not
+  answering, a port another program holds, a part that keeps stopping, data written by a
+  newer version. Each is said in words, with Try again and Show logs.
+- **File → Back Up…** writes `pg_dump` of the database and a copy of the recordings into a
+  folder you choose. Restoring is in the README, and so is moving your Compose history in.
+- **The API picks up owed work when it starts**, wherever it runs. Claims a stopped process
+  left are released before the first request; then readings and takes owed their sounds
+  are scored once `pron` has loaded, a batch of turns owed analysis waits for the labelling
+  model, and stale progress is rolled up. `STARTUP_CATCHUP=0` turns it off.
+- `make desktop-test`, the app's 65 tests in a container, and a CI job that runs them;
+  `desktop/e2e/smoke.sh`, which drives the built app through registration, a turn heard
+  back and a reading scored, and checks that nothing runs after it quits.
+
+### Fixed
+
+- **A reading or take left at `scoring`, or a turn left at `analyzing`, was never
+  finished** when the process doing it stopped, and ending that turn's session waited out
+  its whole budget for it. They are picked up when the API starts.
+- **A recording is found by its account and its digest**, under the root the API runs
+  with, instead of at the path stored when it was written. That path is another folder once
+  a database is restored somewhere new, and every such recording answered with an error.
+
+### Changed
+
+- **The dependency round, which released nothing of its own.** Python 3.12.15 and Node
+  24.22.0 in every image and in CI. In the API and the model services: FastAPI 0.162.0,
+  uvicorn 0.54.0, SQLAlchemy 2.1.6 — whose synchronous URL now names psycopg2, which 2.1 no
+  longer assumes — asyncpg 0.32.0, Alembic 1.20.1, PyJWT 2.15.1, NumPy 2.5.4, setuptools
+  84.2.1, PyAV 19.0.2, transformers 5.20.2, NLTK 3.10.4 and huggingface_hub 2.3.0; preshed
+  held at 3.0.13, because 3.0.14 broke spaCy's model loading. ruff 0.17.2 and black
+  26.10.1. In the frontend: React 19.3.1, radix-ui 1.8.1, lucide-react 1.61.0,
+  tailwind-merge 3.7.0 and shadcn 4.22.1, with Jest 30.5.2 and Testing Library's dom
+  10.4.2 and user-event 14.6.8. Ollama's optional container 0.40.7; the CI actions
+  setup-node and setup-python 7.1.0.
+
+### Measured
+
+- **The golden suites on the app's services, the same as on Docker**: WER 4/232 =
+  1.72 %, a mistake heard as its correction 2 of 89, fillers 21 of 24, GOP −3.119 and
+  +8.138 with 9 of 10 detected and 10 of 10 named.
+- **A whole turn, p95**, four runs of twenty turns each, alternated with Docker's services:
+  the app 1 908–2 598 ms, Docker 1 944–2 631 ms, every run inside 3 000 ms.
+- **The window in 1.66–2.06 s** from a warm launch, every model loaded by 4.9 s, a quit in
+  under half a second; a hard kill recovered by the next launch with nobody's hand.
+- **About 3.6 GB resident** with every model loaded; Ollama's runner 6.9 GB beside it.
+- **The build**: 228 s from nothing; the app 2.1 GB, 786 MB zipped.
+- API **1 277 — 1 235 pass, 42 skip**, on Compose's Postgres and on the app's; frontend 60
+  suites / 399 tests; the app 65 tests; site 46 tests, 43 pages; 41 operations, 18 tables,
+  no migration.
+
+---
+
 ## [0.25.0] — 2026-10-24 · hear the sound
 
 Naming a sound is not the same as being able to make it. Every place this product names a

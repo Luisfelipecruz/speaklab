@@ -9,7 +9,7 @@
         pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
         persona-adherence answer-feedback corpus analyze analyze-dry reparse error-precision rollup \
-        rollup-dry rollup-force fmt-website site site-serve release-notes
+        rollup-dry rollup-force fmt-website site site-serve release-notes desktop desktop-test
 
 help:                              ## This list
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -140,6 +140,19 @@ fmt-website:                       ## ruff --fix + black over website/, via a wr
 	docker compose --profile tools run --rm -v "$$PWD/website:/website-rw" \
 		--entrypoint sh test -c \
 		"ruff check --config /app/ruff.toml --fix /website-rw && black /website-rw"
+
+# ── The desktop build ───────────────────────────────────────────────────────
+
+# On the host, since it makes a macOS app. Every download, tool and cache it uses lives in
+# desktop/.build, and the host's own uv, Node and Homebrew take no part.
+desktop:                           ## Build desktop/dist/mac-arm64/SpeakLab.app for this Mac
+	/bin/sh desktop/scripts/build.sh
+
+# The repository read-only, so a test can read docker-compose.yml; --init reaps what the
+# tests' processes leave behind, as launchd does on the Mac.
+desktop-test:                      ## The desktop package's tests, in a Node container
+	docker run --rm --init --network none -v "$$PWD:/repo:ro" -w /repo/desktop \
+		node:24.22.0-alpine3.24 node --test "test/**/*.test.ts"
 
 # ── The project site and releases ───────────────────────────────────────────
 

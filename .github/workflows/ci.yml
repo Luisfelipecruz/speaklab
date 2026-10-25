@@ -171,6 +171,47 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  desktop:
+    name: Desktop — types and the supervisor's tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: desktop/package.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.22.0"
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+
+      # Under the same settings as the frontend's. Electron's own binary is not fetched:
+      # the package has no install script, and nothing here runs the app.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript
+        run: pnpm run typecheck
+
+      # Node runs the tests' TypeScript itself. They start real processes, listen on
+      # loopback ports, and read docker-compose.yml from the checkout.
+      - name: node --test
+        run: pnpm test
+
+      # Every package here is a development dependency, which Trivy leaves out, so the
+      # weekly run audits them the way the frontend's are audited.
+      - name: Audit
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: pnpm audit --audit-level high
+
   compose:
     name: Compose — the service graph parses
     runs-on: ubuntu-latest

@@ -15,7 +15,7 @@ import os
 
 # The version /health reports. It moves with `docs/changelog.md`, in the same commit: CI
 # fails when this number has no entry there, and a release is cut from that entry.
-VERSION = "0.25.0"
+VERSION = "0.26.0"
 
 # Which origins may call the API from a browser. The frontend is on 3003 (not 3000 —
 # the ports are offset so this stack runs alongside the others on this machine).
@@ -385,6 +385,17 @@ ANALYSIS_SESSION_BUDGET_S = float(os.environ.get("ANALYSIS_SESSION_BUDGET_S", "6
 # How often ending a session looks again at a turn being analysed by another process — a
 # backfill run from the command line. A job in the API's own process is awaited instead.
 ANALYSIS_CLAIM_POLL_S = float(os.environ.get("ANALYSIS_CLAIM_POLL_S", "0.25"))
+
+# Whether the API picks up, when it starts, the work a stopped process left owed: the
+# claims nobody holds any more, then the scoring, the analysis and the rollups those rows
+# are owed (services/catchup.py).
+STARTUP_CATCHUP = os.environ.get("STARTUP_CATCHUP", "1") == "1"
+
+# How long that work waits for pron to load its model and for the labelling model to
+# answer, asking at the second interval, before leaving it to the next start. pron loads
+# in seconds; Ollama answers once it is opened, which can be after SpeakLab is.
+CATCHUP_WAIT_S = float(os.environ.get("CATCHUP_WAIT_S", "600"))
+CATCHUP_POLL_S = float(os.environ.get("CATCHUP_POLL_S", "5"))
 
 
 # ── Progress (rollups, trends, recommendations) ─────────────────────────────

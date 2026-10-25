@@ -36,7 +36,7 @@ from services.asr_client import transcribe
 
 
 class AudioPathError(Exception):
-    """A stored path does not resolve inside AUDIO_ROOT. Never expected; never ignored."""
+    """A recording's path does not resolve inside AUDIO_ROOT. Never expected; never ignored."""
 
 
 class AudioTooLarge(Exception):
@@ -66,14 +66,20 @@ def storage_path(user_id: int, digest: str) -> Path:
 
 
 def resolve_path(asset: AudioAsset) -> Path:
-    """The absolute path of a stored asset, proven to be inside AUDIO_ROOT.
+    """The absolute path of a stored asset under the current AUDIO_ROOT, proven inside it.
+
+    Rebuilt from the row's account and digest, which is where `store_recording` puts every
+    file, rather than read from `asset.path`. The stored path names the root the file was
+    first written under, and that is another folder once the data has moved: a backup
+    restored into a new data folder, or the desktop app holding what Compose's `/audio`
+    volume wrote.
 
     The check is `Path.resolve()` on both sides and then `is_relative_to`, which follows
     symlinks — the case a string prefix comparison misses, and the one that turns
     "recordings are on their own volume" into "recordings are wherever a link points".
     """
     root = Path(AUDIO_ROOT).resolve()
-    path = Path(asset.path).resolve()
+    path = storage_path(asset.user_id, asset.sha256).resolve()
     if not path.is_relative_to(root):
         raise AudioPathError(f"asset {asset.id} resolves outside {root}")
     return path

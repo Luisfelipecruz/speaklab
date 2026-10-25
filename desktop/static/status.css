@@ -1,0 +1,157 @@
+:root {
+  --teal: #0e7c86;
+  --ink: #18272a;
+  --muted: #5c6b6e;
+  --line: #d9e2e3;
+  --surface: #ffffff;
+  --ground: #f4f7f7;
+  --bad: #b3261e;
+  --good: #1b7f4b;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6eeef;
+    --muted: #9fb0b2;
+    --line: #2c3a3c;
+    --surface: #182224;
+    --ground: #10181a;
+    --bad: #f2b8b5;
+    --good: #8fd3a8;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Above every display rule below, so `hidden` hides a flex row too. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+main {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.mark rect {
+  fill: var(--teal);
+}
+
+.mark path {
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.message {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.small {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  width: 0;
+  background: var(--teal);
+  transition: width 0.2s;
+}
+
+.units {
+  list-style: none;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.units li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.units .state {
+  color: var(--muted);
+}
+
+.units .ready,
+.units .done {
+  color: var(--good);
+}
+
+.units .failed {
+  color: var(--bad);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--teal);
+  background: var(--teal);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}

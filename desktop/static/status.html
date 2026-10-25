@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>SpeakLab</title>
+    <link rel="stylesheet" href="status.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" />
+          <path d="M8 13.5v5M12.5 10v12M17 7.5v17M21.5 11v10M26 14v4" />
+        </svg>
+        <h1 id="title">Starting SpeakLab…</h1>
+      </header>
+      <p id="message" class="message" aria-live="polite"></p>
+      <div id="download" class="download" hidden>
+        <div class="bar"><div id="bar-fill" class="fill"></div></div>
+        <p id="download-text" class="small"></p>
+      </div>
+      <ul id="units" class="units" aria-label="What is starting"></ul>
+      <div id="actions" class="actions" hidden>
+        <button id="retry" type="button">Try again</button>
+        <button id="logs" type="button" class="secondary">Show logs</button>
+        <button id="close" type="button" class="secondary" hidden>Close</button>
+        <button id="quit" type="button" class="secondary">Quit</button>
+      </div>
+    </main>
+    <script src="status.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The site's mark (website/static/favicon.svg) on Apple's macOS icon grid: the body
+       824 units square inside the 1024 canvas, with the system's soft shadow, and the
+       five bars scaled from the mark and centred on the body. -->
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#0e7c86" filter="url(#shadow)"/>
+  <path d="M280.25 447.6v128.8M396.1 357.5v309M512 293.1v437.8M627.9 383.25v257.5M743.75 460.5v103"
+        stroke="#fff" stroke-width="61.8" stroke-linecap="round"/>
+</svg>

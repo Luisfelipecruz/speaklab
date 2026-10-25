@@ -23,6 +23,8 @@ FastAPI is the only orchestrator. There is no message queue, no service mesh and
 framework: the request path is a handful of HTTP calls and a token budget, and a framework
 would hide the token budget — the part actually worth reviewing.
 
+The same graph also runs without Docker, as processes inside a macOS app (§10).
+
 ### Three model services instead of one
 
 They have different weights, different runtimes and different costs, and folding them
@@ -207,6 +209,25 @@ keeps no waveform — everything but the replay still works. Nothing a take prod
 the progress snapshots: a script somebody wrote and said forty times is practice, and the
 trends are built from conversation and from passages every speaker reads.
 
+### Work a stopped process left owed
+
+Analysis, read-aloud scoring and take scoring are tasks of the API process that took the
+request, and a row they claimed — a turn at `analyzing`, a reading or a take at `scoring` —
+stays claimed when that process stops, with nothing left to finish it. So the API, when it
+starts, puts those claims back before it serves anything: `make analyze` and `make rollup`
+run inside the API's own container and stop with it, so a claim found then belongs to a
+process that is gone. A take whose recording was not kept cannot be scored again, and is
+closed with the reason.
+
+Behind the first request it then does the work: the readings and takes owed their sounds,
+once `pron` has loaded its model; one batch of the turns owed analysis, once the labelling
+model answers; and the progress of every account with something newer than its snapshot.
+Each waits for its service rather than running without it, because scoring a reading while
+`pron` loads, or analysing a turn while Ollama is down, would close the row for good without
+what it was waiting for. What is still owed when the wait runs out is owed at the next
+start. Every row is claimed as the live path claims it, so a request that reaches a row
+first keeps it. `STARTUP_CATCHUP=0` turns all of it off.
+
 ---
 
 ## 5. Audio in: what the recogniser is for
@@ -250,6 +271,12 @@ that also writes a turn, and a plain rollback on the duplicate path would discar
 Nothing from a request reaches the filesystem. The stored name is a digest the API
 computed, and `resolve_path` checks containment after `resolve()` anyway, because a prefix
 comparison passes a symlink that points out of the volume.
+
+A recording is found by its account and its digest, under the root this API runs with.
+`audio_assets.path` records where the file was first written, and that is another folder
+once the data has moved — a backup restored somewhere new, or Compose's history, written
+under `/audio`, opened by the desktop app — so it is kept as a record and never read to
+serve a file.
 
 **With audio retention off** (`users.retain_audio`), a turn is transcribed and the
 recording is not kept: no file and no `audio_assets` row, while the turn still carries the
@@ -435,7 +462,84 @@ Inside the Compose network each service is reached by its name and its own port.
 
 ---
 
-## 10. Where the rest is written down
+## 10. The app for this Mac
+
+The same services run as processes inside one macOS app, `SpeakLab.app`, built on this Mac
+by `make desktop`. Opening it starts the whole system with no Docker and no terminal;
+quitting stops all of it.
+
+```
+SpeakLab.app ── the main process (Electron) and its supervisor
+                  ├──▶ postgres :5443   PostgreSQL 16 (theseus-rs), the app's own cluster
+                  │      └──▶ migrate ──▶ seed ──▶ api :8012
+                  ├──▶ asr  :8111  ┐
+                  ├──▶ tts  :8112  ├ start at once, needing nothing
+                  ├──▶ pron :8113  ┘
+                  └──▶ the window's server :3013, in Electron's utility process
+                                   Ollama :11434 on the host, as in Compose
+```
+
+### The supervisor
+
+Compose's graph, run as processes: a unit starts when what it needs is done — the
+migration, the seed — or ready, and ready is what `/health` says, or `pg_isready` for
+Postgres. The window opens as soon as the API answers, as Compose's frontend needs nothing
+else; the model services finish loading behind it. A process that exits is started again
+after a pause that grows from 1 s to 30 s, and after five exits in five minutes it stays
+down and a small status window says which, in words. A Postgres that restarts takes the API
+down with it until the database is back. Quitting stops everything the other way round,
+Postgres last, with its fast shutdown.
+
+Each process leads its own process group, so a stop reaches what it started too, writes its
+own log, and names itself in a pid file while it runs. The next launch stops whatever a
+crashed one left behind — a pid file whose process still runs from the app — and Postgres
+recovers from its write-ahead log on its own. Every process starts from a clean environment
+rather than the app's: Compose's variables, with the addresses moved to `127.0.0.1` and the
+paths to the app's folders, and the model services offline.
+
+### The data folder
+
+`~/Library/Application Support/SpeakLab` holds the cluster, the recordings, the weights,
+one log per process, the pid files, and `secret.json` — the database password and the
+session-signing key, made on the first launch and readable by the account alone. The app
+bundle holds no data and nothing writes inside it at run time: the services' bytecode is
+compiled into it when it is built. File → Back Up… writes `pg_dump` of the database and a
+copy of the recordings into a folder the person chooses; restoring is a few commands in
+the README, into an app that has been quit.
+
+### The first launch
+
+The speech weights are fetched once — Whisper `small.en` and wav2vec2, 1.75 GB at pinned
+revisions, each file checked against its SHA-256 before it is used — into Hugging Face's
+own cache layout, so that the services find them offline exactly as they find the files the
+containers download. A download that stops resumes where it stopped. The window then opens
+on registration. Everything after that works offline, apart from conversations, which need
+Ollama.
+
+### The build
+
+On the host, and from nothing the host provides but the system: CPython 3.12.15
+(python-build-standalone), uv, Node 24.22.0 and pnpm 12.4.1 are fetched into
+`desktop/.build` and checked against their publishers' checksums. Each service gets an
+environment of its own from its requirements, wheels only but for one pure-Python package;
+the frontend's standalone server is built from a copy of its source; Postgres is the
+theseus-rs build; the voice and the NLTK corpora are the bytes the images hold.
+electron-builder assembles the app, which is checked file for file against what was staged,
+and it is signed ad hoc, inside out, with the hardened runtime. Ad hoc is a signature for this Mac:
+Gatekeeper refuses the app on any other.
+
+| Process | Port, on `127.0.0.1` |
+|---|---|
+| the window's server | 3013 |
+| api | 8012 |
+| asr, tts, pron | 8111, 8112, 8113 |
+| postgres | 5443, and no socket |
+
+The ports are not Compose's, so the app and the Compose stack run at once.
+
+---
+
+## 11. Where the rest is written down
 
 | | |
 |---|---|

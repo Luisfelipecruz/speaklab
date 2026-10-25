@@ -31,10 +31,11 @@ Two ways to read these numbers:
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command |
 | Frontend releases the trust check refuses | **2** — older-line releases by their own maintainers, each excepted by exact version; every other package in the lockfile passes | pnpm 12.4.1's install; each checked against the npm registry |
-| API test suite | **1 061** — 1 023 pass with Postgres alone; the other 38 need `asr`, `tts`, `pron` or Ollama | `make test` |
-| Frontend test suite | **319** across 49 suites, no services needed | `make test-frontend` |
-| API operations | **31** | `app.openapi()` |
-| The project site | **35 pages**; 220 links, every one resolved — 177 to other pages, 8 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.1 s | `make site` |
+| API test suite | **1 277** — 1 235 pass with Postgres alone; the other 42 need `asr`, `tts`, `pron` or Ollama. The same counts on the desktop app's Postgres | `make test`, and its suite pointed at the app's cluster |
+| Frontend test suite | **399** across 60 suites, no services needed | `make test-frontend` |
+| The desktop app's tests | **65**, `node:test`, no services needed | `make desktop-test` |
+| API operations | **41** | `app.openapi()` |
+| The project site | **43 pages**; 261 links, every one resolved — 218 to other pages, 8 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.4 s | `make site` |
 
 ### The first run, measured twice
 
@@ -46,6 +47,24 @@ dependencies in parallel — the API's `pip install` alone took 346 s on the slo
 connection and 88 s on the faster. The first spoken turn was heard word for word and
 answered, with audio, in 2.2 s and 3.5 s. Not in either figure: `postgres:16`, which was
 already on the machine, and Ollama with its model, a prerequisite pulled once.
+
+## The app for this Mac
+
+Measured on the built `SpeakLab.app`, beside the Compose stack on the same Mac, at the same
+code. Ranges are across the runs made; Ollama's model is the same build for both.
+
+| Measure | Figure | Source |
+|---|---|---|
+| The build | `make desktop` from an empty `desktop/` in **228 s**, every download included; the app **2.1 GB**, 786 MB zipped; 54 963 files and links staged, the same inside the app; signed ad hoc, `codesign --verify --deep --strict` valid, `spctl` refuses it | `make desktop`, `du`, `ditto -c -k` |
+| Launch to the window, warm | **1.66–2.06 s** from the process starting; every model loaded at **3.66–4.88 s**, behind the window | five launches, `supervisor.log` |
+| The first launch | the 1.75 GB of weights fetched and checked in about two minutes on this connection; then every service ready in 4.8 s | one launch on an empty data folder |
+| Quit | **0.39–0.49 s** until no process of the app is left, Postgres last | five quits |
+| A hard kill | the next launch stops what the killed one left and shows the window at 1.9 s; with every process killed at once, Postgres replays its log in 155 ms. Nobody touches anything | `kill -9`, then a launch |
+| A whole turn, p95, against Docker | the app **1 908–2 598 ms**, Docker 1 944–2 631 ms — four runs of twenty turns each, alternated; every run of both inside the 3 000 ms budget | `make turn-latency`'s test, pointed at either set of services |
+| The golden suites on the app's services | WER **4/232 = 1.72 %**; a mistake heard as its correction 2 of 89; fillers heard 21 of 24; GOP threshold −3.119, mean drop **+8.138**, 9 of 10 detected, 10 of 10 named — each the same as on Docker | the suites from their container, pointed at the app |
+| Memory, every model loaded | about **3.6 GB** resident: asr 785 MB, tts 487 MB, pron 1 773 MB — 1.1 GB of it the weights, mapped from disk — the API 46 MB, Postgres 14 MB; the window, its server and Electron 0.46 GB. Ollama's runner holds 6.9 GB more with `gemma4:e4b` loaded | `ps`, `footprint` |
+| A backup and its restore | every table's row count and every recording's SHA-256 the same after a restore into a fresh install, and the restored app serves the recordings | File → Back Up…'s code, then the README's restore |
+| Moving the Compose history in | every table's row count and every recording's SHA-256 the same as on Compose, every recording found under the app's own folder by its account and digest, and the app opens on it; nothing in Compose changes | the README's commands, both sides counted |
 
 ## The conversation
 
