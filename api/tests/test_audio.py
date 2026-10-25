@@ -141,10 +141,29 @@ async def test_a_path_outside_the_audio_volume_is_refused(
     """Nothing in this codebase can write such a row. The check is for when something else does."""
     user = await a_user(db_session, client)
     asset, _ = await store_recording(db_session, user, RECORDING, SOURCE)
-    asset.path = "/etc/passwd"
+    asset.sha256 = "../../../etc/passwd"
 
     with pytest.raises(AudioPathError):
         resolve_path(asset)
+
+
+async def test_a_recording_written_under_another_root_is_found_under_this_one(
+    audio_root, client, db_session
+):
+    """What a restored backup, or Compose's history moved into the desktop app, holds.
+
+    The row says where the file was first written — `/audio/7/…` in a container — and the
+    file now lives under this API's root. It is found by its account and its digest.
+    """
+    user = await a_user(db_session, client)
+    asset, _ = await store_recording(db_session, user, RECORDING, SOURCE)
+    asset.path = f"/audio/{user.id}/{asset.sha256}"
+    await db_session.commit()
+
+    assert resolve_path(asset) == (audio_root / str(user.id) / asset.sha256).resolve()
+    response = await client.get(f"/audio/{asset.id}")
+    assert response.status_code == 200
+    assert response.content == RECORDING
 
 
 async def test_a_symlink_out_of_the_volume_is_refused(

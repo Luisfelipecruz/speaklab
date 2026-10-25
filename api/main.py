@@ -11,13 +11,16 @@ auto-discovery: a router that fails to import should break startup loudly rather
 disappear from the OpenAPI schema with nothing in the logs.
 """
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
-from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, VERSION
+from config import CORS_ORIGINS, JWT_SECRET_IS_DEV, STARTUP_CATCHUP, VERSION
 from routers.answers import router as answers_router
 from routers.attempts import router as attempts_router
 from routers.audio import router as audio_router
@@ -32,6 +35,7 @@ from routers.scenarios import router as scenarios_router
 from routers.speak import router as speak_router
 from routers.sessions import router as sessions_router
 from routers.turns import router as turns_router
+from services import catchup
 
 # The sections of the OpenAPI document, in the order a reader meets the product. Every
 # router names one of these as its tag, and a tag used without a description here fails
@@ -96,6 +100,25 @@ TAGS = [
     },
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Before the first request, the claims a stopped process left; behind the requests,
+    the work they were owed. Cancelled at shutdown, which puts a claimed turn back in the
+    queue (services/catchup.py)."""
+    task = None
+    if STARTUP_CATCHUP:
+        from database import async_session
+        from services.llm import get_provider
+
+        task = await catchup.begin(async_session, get_provider())
+    yield
+    if task is not None:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
 app = FastAPI(
     title="SpeakLab",
     description=(
@@ -105,6 +128,7 @@ app = FastAPI(
     ),
     version=VERSION,
     openapi_tags=TAGS,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

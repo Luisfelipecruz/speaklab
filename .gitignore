@@ -60,6 +60,11 @@ CLAUDE.md
 # The project site as `make site` builds it. The Pages workflow builds its own from main.
 /_site/
 
+# The desktop build's downloads, tools and staging, and the app it makes: they stay on the
+# machine that built them.
+/desktop/.build/
+/desktop/dist/
+
 # Editors
 .idea/
 .vscode/

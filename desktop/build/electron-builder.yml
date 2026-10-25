@@ -1,0 +1,52 @@
+# SpeakLab.app for this Mac: an unpacked arm64 bundle, unsigned here; scripts/sign.sh signs
+# it ad hoc afterwards, inside out, with the hardened runtime. Paths are relative to
+# desktop/. The weights are not in the bundle: the first launch fetches them into userData.
+
+# What macOS keys the app's preferences and its microphone permission on.
+appId: local.speaklab
+# The bundle's name is package.json's productName, which Electron also names the menu and
+# the data folder after, so the two cannot differ.
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - static/**
+  - package.json
+asar: true
+npmRebuild: false
+# Electron as the package's own install fetched and checked it, rather than a second copy.
+electronDist: node_modules/electron/dist
+extraResources:
+  # extraResources leaves out any node_modules beneath `from`, filter or not, and the
+  # standalone server needs its own: so they are a second entry whose `from` is that folder.
+  - from: .build/stage/web
+    to: web
+  - from: .build/stage/web/node_modules
+    to: web/node_modules
+    filter:
+      - "**/*"
+  - from: .build/stage/python
+    to: python
+  - from: .build/stage/envs
+    to: envs
+  - from: .build/stage/src
+    to: src
+  - from: .build/stage/pg
+    to: pg
+  - from: .build/stage/voices
+    to: voices
+  - from: .build/stage/nltk_data
+    to: nltk_data
+mac:
+  target:
+    - target: dir
+      arch: arm64
+  identity: null
+  hardenedRuntime: false
+  # Rendered from build/icon.svg by scripts/icon.sh.
+  icon: .build/icon.icns
+  category: public.app-category.education
+  minimumSystemVersion: "14.0"
+  extendInfo:
+    NSMicrophoneUsageDescription: SpeakLab listens to what you say, to transcribe it and score your pronunciation. Nothing leaves this Mac.

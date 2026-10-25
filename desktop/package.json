@@ -1,0 +1,21 @@
+{
+  "name": "speaklab-desktop",
+  "productName": "SpeakLab",
+  "version": "0.25.0",
+  "private": true,
+  "description": "SpeakLab for this Mac: the services as processes, and one window on them",
+  "type": "module",
+  "main": "out/main.js",
+  "packageManager": "pnpm@12.4.1",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "electron": "44.9.3",
+    "electron-builder": "26.18.0",
+    "typescript": "6.0.3"
+  }
+}
