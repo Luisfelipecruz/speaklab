@@ -12,7 +12,7 @@
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Runs locally](https://img.shields.io/badge/runs-locally-2ea44f)
 
-[Site](https://luisfelipecruz.github.io/speaklab/) · [Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Success criteria](#success-criteria) · [Limitations](#known-limitations) · [Docs](#documentation) · [Releases](https://github.com/Luisfelipecruz/speaklab/releases) · [Contributing](#contributing)
+[Site](https://luisfelipecruz.github.io/speaklab/) · [Quick start](#quick-start) · [The app for this Mac](#the-app-for-this-mac) · [Features](#features) · [Architecture](#architecture) · [Success criteria](#success-criteria) · [Limitations](#known-limitations) · [Docs](#documentation) · [Releases](https://github.com/Luisfelipecruz/speaklab/releases) · [Contributing](#contributing)
 
 </div>
 
@@ -185,6 +185,73 @@ The long way, if you want each step separately: `cp .env.example .env`, `make up
 
 ---
 
+## The app for this Mac
+
+`make desktop` builds **`SpeakLab.app`**: the same services without Docker — its own
+Postgres, the API, the three model services and the window — started when the app opens
+and stopped when it quits. It is built on, and signed for, the Mac that builds it; a
+signature like that is refused anywhere else.
+
+**You need** Apple silicon and macOS 14 or later, and Ollama with `gemma4:e4b`, exactly as
+above. The build fetches everything else it uses into `desktop/.build` and checks each
+download against its publisher's checksum — CPython, uv, Node, pnpm, Postgres — so nothing
+is installed on the Mac, and the Mac's own Python, Node and Homebrew take no part. The app
+is 2.1 GB, and its first launch downloads 1.75 GB of speech weights.
+
+```bash
+make desktop
+open desktop/dist/mac-arm64/SpeakLab.app
+```
+
+**The first launch** downloads the weights once — a download that stops resumes where it
+stopped — and opens on registration: the app's database is its own, so an account made on
+the Compose stack is not in it until you move your history across (below). After that,
+everything works offline but conversations, which need Ollama. When something needs you —
+Ollama not answering, a port another program holds, a part that keeps stopping — a small
+window says what, in words, with Try again and Show logs.
+
+**Your data** is in `~/Library/Application Support/SpeakLab`: the database, the
+recordings, the weights, and one log per process beside `supervisor.log`, which says what
+started and stopped and when. File → Show Logs opens that folder.
+
+**Backing up.** File → Back Up… writes a folder holding `speaklab.dump` (`pg_dump` of the
+database), `audio/` (every recording) and `backup.json`, which names the version and the
+schema it came from.
+
+**Restoring**, into an app that has been quit — for a new install, open it once first so
+that its data folder exists. Set `BACKUP` to the backup's folder, then:
+
+```bash
+R=/path/to/SpeakLab.app/Contents/Resources
+D="$HOME/Library/Application Support/SpeakLab"
+"$R/pg/bin/pg_ctl" -D "$D/postgres/16" -l "$D/logs/restore.log" -o "-p 5443 -c listen_addresses=127.0.0.1 -c unix_socket_directories=" -w start
+PGPASSWORD="$(plutil -extract dbPassword raw -o - "$D/secret.json")" "$R/pg/bin/pg_restore" -h 127.0.0.1 -p 5443 -U speaklab -d speaklab --clean --if-exists "$BACKUP/speaklab.dump"
+"$R/pg/bin/pg_ctl" -D "$D/postgres/16" -m fast -w stop
+cp -R "$BACKUP/audio/." "$D/audio/"
+```
+
+A backup from an older version is brought up to date the next time the app opens; one from
+a newer version is refused, with a sentence saying so.
+
+**Moving your Compose history in** is the same restore, from Compose's database and its
+recordings, taken with the stack up — nothing in Compose is changed:
+
+```bash
+docker compose exec -T postgres pg_dump -U speaklab -Fc speaklab > compose.dump
+docker compose cp api:/audio/. compose-audio/
+```
+
+Then run the restore with `compose.dump` in place of `$BACKUP/speaklab.dump` and
+`compose-audio/` in place of `$BACKUP/audio/`.
+
+**Removing it:** quit it, then delete the app, `~/Library/Application Support/SpeakLab` and
+`~/Library/Preferences/local.speaklab.plist`.
+
+How it is put together is [Architecture §10](docs/architecture.md#10-the-app-for-this-mac);
+what it does not do yet is in [the limitations](docs/limitations.md#the-app-for-this-mac).
+
+---
+
 ## Architecture
 
 ```mermaid
@@ -312,13 +379,15 @@ carries its entry in the changelog as its notes.
 
 ## Development
 
-Everything runs in containers. The host needs Docker, Python 3 for the `make` helpers, and
+Everything runs in containers but the build of the app for this Mac, which makes a macOS
+app and so runs on the host. The host needs Docker, Python 3 for the `make` helpers, and
 Ollama for conversation.
 
 | | |
 |---|---|
-| API tests, in a container | `make test` — 1 061; 1 023 pass with Postgres alone, the other 38 need a model service |
-| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 319 across 49 suites |
+| API tests, in a container | `make test` — 1 277; 1 235 pass with Postgres alone, the other 42 need a model service |
+| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 399 across 60 suites |
+| The app for this Mac | `make desktop` builds it; `make desktop-test` runs its 65 tests (`node:test`) in a container; `desktop/e2e/smoke.sh` drives the built app once — registration, a turn heard back, a reading scored — and checks that nothing runs after it quits |
 | Editing the frontend | `make dev` — the development server over the source, in place of the built frontend, on the same port; `make up` puts the built one back |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
 | Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly, for everything but the frontend, which CI audits every Monday; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
@@ -331,13 +400,13 @@ Ollama for conversation.
 
 ```
 api/            FastAPI. No model weights, no torch.
-  db_models/    SQLAlchemy — the write path, fourteen tables
+  db_models/    SQLAlchemy — the write path, eighteen tables
   models/       Pydantic — the wire shapes
   routers/      One module per resource
   services/     Logic that is neither a route nor a row — the conversation, the analysers,
                 the rollups, the export
   dependencies.py  current_user, and the ownership guard
-  alembic/      Seven schema revisions, applied by `make migrate`
+  alembic/      Eight schema revisions, applied by `make migrate`
   scripts/      The seed loader, and the backfill, reparse, rollup and corpus commands
                 behind `make`
   seeds/        The 11 scenarios, 12 passages and 13 answer prompts, as JSON
@@ -350,6 +419,13 @@ frontend/       Next.js 16, React 19, shadcn/ui, installed with pnpm
   src/lib/      api.ts is the wire shapes and the browser client; server-api.ts forwards
                 the cookie from a server component. Tests sit beside what they test
 infra/          One directory per image — api, frontend, asr, tts, pron
+desktop/        The app for this Mac: Electron around the same services, run as processes
+  src/          The main process — the supervisor, each process's environment, the first
+                launch's fetch, the backup — in TypeScript
+  static/       The status window, and the pinned list of the weights
+  scripts/      The build, on the host: fetch, environments, frontend, stage, sign
+  build/        The pins, electron-builder's settings, the entitlements, the icon
+  test/  e2e/   The unit tests, and the smoke test that drives the built app
 eval/           The evaluation harness. run.py orchestrates, report.py adjudicates and
   golden/       renders, scoring.py is the arithmetic both share with the suites.
                 golden/ holds the fixtures — committed, with a manifest of their hashes,

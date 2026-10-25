@@ -211,6 +211,30 @@ that nothing in the other documents reads as a claim.
 - **The site describes `main`**, which is published on every merge and can be ahead of
   the latest release.
 
+## The app for this Mac
+
+- **It runs on the Mac that built it.** The app is signed ad hoc, and Gatekeeper refuses an
+  ad-hoc signature on any other Mac. There is no Developer ID, no notarisation and no
+  update: a new version is `make desktop` again. Apple silicon and macOS 14 or later only;
+  there is no Intel, Linux or Windows build.
+- **Titles sort differently from Compose.** The app's Postgres collates by macOS's own
+  rules, which put a space before any letter where Linux's glibc skips spaces: *They
+  gathered there* comes before *The young singer* on Compose, and after *The zoo on
+  Tuesday* in the app. Only the order of a list moves; no figure is computed from one.
+- **Memory.** With every model loaded the app holds about 3.6 GB resident — pron 1.8 GB of
+  it, most of that its weights mapped from disk — and Ollama's runner holds 6.9 GB more
+  with `gemma4:e4b` loaded. A 16 GB Mac runs it with little to spare.
+- **The first launch needs the network**, for 1.75 GB of speech weights from Hugging Face,
+  and nothing works until they are in. A download that stops resumes; one that cannot
+  finish says so and waits for Try again.
+- **Conversations need Ollama on the Mac**, as they do with Compose; the app does not
+  contain it. It says so when Ollama does not answer, and everything else works without it.
+- **Restoring a backup is commands, not a button**, run with the app quit, and so is
+  moving the Compose history in.
+- **The app and the Compose stack are two systems.** Both can run at once — their ports
+  differ — but they share no data: an account, a recording or a report in one is in the
+  other only once it has been moved across.
+
 ## Accounts and data
 
 - **No password reset, email verification or login rate limiting.** Accounts themselves

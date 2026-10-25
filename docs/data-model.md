@@ -42,6 +42,11 @@ a hardware change reads a new headset as improvement.
 
 `UNIQUE (user_id, sha256)` makes a double-submit an error rather than a second attempt.
 
+The file is always at `<user_id>/<sha256>` under the audio root, and that is how it is
+found: `audio_assets.path` records the root it was first written under, which is another
+folder once a database is restored somewhere new or Compose's history is moved into the
+desktop app, so it is never read to serve a recording.
+
 ### Practice
 
 | Table | Holds |
