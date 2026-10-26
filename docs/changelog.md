@@ -20,7 +20,8 @@ this Mac.
 - **Say it in English, in the app for this Mac.** Hold fn to speak, or tap it twice to
   speak hands-free; ⌃⌥Space to type, with *Speak instead*; ⌃⌥C for what is on the
   clipboard. A panel low on the screen, which never takes focus while it listens or shows a
-  result, gives the English with the other version a click away, Edit, Copy again, Open in
+  result, and stays as long as it takes to read and while the pointer is on it, gives the
+  English with the other version a click away, Edit, Copy again, Open in
   Notebook, and a switch for when the language was taken for the other one. A menu bar icon
   carries the feature's menu, and Settings…, which is also under File.
   [Decision 0032](decisions/0032-say-it-in-english.md).
@@ -29,14 +30,19 @@ this Mac.
 - **`asr-multi`**, the recogniser with Whisper `small` for the account's own language: in
   Compose under the `say` profile, `make say-up`, and in the app as a fifth model service,
   its 0.49 GB of weights fetched with the rest. `/transcribe` takes a `language`, or several
-  to choose among, and a `task`; without them a request is the one it always was.
+  to choose among, and a `task`; without them a request is the one it always was. A choice
+  the detection is unsure of is heard in both languages and the surer transcript kept, so
+  English said with a Spanish accent is checked as English, not translated from a Spanish
+  rewording of it.
 - **The captures API.** `POST /captures` from a recording, a text or what was copied, the
   other version written behind the reply or at once on demand, the Notebook's list with its
   counts and filters, one capture or all of them deleted, and `POST /captures/warm`, which
   loads the model while the person speaks. Four tables, in migration `0009`.
 - **English checked rather than translated**: spelling by a dictionary, `symspellpy`, then
   the grammar rules and the detector on the respelled text, as *Corrected*; the model's
-  rewrite as *Polished*. `SPELLING` is a category for written text, and only written text.
+  rewrite as *Polished*. Each is shown beside the person's words, what it changed struck
+  and marked, and a check that found nothing says so. `SPELLING` is a category for written
+  text, and only written text.
 - **The keep check**: every number, link, address, handle and name of what was said looked
   for in each version by plain code, and anything missing named on the panel.
 - **The Notebook**, at `/notebook`: the captures by day and what is due, each moment with
@@ -73,7 +79,7 @@ this Mac.
   in 1.69–3.03 s; the app in front kept 27 of 27 times. About 3.6–3.7 GB resident while
   dictating.
 - **chrF**, the harness's own, gives sacrebleu 2.5.1's figure to within 10⁻⁹.
-- API **1 402 — 1 344 pass, 58 skip**; frontend 70 suites / 445 tests; the app 140 tests;
+- API **1 405 — 1 347 pass, 58 skip**; frontend 71 suites / 448 tests; the app 143 tests;
   site 46 tests, 44 pages; 50 operations, 22 tables, one migration. The English golden
   figures unchanged: WER 4/232 = 1.72 %.
 - **Not measured yet**, each waiting on the owner: the Spanish error rate and the rest of

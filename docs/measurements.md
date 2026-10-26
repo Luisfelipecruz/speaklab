@@ -31,9 +31,9 @@ Two ways to read these numbers:
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command |
 | Frontend releases the trust check refuses | **2** — older-line releases by their own maintainers, each excepted by exact version; every other package in the lockfile passes | pnpm 12.4.1's install; each checked against the npm registry |
-| API test suite | **1 402** — 1 344 pass with Postgres alone; the other 58 need `asr`, `asr-multi`, `tts`, `pron`, Ollama or the owner's recordings | `make test` |
-| Frontend test suite | **445** across 70 suites, no services needed | `make test-frontend` |
-| The desktop app's tests | **140**, `node:test`, no services needed | `make desktop-test` |
+| API test suite | **1 405** — 1 347 pass with Postgres alone; the other 58 need `asr`, `asr-multi`, `tts`, `pron`, Ollama or the owner's recordings | `make test` |
+| Frontend test suite | **448** across 71 suites, no services needed | `make test-frontend` |
+| The desktop app's tests | **143**, `node:test`, no services needed | `make desktop-test` |
 | API operations | **50** | `app.openapi()` |
 | The project site | **44 pages**; 270 links, every one resolved — 226 to other pages, 9 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.4 s | `make site` |
 
@@ -155,6 +155,7 @@ learner's speech will be worse by an amount that set cannot estimate.
 |---|---|---|
 | An order inside a dictation | **10 of 10** translated, not done, in Direct and in Organized | `make say-eval` |
 | Spanish heard by Whisper `small` | **0.85, 1.05 and 1.61 s** for 4, 10 and 19 s of synthetic speech, natively, int8 on eight threads; **0.42–0.46 s** more to choose between Spanish and English, every clip taken for Spanish at 0.99 or above. `medium` 2.2–4.1 s and 1.3–1.4 s to choose; `large-v3-turbo` 2.4–2.9 s and 2.2 s | [decision 0032](decisions/0032-say-it-in-english.md) |
+| English said with a Spanish accent | heard as **English**, by the surer of two transcripts — 0.94 against 0.65 and 0.75 — where detection alone took it for Spanish, English given 0.07 and 0.24; English and Spanish read by native voices heard once. English read by two Spanish voices, synthesised | `asr-multi`'s `/transcribe`, offered Spanish and English |
 | A version written, warm | Organized **627 ms** at the median, 746 ms at p95; Direct 594 and 763 ms — thirty dictations; Polished 399 ms over ten | [decision 0032](decisions/0032-say-it-in-english.md) |
 | … with the model unloaded first | Organized **1.72 s** at the median, 2.11 s at p95, 1.09 s of it the load | [decision 0032](decisions/0032-say-it-in-english.md) |
 | The warm-up on fn down | the first request after an unload in **155–159 ms**, 1 ms of it loading, against 1.24–1.25 s without the warm-up; warmed at another context size, the model is loaded twice | three rounds of each, [decision 0032](decisions/0032-say-it-in-english.md) |

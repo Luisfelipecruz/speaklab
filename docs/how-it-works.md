@@ -299,7 +299,12 @@ words in your order with nothing added. English you say or type comes back *Corr
 your own text with its misspellings and its grammar fixed, nothing reworded, each fix
 listed with its reason — or *Polished*, rewritten for clarity. Which language it was is the
 recogniser's call for speech and a count of common words for text, and the panel's switch
-overturns either. The version you copy by default is written before the panel shows it; the
+overturns either. When the recogniser is unsure — English said with a Spanish accent can
+sound Spanish to it — it hears the recording both ways and keeps the transcript it is surer
+of, since Whisper asked for the wrong language writes a rewording rather than what was said.
+The result stays as long as it takes to read, and while the pointer is on it. A check shows
+each version beside your words — what it changed struck and marked, the fixes numbered
+with their reasons — and when nothing needed fixing it says so. The version you copy by default is written before the panel shows it; the
 other is written behind it, one click away.
 
 **Your words are translated, never obeyed.** They reach the model quoted, as something a

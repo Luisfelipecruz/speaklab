@@ -33,15 +33,20 @@ way in is made of, what it keeps, and what it never does.
    translucent, following light and dark through the system's own vibrancy, above every
    window and every Space, full-screen ones included, it is shown without taking focus, so
    ⌘V still lands in the app behind it. It takes focus only to be typed or edited in, and
-   leaving a focused panel gives focus back with `app.hide()`. The result stays 8 s, or
-   until Esc or the next fn. Esc closes whatever the panel shows; work in flight is
+   leaving a focused panel gives focus back with `app.hide()`. The result stays as long as
+   it takes to read — 8 s for a line, a third of a second a word for more, 30 s at most —
+   and while the pointer is over it, or until Esc or the next fn. Esc closes whatever the panel shows; work in flight is
    abandoned, its answer never shown, and a capture it saved is deleted when it arrives.
    While the feature is on, closing the last window leaves SpeakLab in the menu bar; Quit
    stops everything as before. Off, the app behaves as it did without it.
 
 4. **Speech in the account's language is heard by a second recogniser, `asr-multi`.** The
    same service code with Whisper `small`, the multilingual model, offered the account's
-   language and English and choosing between them. The English pipeline keeps `small.en`
+   language and English and choosing between them. Whisper's detection chooses; when it
+   leaves the other language a real chance, the recording is heard in both and the
+   transcript the model is surer of is kept. Detection alone can take English said with a
+   Spanish accent for Spanish, and Whisper asked for Spanish then writes a Spanish rewording
+   of what was said, shorter and in other words. The English pipeline keeps `small.en`
    and every figure measured on it: a request without a language is the request it has
    always been, and an English-only model refuses any other language with a 422 that says
    so. In the app it is a fifth model service with its weights pinned and checked; in
@@ -73,7 +78,10 @@ way in is made of, what it keeps, and what it never does.
    sentence (a name), the names in the person's captures, words under three letters, and
    contractions it does not know. A correction one edit away is ranked as a typing mistake
    undone: a letter added or two swapped, then a letter removed, then a letter changed, and
-   the commoner word first within each.
+   the commoner word first within each. Each version of a check is shown beside the person's words,
+   aligned word by word by plain code without case or punctuation: a word it changed is
+   struck and its own marked, the fixes numbered with their reasons; a check that found
+   nothing says so, and points to Polished.
 
 8. **`SPELLING` is a category for written text only.** The closed taxonomy of speech is
    unchanged and its detector never proposes it: what it reads is the recogniser's
@@ -140,6 +148,11 @@ part was timed:
 - **The API's part of release to clipboard**, a recording in and the English out, on the
   Compose stack: 2.43 s at the median and 3.31 s at p95 over 21 requests with clips of 4
   to 19 s, recognition 1.75–2.29 s and writing 0.41–0.89 s at the median by clip.
+- **English said with a Spanish accent is heard as English**: English read by two Spanish
+  voices, synthesised, which detection alone took for Spanish, English given 0.07 and 0.24;
+  heard in both, the English transcripts were the surer, 0.94 against 0.65 and 0.75. English
+  and Spanish read by native voices leave the other language 0.0001 and 0.001, and are
+  heard once.
 - **On the app, release to English on the clipboard is inside 3 s**: 2.03 s at the median,
   2.77 s at p95 and 2.79 s at most, over 21 dictations of 4, 10 and 19 s of synthetic
   speech, at load averages of 4 to 15. The first after Ollama unloaded the model took 1.69,
@@ -172,6 +185,8 @@ language of their texts, and a full-screen app keeping its focus.
   the panel instead.
 - **The English is a model's**, checked by plain code for names, numbers, links and
   addresses only.
+- **A recording the detection is unsure of is heard twice**, which costs a second pass of
+  the recogniser — about a second for ten seconds of speech.
 
 ## Revisit if
 

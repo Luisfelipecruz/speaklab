@@ -343,7 +343,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 402 — 1 344 pass, 58 need a model service or the owner's recordings | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 405 — 1 347 pass, 58 need a model service or the owner's recordings | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -406,9 +406,9 @@ Ollama for conversation.
 
 | | |
 |---|---|
-| API tests, in a container | `make test` — 1 402; 1 344 pass with Postgres alone, the other 58 need a model service or the owner's recordings |
-| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 445 across 70 suites |
-| The app for this Mac | `make desktop` builds it; `make desktop-test` runs its 140 tests (`node:test`) in a container; `desktop/e2e/smoke.sh` drives the built app once — registration, a turn heard back, a reading scored — and checks that nothing runs after it quits |
+| API tests, in a container | `make test` — 1 405; 1 347 pass with Postgres alone, the other 58 need a model service or the owner's recordings |
+| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 448 across 71 suites |
+| The app for this Mac | `make desktop` builds it; `make desktop-test` runs its 143 tests (`node:test`) in a container; `desktop/e2e/smoke.sh` drives the built app once — registration, a turn heard back, a reading scored — and checks that nothing runs after it quits |
 | Editing the frontend | `make dev` — the development server over the source, in place of the built frontend, on the same port; `make up` puts the built one back |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
 | Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly, for everything but the frontend, which CI audits every Monday; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |
