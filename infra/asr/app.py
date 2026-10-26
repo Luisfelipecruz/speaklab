@@ -12,7 +12,8 @@ Three things it does, in order:
    in-process — resamples everything to 16 kHz mono, which is the only input Whisper
    has ever seen.
 2. **Transcribes it**, forcing word timestamps, in the language the request names —
-   English unless it names another — or translates it into English when asked to.
+   English unless it names another, or the likelier of several, heard in both when the
+   detection is unsure — or translates it into English when asked to.
 3. **Reports what it received**, because the API stores `format`, `sample_rate` and
    `duration_ms` on the `audio_assets` row and should not have to guess at any of them.
    The decoder is the authority on those, so the decoder answers.
@@ -74,6 +75,13 @@ LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "en")
 # What a request may ask for instead: one language, several to choose among, or `auto`
 # for any; and `translate`, Whisper's own rough English, besides `transcribe`.
 TASKS = ("transcribe", "translate")
+
+# Choosing among several, detection alone can settle English said with a Spanish accent on
+# Spanish, and Whisper asked for Spanish then writes a Spanish rewording of what was said.
+# So once the runner-up is given at least this much, it is transcribed too, and the
+# transcript the model is surer of is kept. Speech in one language leaves the other a
+# sliver and costs nothing more; only a recording the detection is unsure of is heard twice.
+RIVAL = float(os.environ.get("WHISPER_RIVAL", "0.02"))
 
 # Silero VAD, on by default. Whisper hallucinates on silence — it emits "Thank you." or
 # "Bye." for an empty recording, and a learner who pressed record and hesitated would
@@ -272,30 +280,20 @@ def _choose(
     return max(codes, key=lambda code: scores.get(code, 0.0)), scores
 
 
-def _transcribe(
+def _decode(
+    model: WhisperModel,
     audio: np.ndarray,
     duration_ms: int,
-    codes: tuple[str, ...] | None = (LANGUAGE,),
-    task: str = "transcribe",
+    language: str | None,
+    task: str,
 ) -> dict[str, Any]:
-    """Run the model. Blocking, and called in a worker thread.
+    """One pass of the model in one language: the text, the words and how sure it was.
 
-    Returns the wire shape directly, including the `words` array in exactly the form
-    `turns.words` stores: `[{w, start_ms, end_ms, logprob}]`. The database column and
-    this function were written against each other; changing one without the other is
-    the kind of drift that shows up as a fluency metric of zero.
+    The `words` array is exactly the form `turns.words` stores:
+    `[{w, start_ms, end_ms, logprob}]`. The database column and this function were written
+    against each other; changing one without the other is the kind of drift that shows up
+    as a fluency metric of zero.
     """
-    model = state.model
-    assert model is not None  # guarded by the caller
-
-    scores = None
-    if codes is None:
-        language = None
-    elif len(codes) == 1:
-        language = codes[0]
-    else:
-        language, scores = _choose(model, audio, codes)
-
     segments, info = model.transcribe(
         audio,
         language=language,
@@ -360,10 +358,47 @@ def _transcribe(
         "confidence": round(confidence, 4),
         "timestamp_fixups": fixups,
         "language": info.language,
+    }
+
+
+def _transcribe(
+    audio: np.ndarray,
+    duration_ms: int,
+    codes: tuple[str, ...] | None = (LANGUAGE,),
+    task: str = "transcribe",
+) -> dict[str, Any]:
+    """Run the model, in the language asked for or the likelier of several. Blocking, and
+    called in a worker thread. Returns the wire shape directly."""
+    model = state.model
+    assert model is not None  # guarded by the caller
+
+    scores = None
+    if codes is None:
+        language = None
+    elif len(codes) == 1:
+        language = codes[0]
+    else:
+        language, scores = _choose(model, audio, codes)
+
+    heard = _decode(model, audio, duration_ms, language, task)
+    confidences = None
+    if scores is not None and task == "transcribe":
+        rivals = [code for code in codes or () if code != language]
+        rival = max(rivals, key=lambda code: scores.get(code, 0.0), default=None)
+        if rival is not None and scores.get(rival, 0.0) >= RIVAL:
+            other = _decode(model, audio, duration_ms, rival, task)
+            confidences = {language: heard["confidence"], rival: other["confidence"]}
+            if other["confidence"] > heard["confidence"]:
+                heard = other
+
+    return {
+        **heard,
         # What was asked for beside the model that did it: a translation is not a
-        # transcript, and a language chosen among two carries how sure the choice was.
+        # transcript, and a language chosen among two carries how sure the choice was —
+        # and, when both were heard, how sure the model was of each transcript.
         "task": task,
         "language_scores": scores,
+        "language_confidences": confidences,
         "model": MODEL_NAME,
         # What the decoder was actually configured to do, echoed so that a number
         # measured six months ago can be compared against a number measured today.

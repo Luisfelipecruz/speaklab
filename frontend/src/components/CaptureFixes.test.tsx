@@ -31,9 +31,10 @@ test("English said aloud is shown and said not to count", () => {
   expect(screen.getAllByText("shown, not counted: said aloud")).toHaveLength(2);
 });
 
-test("English with nothing to fix says so rather than showing an empty list", () => {
+test("English with nothing to fix keeps the words and says so, with no empty list", () => {
   render(<CaptureFixes text="I sent it this morning." fixes={[]} />);
 
+  expect(screen.getByText("I sent it this morning.")).toBeInTheDocument();
   expect(screen.getByTestId("no-fixes")).toHaveTextContent("Nothing to fix");
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
 });

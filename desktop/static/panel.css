@@ -309,3 +309,22 @@ p {
     animation: none;
   }
 }
+
+/* What a check's version changed from the person's words. */
+.en s {
+  color: var(--muted);
+  text-decoration-thickness: 1px;
+}
+
+.en mark {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+

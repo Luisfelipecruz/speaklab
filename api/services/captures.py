@@ -22,6 +22,7 @@ import asyncio
 import logging
 import re
 import time
+from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -46,6 +47,7 @@ from models.capture import (
     NotebookCounts,
     Phrase,
     SaidOut,
+    WordChange,
     WrittenWord,
 )
 from models.drill import DrillWord
@@ -200,6 +202,7 @@ async def _hear(given: Given, account: str, made_timings: dict) -> tuple:
         language=language,
         by="recogniser" if given.mode == "auto" else "switch",
         scores=heard.language_scores or {},
+        confidences=heard.language_confidences or {},
     )
     return text, language, choice, heard
 
@@ -690,6 +693,11 @@ def made_out(made: Made) -> CaptureOut:
         dropped=made.dropped,
         kept=made.kept,
         fixes=[_fix_out(_fix_record(fix), False) for fix in made.fixes],
+        changes=_changes(
+            made.mode,
+            made.source_text,
+            {v: made.versions.get(v) for v in OFFERED[made.mode]},
+        ),
         notes=made.notes,
         language=made.language,
         asr_model=made.asr_model,
@@ -725,6 +733,56 @@ async def _elsewhere(
         )
         counts[phrase.english] = sum(1 for text in texts if pattern.search(text))
     return counts
+
+
+def word_changes(said: str, version: str) -> list[WordChange]:
+    """`version` beside what was said, word by word: aligned as the recogniser's word error
+    rate aligns, on the words without case or punctuation, and shown as each was written.
+
+    Where a change sits beside a word added or dropped, either pairing costs the same, and
+    the one that pairs the likelier words is kept: *tomorow* with *tomorrow*, not with the
+    *morning* added after it."""
+    yours, theirs = said.split(), version.split()
+    steps = align(
+        [" ".join(normalise(word)) for word in yours],
+        [" ".join(normalise(word)) for word in theirs],
+    )
+    pairs = [
+        [
+            yours[step.ref] if step.ref is not None else None,
+            theirs[step.hyp] if step.hyp is not None else None,
+        ]
+        for step in steps
+    ]
+    for i in range(len(pairs) - 1):
+        a, b = pairs[i], pairs[i + 1]
+        if None not in a and b[0] is None:  # a change, then a word added
+            if _alike(a[0], b[1]) > _alike(a[0], a[1]):
+                pairs[i], pairs[i + 1] = [None, a[1]], [a[0], b[1]]
+        elif a[0] is None and None not in b:  # a word added, then a change
+            if _alike(b[0], a[1]) > _alike(b[0], b[1]):
+                pairs[i], pairs[i + 1] = [b[0], a[1]], [None, b[1]]
+        elif None not in a and b[1] is None:  # a change, then a word dropped
+            if _alike(b[0], a[1]) > _alike(a[0], a[1]):
+                pairs[i], pairs[i + 1] = [a[0], None], [b[0], a[1]]
+        elif a[1] is None and None not in b:  # a word dropped, then a change
+            if _alike(a[0], b[1]) > _alike(b[0], b[1]):
+                pairs[i], pairs[i + 1] = [a[0], b[1]], [b[0], None]
+    return [WordChange(said=s, version=v) for s, v in pairs]
+
+
+def _alike(one: str, other: str) -> float:
+    return SequenceMatcher(
+        None, " ".join(normalise(one)), " ".join(normalise(other))
+    ).ratio()
+
+
+def _changes(
+    mode: str, said: str, versions: dict[str, str | None]
+) -> dict[str, list[WordChange]]:
+    if mode != "check":
+        return {}
+    return {name: word_changes(said, text) for name, text in versions.items() if text}
 
 
 async def capture_out(
@@ -791,6 +849,7 @@ async def capture_out(
         },
         kept=_kept(capture.source_text, names),
         fixes=[_fix_out(record, typed_check) for record in capture.fixes or []],
+        changes=_changes(capture.mode, capture.source_text, _versions(capture)),
         phrases=[
             Phrase(
                 source=p.source,
@@ -931,6 +990,7 @@ async def listing(
                 practised=int(practised.get(row.id, 0)),
                 box=row.box,
                 due_at=row.due_at,
+                fixes=len(row.fixes or []),
             )
             for row in rows
         ],

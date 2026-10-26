@@ -3,7 +3,8 @@
 //   idle → armed      fn down: the model warmed, the microphone open
 //        → listening  held 180 ms, or two taps: the panel shown
 //        → working    released: the recording sent
-//        → result     the English on the clipboard, for 8 s or until Esc or the next fn
+//        → result     the English on the clipboard, for as long as it takes to read, while
+//                     the pointer is over it, or until Esc or the next fn
 //   idle → typing     ⌃⌥Space: the panel focused to type in, the model warmed
 //        → working    Enter: the text sent, and focus given back to the app in front
 //
@@ -33,7 +34,9 @@ export interface Capture {
   text: string;
   versions: Partial<Record<Version, string | null>>;
   dropped: Partial<Record<Version, string[]>>;
-  fixes: { original: string; correction: string; label: string; counted: boolean }[];
+  fixes: { original: string; correction: string; label: string; explanation?: string | null; counted: boolean }[];
+  /** For a check, each version beside what was said, word by word. */
+  changes?: Partial<Record<Version, { said: string | null; version: string | null }[]>>;
   notes: string[];
 }
 
@@ -97,9 +100,19 @@ export interface Deps {
   trace?(event: string, fields?: Record<string, number | string>): void;
 }
 
+/** A result shows long enough to read: a third of a second a word, 8 s to 30 s. */
 export const RESULT_MS = 8000;
+export const RESULT_MAX_MS = 30_000;
+export const MS_A_WORD = 330;
+/** How long a result stays once the pointer has left it. */
+export const LINGER_MS = 4000;
 export const SHORTEST_MS = 400;
 export const LONGEST_MS = 120_000;
+
+export function readingMs(text: string): number {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.min(RESULT_MAX_MS, Math.max(RESULT_MS, words * MS_A_WORD));
+}
 
 type Phase = "idle" | "armed" | "listening" | "working" | "result" | "typing" | "problem";
 
@@ -325,7 +338,7 @@ export class Dictation {
     this.phase = "result";
     this.deps.trace?.("copied", { at: this.deps.now(), version });
     this.view({ kind: "result", capture, shown: version, editing: false });
-    this.wait(RESULT_MS, () => this.close());
+    this.wait(readingMs(capture.versions[version] ?? capture.text), () => this.close());
   }
 
   private failed(error: unknown): void {
@@ -370,7 +383,12 @@ export class Dictation {
             });
       if (!this.current(ticket)) return;
       await this.show(
-        { ...capture, versions: { ...capture.versions, ...written.versions }, dropped: { ...capture.dropped, ...written.dropped } },
+        {
+          ...capture,
+          versions: { ...capture.versions, ...written.versions },
+          dropped: { ...capture.dropped, ...written.dropped },
+          changes: { ...capture.changes, ...written.changes },
+        },
         version,
         ticket,
       );
@@ -421,6 +439,14 @@ export class Dictation {
     const capture = this.shownCapture;
     if (this.phase !== "result" || !capture) return;
     await this.show(capture, version, this.begin());
+  }
+
+  /** The pointer over the panel: a result or a problem stays while it is being read. */
+  hover(over: boolean): void {
+    // An edit keeps the panel without a timer already.
+    if ((this.phase !== "result" && this.phase !== "problem") || this.focused) return;
+    if (over) this.stopTimer();
+    else this.wait(LINGER_MS, () => this.close());
   }
 
   open(): void {

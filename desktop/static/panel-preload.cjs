@@ -5,7 +5,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 const VERSIONS = ["direct", "organized", "corrected", "polished", "rough"];
-const ACTIONS = ["dismiss", "open", "edit", "done", "switch", "speak"];
+const ACTIONS = ["dismiss", "open", "edit", "done", "switch", "speak", "over", "out"];
 
 contextBridge.exposeInMainWorld("panel", {
   onState: (callback) => ipcRenderer.on("panel:state", (_event, view) => callback(view)),

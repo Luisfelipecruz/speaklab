@@ -298,7 +298,8 @@ export class SayFeature {
       show: (view: PanelView, focus: boolean) => {
         const panel = this.panel;
         if (!panel) return;
-        panel.webContents.send("panel:state", view);
+        // The account's language by name, for the switch on English that was the person's own.
+        panel.webContents.send("panel:state", { ...view, account: this.language });
         if (!panel.isVisible()) this.place(PANEL_MIN_HEIGHT);
         if (focus) {
           panel.setFocusable(true);
@@ -351,6 +352,9 @@ export class SayFeature {
           this.dictation.speakInstead();
           if (this.dictation.state === "listening") this.intentions.listenWithoutKey();
           return;
+        case "over":
+        case "out":
+          return this.dictation.hover(action === "over");
       }
     });
     ipcMain.on("panel:size", (_event, height: number) => this.place(height));

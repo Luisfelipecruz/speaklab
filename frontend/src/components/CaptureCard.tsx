@@ -35,7 +35,13 @@ export function CaptureCard({ item, zone }: { item: CaptureSummary; zone?: strin
       </p>
       <p className="text-base leading-relaxed whitespace-pre-wrap">{item.text}</p>
       <footer className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground">{VERSION_LABEL[item.chosen]}</span>
+        <span className="text-xs text-muted-foreground">
+          {VERSION_LABEL[item.chosen]}
+          {item.mode === "check" &&
+            (item.fixes === 0
+              ? " · no mistakes found"
+              : ` · ${item.fixes} fix${item.fixes === 1 ? "" : "es"}`)}
+        </span>
         <span className="flex-1" />
         <Button asChild size="sm">
           <Link href={`/notebook/${item.id}/practise`}>

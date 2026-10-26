@@ -21,6 +21,7 @@ from db_models import AudioAsset, Capture, CaptureAttempt, CapturePhrase, Writte
 from main import app
 from models.audio import DecoderSettings, SourceMedia, Transcription, Word
 from services import captures as notebook
+from services.wer import normalise
 from services.asr_client import AsrUnavailable
 from services.llm import get_provider
 from tests.conftest import register_account
@@ -76,6 +77,8 @@ def hearing(monkeypatch):
             self.queue: list[tuple[str, str]] = []
             self.calls: list[dict] = []
             self.error: Exception | None = None
+            # How sure it was of each transcript, when it heard the recording both ways.
+            self.confidences: dict[str, float] | None = None
 
         async def __call__(
             self,
@@ -106,6 +109,9 @@ def hearing(monkeypatch):
                 task=task or "transcribe",
                 language_scores=(
                     {heard_in: 0.97} if language and "," in language else None
+                ),
+                language_confidences=(
+                    self.confidences if language and "," in language else None
                 ),
                 model="stub-small",
                 decoder=DecoderSettings(
@@ -183,6 +189,7 @@ async def test_spanish_said_aloud_comes_back_organized_kept_as_text_and_never_as
         "language": "es",
         "by": "recogniser",
         "scores": {"es": 0.97},
+        "confidences": {},
     }
     assert body["app"] == "Mail"
     assert body["state"] == "to_practise"
@@ -253,7 +260,12 @@ async def test_the_switch_overrides_the_words(client, account, model):
     body = (await type_(client, "Laura OK, thanks", mode="translate")).json()
 
     assert body["mode"] == "translate"
-    assert body["language"] == {"language": "es", "by": "switch", "scores": {}}
+    assert body["language"] == {
+        "language": "es",
+        "by": "switch",
+        "scores": {},
+        "confidences": {},
+    }
 
 
 async def test_typed_english_is_corrected_with_its_fixes_and_counted_as_writing(
@@ -286,17 +298,65 @@ async def test_typed_english_is_corrected_with_its_fixes_and_counted_as_writing(
     assert body["box"] == 1
     due = datetime.fromisoformat(body["due_at"])
     assert timedelta(hours=23) < due - datetime.now(timezone.utc) < timedelta(hours=25)
+    assert changed(body["changes"]["corrected"]) == [
+        ("recieved", "received"),
+        ("tomorow.", "tomorrow."),
+    ]
+
+
+def changed(steps: list[dict]) -> list[tuple]:
+    """The steps whose words differ, without case or punctuation, as (said, version)."""
+
+    def bare(word):
+        return " ".join(normalise(word or ""))
+
+    return [
+        (s["said"], s["version"])
+        for s in steps
+        if bare(s["said"]) != bare(s["version"])
+    ]
 
 
 async def test_polished_follows_behind_a_check(client, account, model, writer):
     made = (await type_(client, ENGLISH_TYPED)).json()
     assert made["versions"] == {"corrected": made["text"], "polished": None}
+    assert list(made["changes"]) == ["corrected"]
 
     await writer.drain()
 
-    assert (await client.get(f"/captures/{made['id']}")).json()["versions"][
-        "polished"
-    ] == POLISHED
+    later = (await client.get(f"/captures/{made['id']}")).json()
+    assert later["versions"]["polished"] == POLISHED
+    assert changed(later["changes"]["polished"]) == [
+        ("recieved", "received"),
+        ("I", None),
+        ("tomorow.", "tomorrow"),
+        (None, "morning."),
+    ]
+
+
+def test_a_version_beside_what_was_said_marks_only_the_words_it_changed():
+    said = "I'm going to speak about my date and then focus on new implementation"
+    version = "I'm going to speak about my day, and then focus on new implementations"
+
+    steps = notebook.word_changes(said, version)
+
+    assert [(s.said, s.version) for s in steps if s.said != s.version] == [
+        ("date", "day,"),
+        ("implementation", "implementations"),
+    ]
+    assert [s.version for s in steps if s.version] == version.split()
+    assert [s.said for s in steps if s.said] == said.split()
+
+
+async def test_a_translation_has_no_word_changes_and_a_check_counts_its_fixes(
+    client, account, hearing, model
+):
+    translated = (await say(client)).json()
+    assert translated["changes"] == {}
+
+    await type_(client, ENGLISH_TYPED, via="copied")
+    items = (await client.get("/captures")).json()["items"]
+    assert [(i["mode"], i["fixes"]) for i in items] == [("check", 2), ("translate", 0)]
 
 
 async def test_a_preference_for_each_mode_is_used_by_the_mode_it_fits(
@@ -331,6 +391,26 @@ async def test_english_said_aloud_is_checked_shown_and_never_counted(
     assert body["state"] == "to_practise"
     assert await count(db_session, CaptureAttempt) == attempts
     assert await count(db_session, WrittenError) == errors
+
+
+async def test_english_heard_both_ways_is_checked_and_says_how_sure_each_was(
+    client, account, hearing, model
+):
+    """An accent the detection took for Spanish: the recogniser heard it in both and kept
+    the English, the transcript it was surer of, and the capture carries both figures.
+    """
+    hearing.queue.append((ENGLISH_SAID, "en"))
+    hearing.confidences = {"es": 0.751, "en": 0.937}
+
+    body = (await say(client)).json()
+
+    assert body["mode"] == "check"
+    assert body["language"] == {
+        "language": "en",
+        "by": "recogniser",
+        "scores": {"en": 0.97},
+        "confidences": {"es": 0.751, "en": 0.937},
+    }
 
 
 async def test_a_spoken_checks_fixes_are_kept_to_show_and_count_nowhere(

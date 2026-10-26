@@ -103,3 +103,21 @@ test("the counts over the list are the API's", async () => {
   expect(screen.getByText("with no counted mistake").previousSibling).toHaveTextContent("2");
   expect(screen.getByRole("button", { name: /Delete every capture/ })).toBeInTheDocument();
 });
+
+test("a check says on its card how many fixes it found, and when it found none", async () => {
+  answer(
+    makeCaptureList({
+      items: [
+        makeCaptureSummary({ id: 3, mode: "check", chosen: "corrected", text: "I sent it.", fixes: 0 }),
+        makeCaptureSummary({ id: 2, mode: "check", chosen: "corrected", text: "I received it.", fixes: 2 }),
+        makeCaptureSummary({ id: 1 }),
+      ],
+    }),
+  );
+
+  await open();
+
+  expect(screen.getByText("Corrected · no mistakes found")).toBeInTheDocument();
+  expect(screen.getByText("Corrected · 2 fixes")).toBeInTheDocument();
+  expect(screen.getByText("Organized")).toBeInTheDocument();
+});

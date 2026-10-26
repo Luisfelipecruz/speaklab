@@ -1386,6 +1386,12 @@ export interface CaptureAttemptSummary {
 }
 
 /** One capture, as the panel shows it and as the Notebook keeps it. */
+/** One step of a version beside what was said: the person's word, the version's, or both. */
+export interface WordChange {
+  said: string | null;
+  version: string | null;
+}
+
 export interface Capture {
   /** Null when saving was paused: nothing was kept. */
   id: number | null;
@@ -1407,9 +1413,16 @@ export interface Capture {
   /** What every version had to keep, as written in what was said. */
   kept: string[];
   fixes: CaptureFix[];
+  /** For a check, each version beside what was said, word by word. */
+  changes?: Partial<Record<CaptureVersion, WordChange[]>>;
   phrases: CapturePhrase[];
   notes: string[];
-  language: { language: string; by: "recogniser" | "words" | "switch"; scores: Record<string, number> } | null;
+  language: {
+    language: string;
+    by: "recogniser" | "words" | "switch";
+    scores: Record<string, number>;
+    confidences?: Record<string, number>;
+  } | null;
   state: CaptureState;
   practised: number;
   box: number;
@@ -1433,6 +1446,8 @@ export interface CaptureSummary {
   practised: number;
   box: number;
   due_at: string | null;
+  /** For a check, how many fixes it found. */
+  fixes: number;
 }
 
 export interface NotebookCounts {

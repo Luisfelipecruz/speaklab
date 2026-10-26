@@ -27,9 +27,12 @@ export function CaptureFixes({
 }) {
   if (fixes.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground" data-testid="no-fixes">
-        Nothing to fix: the dictionary, the grammar rules and the model found no mistake.
-      </p>
+      <div className="flex flex-col gap-2">
+        <p className="text-base leading-relaxed">{text}</p>
+        <p className="text-sm text-muted-foreground" data-testid="no-fixes">
+          Nothing to fix: the dictionary, the grammar rules and the model found no mistake.
+        </p>
+      </div>
     );
   }
   // The marker hands back the items it was given, so each row finds its own fix again.

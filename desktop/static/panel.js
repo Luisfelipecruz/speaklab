@@ -29,6 +29,27 @@ function clock(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** A word without case or punctuation, as the API aligned it. */
+function bare(word) {
+  return (word ?? "").toLowerCase().replace(/[^\p{L}\p{N}']+/gu, "");
+}
+
+/** A version beside what was said: a changed word of the person's struck, the version's marked. */
+function changed(steps) {
+  const nodes = [];
+  steps.forEach((step, i) => {
+    if (i > 0) nodes.push(document.createTextNode(" "));
+    if (bare(step.said) === bare(step.version)) {
+      nodes.push(document.createTextNode(step.version ?? ""));
+      return;
+    }
+    if (step.said) nodes.push(el("s", { text: step.said }));
+    if (step.said && step.version) nodes.push(document.createTextNode(" "));
+    if (step.version) nodes.push(el("mark", { text: step.version }));
+  });
+  return nodes;
+}
+
 function button(label, onClick, extra = {}) {
   return el("button", { type: "button", on: { click: onClick }, text: label, ...extra });
 }
@@ -108,7 +129,9 @@ function result(view) {
     seg,
     el("span", { class: "ok", text: "✓ Copied · ⌘V to paste" }),
   );
-  const english = el("div", { class: "en", text });
+  // A check's version shows what it changed from what was said; an edit is plain text.
+  const steps = check && !editing ? capture.changes?.[shown] : null;
+  const english = steps ? el("div", { class: "en" }, ...changed(steps)) : el("div", { class: "en", text });
   if (editing) {
     english.setAttribute("contenteditable", "true");
     setTimeout(() => english.focus(), 0);
@@ -117,13 +140,19 @@ function result(view) {
     });
   }
   const fixes =
-    check && shown === "corrected" && capture.fixes.length > 0
-      ? el(
-          "ol",
-          { class: "fixes", "aria-label": "Fixes" },
-          ...capture.fixes.map((fix) => el("li", {}, el("s", { text: fix.original }), el("b", { text: fix.correction }), el("span", { class: "why", text: fix.label }))),
-        )
-      : null;
+    check && shown === "corrected"
+      ? capture.fixes.length > 0
+        ? el(
+            "ol",
+            { class: "fixes", "aria-label": "Fixes" },
+            ...capture.fixes.map((fix) =>
+              el("li", {}, el("s", { text: fix.original }), el("b", { text: fix.correction }), el("span", { class: "why", text: fix.explanation ? `${fix.label} · ${fix.explanation}` : fix.label })),
+            ),
+          )
+        : el("p", { class: "note", text: "No mistakes found: the dictionary, the grammar rules and the model found nothing to fix. Polished shows how it could read." })
+      : check && shown === "polished"
+        ? el("p", { class: "note", text: "Rewritten for clarity and tone by Gemma: a suggestion, never counted. Marked: what it changed from your words." })
+        : null;
   const keep = dropped.length
     ? el("span", { class: "warn", text: `Not found in this version: ${dropped.join(", ")}` })
     : el("span", { class: "keep", text: "✓ Names and numbers kept" });
@@ -144,8 +173,8 @@ function result(view) {
         ? button("Copy my edit", () => window.panel.choose({ edited: english.innerText }), { class: "pri" })
         : button("Edit", () => window.panel.act("edit")),
       capture.saved ? button("Open in Notebook", () => window.panel.act("open")) : null,
-      button(check ? `It was ${own}` : "It was English", () => window.panel.act("switch")),
-      el("span", { class: "hint", text: "⌘V to paste · esc to close" }),
+      button(check ? `It was ${view.account ?? "my language"}` : "It was English", () => window.panel.act("switch")),
+      el("span", { class: "hint", text: "⌘V to paste · stays while the pointer is on it · esc to close" }),
     ),
   ];
 }
@@ -252,6 +281,10 @@ function discard() {
     release();
   }
 }
+
+// Read with the pointer on it, the panel stays; it goes a moment after the pointer leaves.
+card.addEventListener("mouseenter", () => window.panel.act("over"));
+card.addEventListener("mouseleave", () => window.panel.act("out"));
 
 window.panel.onState(render);
 window.panel.onRecord((command) => {

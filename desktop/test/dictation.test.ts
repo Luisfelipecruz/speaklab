@@ -5,9 +5,12 @@ import {
   type Capture,
   type CaptureRequest,
   Dictation,
+  LINGER_MS,
   LONGEST_MS,
   type PanelView,
+  RESULT_MAX_MS,
   RESULT_MS,
+  readingMs,
   type SayApi,
   SayApiError,
   SHORTEST_MS,
@@ -564,6 +567,45 @@ describe("the result", () => {
     r.dictation.edit();
 
     assert.equal(result(r).shown, "direct");
+  });
+
+  it("stays long enough to read: 8 s for a line, a third of a second a word for more, 30 s at most", async () => {
+    assert.equal(readingMs(ENGLISH), RESULT_MS);
+    const long = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    assert.equal(readingMs(long), 60 * 330);
+    assert.equal(readingMs(`${long} ${long} ${long} ${long}`), RESULT_MAX_MS);
+
+    const r = rig();
+    r.api.answer = async () => capture({ text: long, versions: { organized: long, direct: null } });
+    await said(r);
+    r.timers.advance(60 * 330 - 1);
+    assert.equal(r.dictation.state, "result");
+    r.timers.advance(1);
+    assert.equal(r.dictation.state, "idle");
+  });
+
+  it("stays while the pointer is over it, and goes a moment after the pointer leaves", async () => {
+    const r = rig();
+    await said(r);
+    r.dictation.hover(true);
+    r.timers.advance(RESULT_MAX_MS * 2);
+    assert.equal(r.dictation.state, "result");
+
+    r.dictation.hover(false);
+    r.timers.advance(LINGER_MS - 1);
+    assert.equal(r.dictation.state, "result");
+    r.timers.advance(1);
+    assert.equal(r.dictation.state, "idle");
+  });
+
+  it("is not ended by the pointer leaving while it is being edited", async () => {
+    const r = rig();
+    await said(r);
+    r.dictation.edit();
+    r.dictation.hover(false);
+    r.timers.advance(LINGER_MS * 5);
+
+    assert.equal(r.dictation.state, "result");
   });
 
   it("opens its moment in the Notebook once the panel has gone", async () => {

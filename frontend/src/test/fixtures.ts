@@ -873,6 +873,7 @@ export function makeCaptureSummary(overrides: Partial<CaptureSummary> = {}): Cap
     practised: 0,
     box: 0,
     due_at: null,
+    fixes: 0,
     ...overrides,
   };
 }

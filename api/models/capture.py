@@ -58,6 +58,8 @@ class LanguageChoice(BaseModel):
     # person said which.
     by: Literal["recogniser", "words", "switch"]
     scores: dict[str, float] = Field(default_factory=dict)
+    # For speech heard in both languages, how sure the recogniser was of each transcript.
+    confidences: dict[str, float] = Field(default_factory=dict)
 
 
 class AttemptSummary(BaseModel):
@@ -68,6 +70,14 @@ class AttemptSummary(BaseModel):
     word_count: int
     counted: int
     box: int
+
+
+class WordChange(BaseModel):
+    """One step of a version beside what was said: the person's word, the version's, or
+    both, as each was written."""
+
+    said: str | None = None
+    version: str | None = None
 
 
 class CaptureOut(BaseModel):
@@ -90,6 +100,9 @@ class CaptureOut(BaseModel):
     # links and addresses the keep check looked for, with the names the account has used.
     kept: list[str] = Field(default_factory=list)
     fixes: list[CaptureFix] = Field(default_factory=list)
+    # For a check, each version beside what was said, word by word: what the fixes and the
+    # rewrite changed. None for a translation, whose words are in another language.
+    changes: dict[str, list[WordChange]] = Field(default_factory=dict)
     phrases: list[Phrase] = Field(default_factory=list)
     # What the person should know about how this one was made, in plain words: the
     # recogniser's rough English standing in for the model's, a check with the model down.
@@ -120,6 +133,9 @@ class CaptureSummary(BaseModel):
     practised: int = 0
     box: int = 0
     due_at: datetime | None = None
+    # For a check, how many fixes it found: none is said on the card, not left to look
+    # like an English nobody checked.
+    fixes: int = 0
 
 
 class NotebookCounts(BaseModel):
