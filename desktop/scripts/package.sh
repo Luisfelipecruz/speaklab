@@ -1,7 +1,7 @@
 #!/bin/sh
-# The app from what is already staged: the main process compiled, the icon rendered,
-# electron-builder, the bundle checked against the stage, and signed. build.sh runs this
-# after the stage.
+# The app from what is already staged: the main process compiled, the icon rendered, the fn
+# helper built if it is not, electron-builder, the bundle checked against the stage, and
+# signed. build.sh runs this after the stage.
 . "$(dirname "$0")/lib.sh"
 S=$DESKTOP/scripts
 cd "$DESKTOP"
@@ -11,6 +11,7 @@ rm -rf out
 pnpm exec tsc -p tsconfig.json
 
 /bin/sh "$S/icon.sh"
+[ -x "$B/native/speaklab-keys" ] || /bin/sh "$S/build-native.sh"
 
 log "electron-builder"
 rm -rf dist
@@ -18,6 +19,7 @@ pnpm exec electron-builder --config build/electron-builder.yml --mac dir --arm64
 APP=$DESKTOP/dist/mac-arm64/SpeakLab.app
 # Electron's own demo app, which comes with the distribution; app.asar is the app.
 rm -f "$APP/Contents/Resources/default_app.asar"
+[ -x "$APP/Contents/MacOS/speaklab-keys" ] || { echo "the fn helper is not in the bundle" >&2; exit 1; }
 
 log "the bundle holds the stage, file for file and link for link"
 "$PYTHON" -I "$S/tree-sums.py" "$APP/Contents/Resources" python envs src pg voices nltk_data web > "$B/bundle.sha256"

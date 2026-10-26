@@ -16,7 +16,11 @@ from db_models import (
     Answer,
     AnswerPrompt,
     Attempt,
+    VERSIONS,
     AudioAsset,
+    Capture,
+    CaptureAttempt,
+    CapturePhrase,
     FluencyMetrics,
     GrammarUsage,
     LanguageError,
@@ -31,10 +35,13 @@ from db_models import (
     Scenario,
     Turn,
     User,
+    WrittenError,
 )
 from models.export import (
     ExportAccount,
     ExportAnswer,
+    ExportCapture,
+    ExportCaptureAttempt,
     ExportCorrection,
     ExportFluency,
     ExportPhone,
@@ -46,6 +53,7 @@ from models.export import (
     ExportSession,
     ExportSnapshot,
     ExportTurn,
+    ExportWrittenError,
     HistoryExport,
 )
 
@@ -239,6 +247,71 @@ async def build(db: AsyncSession, user: User) -> HistoryExport:
             )
         )
 
+    capture_ids = select(Capture.id).where(Capture.user_id == user.id)
+    attempt_ids_written = select(CaptureAttempt.id).where(
+        CaptureAttempt.capture_id.in_(capture_ids)
+    )
+    written: dict[int, list[ExportWrittenError]] = defaultdict(list)
+    for row in await db.scalars(
+        select(WrittenError)
+        .where(WrittenError.attempt_id.in_(attempt_ids_written))
+        .order_by(WrittenError.attempt_id, WrittenError.span_start, WrittenError.id)
+    ):
+        written[row.attempt_id].append(ExportWrittenError.model_validate(row))
+    capture_attempts: dict[int, list[ExportCaptureAttempt]] = defaultdict(list)
+    for row in await db.scalars(
+        select(CaptureAttempt)
+        .where(CaptureAttempt.capture_id.in_(capture_ids))
+        .order_by(CaptureAttempt.capture_id, CaptureAttempt.created_at)
+    ):
+        capture_attempts[row.capture_id].append(
+            ExportCaptureAttempt(
+                id=row.id,
+                text=row.text,
+                word_count=row.word_count,
+                compared_with=row.compared_with,
+                forms=row.forms,
+                box=row.box,
+                detail=row.detail,
+                errors=written.get(row.id, []),
+                created_at=row.created_at,
+            )
+        )
+    phrases: dict[int, list[dict]] = defaultdict(list)
+    for row in await db.scalars(
+        select(CapturePhrase)
+        .where(CapturePhrase.capture_id.in_(capture_ids))
+        .order_by(CapturePhrase.capture_id, CapturePhrase.id)
+    ):
+        phrases[row.capture_id].append({"source": row.source, "english": row.english})
+    # Field by field, as for presentations: `attempts` and `phrases` are relationships on
+    # the row too, and reading them would be a lazy load inside the async session.
+    captures = [
+        ExportCapture(
+            id=row.id,
+            mode=row.mode,
+            via=row.via,
+            source_language=row.source_language,
+            source_text=row.source_text,
+            duration_ms=row.duration_ms,
+            app_name=row.app_name,
+            versions={v: getattr(row, v) for v in VERSIONS},
+            chosen=row.chosen,
+            fixes=row.fixes,
+            dropped=row.dropped,
+            phrases=phrases.get(row.id, []),
+            attempts=capture_attempts.get(row.id, []),
+            box=row.box,
+            due_at=row.due_at,
+            created_at=row.created_at,
+        )
+        for row in await db.scalars(
+            select(Capture)
+            .where(Capture.user_id == user.id)
+            .order_by(Capture.created_at, Capture.id)
+        )
+    ]
+
     snapshots = await db.scalars(
         select(ProgressSnapshot)
         .where(ProgressSnapshot.user_id == user.id)
@@ -255,5 +328,6 @@ async def build(db: AsyncSession, user: User) -> HistoryExport:
         answers=answers,
         presentations=presentations,
         rehearsals=rehearsals,
+        captures=captures,
         snapshots=[ExportSnapshot.model_validate(row) for row in snapshots],
     )

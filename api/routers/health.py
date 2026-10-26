@@ -2,9 +2,9 @@
 
 The distinction this module exists to make: **the database is a dependency, the model
 layer is not.** Without Postgres this container cannot answer anything and should say so
-with a 503. Without `asr`, `tts`, `pron` and the LLM it can still serve scenarios,
-sessions, auth and progress, and it starts and answers while those services are still
-loading their weights. A stack reporting `degraded` here is working as designed.
+with a 503. Without `asr`, `tts`, `pron`, `asr-multi` and the LLM it can still serve
+scenarios, sessions, auth and progress, and it starts and answers while those services
+are still loading their weights. A stack reporting `degraded` here is working as designed.
 
 Two endpoints, because they answer two different questions:
 
@@ -240,10 +240,10 @@ async def _probe_llm(client: httpx.AsyncClient) -> dict[str, Any]:
 
 
 async def probe_model_services() -> dict[str, dict[str, Any]]:
-    """Probe all four concurrently. Never raises.
+    """Probe every model service and the LLM concurrently. Never raises.
 
-    One client for the four requests, and `asyncio.gather` rather than a loop, so the
-    wall-clock cost of a completely absent model layer is one timeout rather than four.
+    One client for all the requests, and `asyncio.gather` rather than a loop, so the
+    wall-clock cost of a completely absent model layer is one timeout rather than one each.
     """
     async with httpx.AsyncClient(timeout=HEALTH_PROBE_TIMEOUT_S) as client:
         names = list(MODEL_SERVICES)

@@ -8,14 +8,16 @@ source, is in [measurements.md](measurements.md).
 
 ## 1. The shape
 
-One orchestrator, one database, three model services, and one language model on the host.
+One orchestrator, one database, three model services — one of them run twice, for two
+languages — and one language model on the host.
 
 ```
 browser ──▶ Next.js :3003 ──▶ FastAPI :8002 ──▶ Postgres :5433
                                     │
-                                    ├──▶ asr  :8101    faster-whisper
-                                    ├──▶ tts  :8102    Piper
-                                    ├──▶ pron :8103    wav2vec2 + torch
+                                    ├──▶ asr       :8101    faster-whisper, small.en
+                                    ├──▶ asr-multi :8104    the same service, Whisper small
+                                    ├──▶ tts       :8102    Piper
+                                    ├──▶ pron      :8103    wav2vec2 + torch
                                     └──▶ Ollama :11434 on the host
 ```
 
@@ -33,11 +35,13 @@ together would make the cheapest pay for the most expensive.
 | Service | Runtime | Size | Starts |
 |---|---|---|---|
 | `asr` | faster-whisper on CTranslate2 | 790 MB image, no torch; 464 MB of Whisper weights on first start | by default |
+| `asr-multi` | the same image and code, with the multilingual model | 464 MB more of Whisper weights on first start | with `make say-up` |
 | `tts` | Piper on onnxruntime | 724 MB image, no torch, its 61 MB voice inside | by default |
 | `pron` | wav2vec2 + torch | 1.87 GB image, and 1.2 GB of weights | with `make pron-up` |
 
 `pron` has a profile of its own so that someone who wants to try a conversation never
-downloads torch.
+downloads torch, and `asr-multi` one so that someone who never asks for English from their
+own language never downloads a second model.
 
 **The API image contains no model weights and no torch.** It is 826 MB, about half of it
 the dependency parser and its model, and `api/tests/test_health.py` asserts the absence of
@@ -62,6 +66,7 @@ an `ollama` service is declared under the `llm` profile; `make llm-up` starts it
 |---|---|---|
 | *(default)* | `postgres`, `api`, `frontend`, `asr`, `tts`, and the `volume-owner` job | `make setup`, `make up` |
 | `pron` | `pron` | `make pron-up` |
+| `say` | `asr-multi` | `make say-up` |
 | `llm` | `ollama` | `make llm-up` |
 | `tools` | `test` | `make test` and the measurement targets |
 | `dev` | `frontend-dev`, the development server over the source, on the frontend's port | `make dev`; `make test-frontend` runs in its image |
@@ -257,6 +262,18 @@ grammar analysis, the fluency figures and read-aloud. The whole turn meets its 3
 with `small.en` (§7), so the recogniser is not downgraded; switching is one environment
 variable. [decisions/0001](decisions/0001-asr-model-choice.md) has the argument, and a case
 where `base.en` at beam 5 invents a word and takes 4.5 s.
+
+### Speech in the account's own language
+
+`asr-multi` is the same service with Whisper `small`, the multilingual model, for Say it in
+English. `/transcribe` takes two optional fields: `language`, a code, several separated by
+commas for the service to choose among, or `auto`; and `task`, `transcribe` or `translate`.
+Asked to choose, it runs Whisper's language detection once and says how likely each
+language was. A request with neither field is the request the English pipeline has always
+made, and an English-only model refuses any other language with a 422 that says so, rather
+than producing English-shaped nonsense for Spanish speech. The API asks `asr-multi` for the
+account's language and English, and the recogniser's own `translate` task only when the
+language model does not answer — the rough English a recording still gets then.
 
 ### Storing a recording
 
@@ -458,6 +475,7 @@ Inside the Compose network each service is reached by its name and its own port.
 | asr | 8101 |
 | tts | 8102 |
 | pron | 8103 |
+| asr-multi | 8104 |
 | ollama | 11434, on the host |
 
 ---
@@ -472,12 +490,35 @@ quitting stops all of it.
 SpeakLab.app ── the main process (Electron) and its supervisor
                   ├──▶ postgres :5443   PostgreSQL 16 (theseus-rs), the app's own cluster
                   │      └──▶ migrate ──▶ seed ──▶ api :8012
-                  ├──▶ asr  :8111  ┐
-                  ├──▶ tts  :8112  ├ start at once, needing nothing
-                  ├──▶ pron :8113  ┘
-                  └──▶ the window's server :3013, in Electron's utility process
+                  ├──▶ asr       :8111  ┐
+                  ├──▶ tts       :8112  │
+                  ├──▶ pron      :8113  ├ start at once, needing nothing
+                  ├──▶ asr-multi :8114  ┘
+                  ├──▶ the window's server :3013, in Electron's utility process
+                  └──▶ speaklab-keys, the fn helper, and the Say it in English panel
                                    Ollama :11434 on the host, as in Compose
 ```
+
+### Say it in English: the key, the panel and the menu bar
+
+**fn is read by `speaklab-keys`**, a Swift helper in `Contents/MacOS`, built from
+`desktop/native/keys.swift` and signed with the rest. It holds a listen-only event tap,
+which needs Input Monitoring, and writes one JSON line per event to the main process:
+Input Monitoring's state, fn down with the app in front, fn up, and that another key went
+down while fn was held — never which key. The main process turns those lines into a hold,
+hands-free and a cancel, against a clock it is given, and starts the helper again a second
+after it exits for any reason but being asked to quit.
+
+**The panel is a window of its own**, a non-activating panel made hidden at launch, so fn
+shows it at once over every app and every Space without taking focus. It records with the
+window's own `MediaRecorder` and sends the bytes over IPC; its page has a sandboxed preload
+and a handful of checked calls, and holds no state beyond the recording in progress. The
+main process uploads through Electron's network stack with the default session's cookies,
+sent from the window's origin, so the panel is signed in when the window is, and writes the
+clipboard. ⌃⌥Space, ⌃⌥C and, while the panel shows, Esc are global shortcuts. The menu bar
+carries the mark as a template image and the feature's menu; its settings live in
+`say.json` in the data folder. While the feature is on, closing the last window leaves the
+app running in the menu bar.
 
 ### The supervisor
 
@@ -509,8 +550,8 @@ the README, into an app that has been quit.
 
 ### The first launch
 
-The speech weights are fetched once — Whisper `small.en` and wav2vec2, 1.75 GB at pinned
-revisions, each file checked against its SHA-256 before it is used — into Hugging Face's
+The speech weights are fetched once — Whisper `small.en` and `small`, and wav2vec2, 2.24 GB
+at pinned revisions, each file checked against its SHA-256 before it is used — into Hugging Face's
 own cache layout, so that the services find them offline exactly as they find the files the
 containers download. A download that stops resumes where it stopped. The window then opens
 on registration. Everything after that works offline, apart from conversations, which need
@@ -532,7 +573,7 @@ Gatekeeper refuses the app on any other.
 |---|---|
 | the window's server | 3013 |
 | api | 8012 |
-| asr, tts, pron | 8111, 8112, 8113 |
+| asr, tts, pron, asr-multi | 8111, 8112, 8113, 8114 |
 | postgres | 5443, and no socket |
 
 The ports are not Compose's, so the app and the Compose stack run at once.

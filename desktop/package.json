@@ -1,7 +1,7 @@
 {
   "name": "speaklab-desktop",
   "productName": "SpeakLab",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "private": true,
   "description": "SpeakLab for this Mac: the services as processes, and one window on them",
   "type": "module",

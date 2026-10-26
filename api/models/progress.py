@@ -173,6 +173,26 @@ class ProgressTotals(BaseModel):
     conversations: int = 0
 
 
+class WritingTotals(BaseModel):
+    """What the writing lines rest on, over the window."""
+
+    captures: int = 0
+    attempts: int = 0
+    words: int = 0
+    counted: int = 0
+
+
+class Writing(BaseModel):
+    """Say it in English over time: how often you asked for English, and how you wrote it
+    yourself. Counted apart from speech, so nothing written moves a spoken line."""
+
+    label: str
+    description: str
+    series: list[Series] = Field(default_factory=list)
+    totals: WritingTotals = Field(default_factory=WritingTotals)
+    caveat: str
+
+
 class ProgressOut(BaseModel):
     """The whole progress page, in one response."""
 
@@ -184,6 +204,7 @@ class ProgressOut(BaseModel):
     phones: list[PhoneTrend] = Field(default_factory=list)
     phone_gate: Gate
     repertoire: Repertoire
+    writing: Writing | None = None
 
     # Something has been analysed or scored since the last rollup, so these numbers are
     # behind the practice they describe. Reported rather than fixed on read: recomputing

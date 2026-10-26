@@ -165,6 +165,37 @@ that nothing in the other documents reads as a claim.
 - **`progress_snapshots.cefr_estimate` is a column nothing writes.** A band assigned from
   seven turns would be a confident answer to a question this data cannot settle.
 
+## Say it in English
+
+- **SpeakLab never pastes for you.** That needs Accessibility, a permission over every app;
+  the English waits on the clipboard for your own ⌘V.
+- **fn needs a keyboard that has one the Mac can see.** Many external keyboards do not;
+  ⌃⌥Space and *Speak instead* are the way in from those.
+- **Nothing happens in a password field.** macOS turns on secure input there and gives the
+  key's tap no events.
+- **Input Monitoring is asked for again after every rebuild.** The grant belongs to the
+  app's signature, and an ad-hoc signature changes with each build.
+- **The 🌐 key.** Unless *Press 🌐 key to* is *Do Nothing*, macOS also changes the input
+  source or opens the emoji viewer when fn is released. Settings checks it and opens
+  Keyboard settings; SpeakLab never writes it.
+- **Focus comes back by hiding SpeakLab**, after typing or editing in the panel, so the main
+  window hides as well.
+- **Esc belongs to the panel while it shows**: an Esc meant for the app behind it closes the
+  panel instead.
+- **The English is a model's.** Plain code checks each version for the names, numbers,
+  links, addresses and handles of what was said, and for nothing else: a version can read
+  well and say something else in a way no check here sees. A number said in words is not
+  checked, since the check reads digits.
+- **Between Spanish and English only.** The common-word lists that tell a text's language
+  are Spanish's and English's; an account in another language is told from English by its
+  share of common English words alone. English into Spanish does not exist.
+- **A dictionary flags what it has never seen.** A name or a piece of jargon is left alone
+  when it has a capital inside a sentence or is already in the person's captures; a lower-
+  case word the list does not know is flagged. And the correction one edit away is not
+  always the word meant: *sory* is mended to *story*, the commoner of the two.
+- **Nothing is written while you speak.** The English comes when fn is released, not word
+  by word.
+
 ## The evaluation harness
 
 - **A judge from a different model family.** `gemma4:e4b` grading `gemma4:e4b`
@@ -224,7 +255,7 @@ that nothing in the other documents reads as a claim.
 - **Memory.** With every model loaded the app holds about 3.6 GB resident — pron 1.8 GB of
   it, most of that its weights mapped from disk — and Ollama's runner holds 6.9 GB more
   with `gemma4:e4b` loaded. A 16 GB Mac runs it with little to spare.
-- **The first launch needs the network**, for 1.75 GB of speech weights from Hugging Face,
+- **The first launch needs the network**, for 2.24 GB of speech weights from Hugging Face,
   and nothing works until they are in. A download that stops resumes; one that cannot
   finish says so and waits for Try again.
 - **Conversations need Ollama on the Mac**, as they do with Compose; the app does not

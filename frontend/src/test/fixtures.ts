@@ -9,6 +9,11 @@
 
 import type {
   AnswerPrompt,
+  Capture,
+  CaptureAttempt,
+  CaptureList,
+  CaptureSummary,
+  Writing,
   AnswersPage,
   AttemptDetail,
   CategoryCorrections,
@@ -326,6 +331,7 @@ export function makeProgress(overrides: Partial<Progress> = {}): Progress {
       need: 5,
     },
     repertoire: makeRepertoire(),
+    writing: null,
     stale: false,
     ...overrides,
   };
@@ -754,6 +760,198 @@ export function makePresentationSummary(
     takes: 5,
     created_at: "2026-09-20T09:00:00Z",
     updated_at: "2026-09-20T09:20:00Z",
+    ...overrides,
+  };
+}
+
+// ── Say it in English and the Notebook ──────────────────────────────────────
+
+export const CAPTURE_SAID =
+  "Laura, te escribo para avisarte que el informe del cliente se va a retrasar hasta el jueves 14, porque todavía estamos esperando los datos de Acme.";
+export const CAPTURE_ORGANIZED =
+  "Hi Laura,\n\nA quick heads-up: the client report will be delayed until Thursday the 14th, as we're still waiting for Acme's data.";
+export const CAPTURE_DIRECT =
+  "Laura, I'm writing to let you know that the client report is going to be delayed until Thursday the 14th, because we are still waiting for Acme's data.";
+
+export function makeCapture(overrides: Partial<Capture> = {}): Capture {
+  return {
+    id: 12,
+    saved: true,
+    created_at: "2026-10-25T05:12:00Z",
+    mode: "translate",
+    via: "voice",
+    source_language: "es",
+    source_text: CAPTURE_SAID,
+    duration_ms: 9200,
+    app: "Mail",
+    chosen: "organized",
+    text: CAPTURE_ORGANIZED,
+    versions: { organized: CAPTURE_ORGANIZED, direct: CAPTURE_DIRECT },
+    dropped: { organized: [], direct: [] },
+    kept: ["Laura", "14", "Acme"],
+    fixes: [],
+    phrases: [
+      { source: "te escribo para avisarte", english: "a quick heads-up", elsewhere: 3 },
+      { source: "se va a retrasar", english: "will be delayed", elsewhere: 1 },
+    ],
+    notes: [],
+    language: { language: "es", by: "recogniser", scores: { es: 0.97, en: 0.02 } },
+    state: "to_practise",
+    practised: 0,
+    box: 0,
+    due_at: null,
+    attempts: [],
+    asr_model: "small",
+    llm_model: "gemma4:e4b",
+    timings: { recognition_ms: 1100, generation_ms: 640, total_ms: 1800 },
+    ...overrides,
+  };
+}
+
+/** English the person typed, checked: two misspellings, counted as writing. */
+export function makeCheck(overrides: Partial<Capture> = {}): Capture {
+  const typed = "I recieved your message and I will call you tomorow.";
+  return makeCapture({
+    mode: "check",
+    via: "typed",
+    source_language: "en",
+    source_text: typed,
+    duration_ms: null,
+    app: "Slack",
+    chosen: "corrected",
+    text: "I received your message and I will call you tomorrow.",
+    versions: { corrected: "I received your message and I will call you tomorrow.", polished: null },
+    dropped: { corrected: [] },
+    kept: [],
+    fixes: [
+      {
+        category: "SPELLING",
+        label: "spelling",
+        subcategory: "misspelling",
+        span_start: 2,
+        span_end: 10,
+        original: "recieved",
+        correction: "received",
+        explanation: "Spelled received.",
+        detector: "dictionary",
+        counted: true,
+      },
+      {
+        category: "SPELLING",
+        label: "spelling",
+        subcategory: "misspelling",
+        span_start: 44,
+        span_end: 51,
+        original: "tomorow",
+        correction: "tomorrow",
+        explanation: "Spelled tomorrow.",
+        detector: "dictionary",
+        counted: true,
+      },
+    ],
+    phrases: [],
+    state: "practised",
+    practised: 1,
+    box: 1,
+    due_at: "2026-10-26T05:12:00Z",
+    attempts: [{ id: 3, created_at: "2026-10-25T05:12:00Z", word_count: 10, counted: 2, box: 1 }],
+    ...overrides,
+  });
+}
+
+export function makeCaptureSummary(overrides: Partial<CaptureSummary> = {}): CaptureSummary {
+  return {
+    id: 12,
+    created_at: "2026-10-25T05:12:00Z",
+    mode: "translate",
+    via: "voice",
+    app: "Mail",
+    source_text: CAPTURE_SAID,
+    chosen: "organized",
+    text: CAPTURE_ORGANIZED,
+    state: "to_practise",
+    practised: 0,
+    box: 0,
+    due_at: null,
+    fixes: 0,
+    ...overrides,
+  };
+}
+
+export function makeCaptureList(overrides: Partial<CaptureList> = {}): CaptureList {
+  return {
+    items: [makeCaptureSummary()],
+    matching: 1,
+    limit: 20,
+    offset: 0,
+    counts: {
+      total: 1,
+      this_week: 1,
+      practised_this_week: 0,
+      clean_this_week: 0,
+      due: 0,
+      to_practise: 1,
+    },
+    apps: ["Mail"],
+    ...overrides,
+  };
+}
+
+export function makeCaptureAttempt(overrides: Partial<CaptureAttempt> = {}): CaptureAttempt {
+  const text = "Laura, the client report will be late untill Thursday 14.";
+  return {
+    id: 7,
+    capture_id: 12,
+    created_at: "2026-10-25T14:40:00Z",
+    text,
+    word_count: 10,
+    errors: [
+      {
+        category: "SPELLING",
+        label: "spelling",
+        subcategory: "misspelling",
+        span_start: 38,
+        span_end: 44,
+        original: "untill",
+        correction: "until",
+        explanation: "Spelled until.",
+        detector: "dictionary",
+        counted: true,
+      },
+    ],
+    counted: 1,
+    per_100_words: 10,
+    forms: { future_will: 1 },
+    compared_with: "organized",
+    compared_text: CAPTURE_ORGANIZED,
+    words: [
+      { expected: "hi", written: null },
+      { expected: "laura", written: "laura" },
+      { expected: "until", written: "untill" },
+    ],
+    box_before: 0,
+    box: 1,
+    due_at: "2026-10-26T14:40:00Z",
+    detail: null,
+    ...overrides,
+  };
+}
+
+export function makeWriting(overrides: Partial<Writing> = {}): Writing {
+  return {
+    label: "Writing on your own",
+    description: "How often you asked SpeakLab for English, and how you wrote it yourself afterwards. Counted apart from speech.",
+    series: [
+      makeSeries({ metric: "captures", label: "asked for English", unit: "captures" }),
+      makeSeries({
+        metric: "written_errors_per_100_words",
+        label: "mistakes in what you wrote",
+        unit: "per 100 words",
+        better: "lower",
+      }),
+    ],
+    totals: { captures: 9, attempts: 4, words: 120, counted: 6 },
+    caveat: "A capture is one release of fn, one Enter in the panel, or one translation or check of something you copied, while saving is on.",
     ...overrides,
   };
 }

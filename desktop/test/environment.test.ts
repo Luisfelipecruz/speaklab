@@ -10,7 +10,7 @@ const p = paths({ resources: "/Applications/SpeakLab.app/Contents/Resources", da
 const base = baseEnv("/Users/someone", "/var/folders/xy/T");
 const secrets = { dbPassword: "p@ss/word+=?", jwtSecret: "ab".repeat(32) };
 const settings = { whisperThreads: 8 };
-const services: Service[] = ["api", "asr", "tts", "pron"];
+const services: Service[] = ["api", "asr", "tts", "pron", "asr-multi"];
 
 /** `KEY: ${KEY:-default}` lines under each service's `environment:` in docker-compose.yml. */
 function composeEnvironment(): Record<string, Record<string, string>> {
@@ -43,10 +43,11 @@ function composeEnvironment(): Record<string, Record<string, string>> {
 
 /** What the desktop gives differently from Compose, on purpose: addresses, paths, secrets. */
 const MOVED: Record<Service, string[]> = {
-  api: ["DATABASE_URL", "ASR_URL", "TTS_URL", "PRON_URL", "AUDIO_ROOT", "OLLAMA_BASE_URL", "CORS_ORIGINS", "JWT_SECRET"],
+  api: ["DATABASE_URL", "ASR_URL", "TTS_URL", "PRON_URL", "ASR_MULTI_URL", "AUDIO_ROOT", "OLLAMA_BASE_URL", "CORS_ORIGINS", "JWT_SECRET"],
   asr: ["HF_HOME", "WHISPER_CPU_THREADS"],
   tts: ["PIPER_VOICE_DIR"],
   pron: ["HF_HOME"],
+  "asr-multi": ["HF_HOME", "WHISPER_CPU_THREADS"],
 };
 
 describe("each process's environment", () => {
@@ -87,6 +88,7 @@ describe("each process's environment", () => {
     assert.equal(env.ASR_URL, "http://127.0.0.1:8111");
     assert.equal(env.TTS_URL, "http://127.0.0.1:8112");
     assert.equal(env.PRON_URL, "http://127.0.0.1:8113");
+    assert.equal(env.ASR_MULTI_URL, "http://127.0.0.1:8114");
     assert.equal(env.CORS_ORIGINS, "http://127.0.0.1:3013");
     assert.equal(env.OLLAMA_BASE_URL, "http://127.0.0.1:11434");
     assert.equal(env.AUDIO_ROOT, p.audio);
@@ -102,6 +104,10 @@ describe("each process's environment", () => {
     assert.equal(pron.HF_HOME, p.models);
     assert.equal(pron.HF_HUB_OFFLINE, "1");
     assert.equal(pron.NLTK_DATA, p.nltk);
+    const multi = serviceEnv("asr-multi", base, p, secrets, settings);
+    assert.equal(multi.WHISPER_MODEL, "small", "the multilingual model, beside asr's small.en");
+    assert.equal(multi.HF_HUB_OFFLINE, "1");
+    assert.equal(multi.PYTHONPATH, p.env("asr"), "asr's environment");
     const tts = serviceEnv("tts", base, p, secrets, settings);
     assert.equal(tts.PIPER_BUILTIN_VOICE_DIR, p.voices);
     assert.equal(serviceEnv("asr", base, p, secrets, { whisperThreads: 6 }).WHISPER_CPU_THREADS, "6");

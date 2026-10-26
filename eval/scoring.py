@@ -1,11 +1,11 @@
 """The arithmetic every measurement suite shares, in one place so it can be broken.
 
-This module is not a test. It is what the four suites count with, and it lives beside
+This module is not a test. It is what the suites count with, and it lives beside
 them so that `test_eval_harness.py` can feed it fixtures whose answers are known and
 check that it produces them. An evaluator nobody evaluates is an assertion wearing a
 number as a disguise.
 
-Two kinds of thing are here.
+Three kinds of thing are here.
 
 **Intervals.** Every figure this project publishes is computed over a handful of trials —
 six scored proposals, ten utterances, six replies. A bare proportion is the most
@@ -23,12 +23,17 @@ its own brief has failed, and no judgement is required to see it.
 Every check returns the *evidence* — the matched phrase, the offending sentence — rather
 than a bare boolean, because a reader of `docs/evaluation.md` has to be able to disagree
 with a count without re-running anything.
+
+**chrF.** How close a translation is to the English a person would have written, for Say
+it in English's two versions against the owner's own: a score, not a verdict, since two
+good translations of one sentence share far from all their characters.
 """
 
 from __future__ import annotations
 
 import math
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 # ── Proportions, and the honesty of an interval ─────────────────────────────
@@ -416,3 +421,57 @@ def agreement(labelled: list[tuple[str, bool]], verdicts: dict[str, bool]) -> Ag
         else:
             missed.append(identifier)
     return Agreement(agreed=agreed, total=scored, missed=tuple(missed))
+
+
+# ── chrF: how close a translation is to a person's own ──────────────────────
+#
+# The character n-gram F-score, as sacrebleu computes it by default: orders one to six,
+# whitespace removed, recall weighted twice precision (beta 2), and the corpus score taken
+# from the statistics summed over every segment rather than averaged per segment. Written
+# here rather than imported, since sacrebleu would bring numpy and lxml into the test image
+# with it, and checked against sacrebleu's own numbers by `test_eval_harness.py`.
+
+CHRF_ORDER = 6
+CHRF_BETA = 2
+
+
+def _char_grams(text: str, order: int) -> Counter:
+    joined = "".join(text.split())
+    return Counter(joined[i : i + order] for i in range(len(joined) - order + 1))
+
+
+def chrf_statistics(hypothesis: str, reference: str) -> list[int]:
+    """Per order, what the hypothesis has, what the reference has, and what they share."""
+    statistics: list[int] = []
+    for order in range(1, CHRF_ORDER + 1):
+        hyp, ref = _char_grams(hypothesis, order), _char_grams(reference, order)
+        statistics += [sum(hyp.values()), sum(ref.values()), sum((hyp & ref).values())]
+    return statistics
+
+
+def chrf(hypotheses: list[str], references: list[str]) -> float:
+    """Corpus chrF, 0 to 100, for each hypothesis against its one reference."""
+    if len(hypotheses) != len(references):
+        raise ValueError(
+            f"{len(hypotheses)} hypotheses for {len(references)} references"
+        )
+    totals = [0] * (3 * CHRF_ORDER)
+    for hypothesis, reference in zip(hypotheses, references):
+        for i, count in enumerate(chrf_statistics(hypothesis, reference)):
+            totals[i] += count
+    factor = CHRF_BETA**2
+    precision = recall = 0.0
+    effective = 0
+    for order in range(CHRF_ORDER):
+        hyp, ref, match = totals[3 * order : 3 * order + 3]
+        # An order neither side reaches does not count against either.
+        if hyp > 0 and ref > 0:
+            precision += match / hyp
+            recall += match / ref
+            effective += 1
+    if not effective:
+        return 0.0
+    precision, recall = precision / effective, recall / effective
+    if not precision + recall:
+        return 0.0
+    return 100 * (1 + factor) * precision * recall / (factor * precision + recall)

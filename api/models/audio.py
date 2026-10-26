@@ -86,6 +86,13 @@ class Transcription(BaseModel):
     timestamp_fixups: int = Field(ge=0)
 
     language: str
+    # `translate` when the text is the recogniser's own English rather than what was said.
+    task: str = "transcribe"
+    # When the language was chosen among several, how likely each one was.
+    language_scores: dict[str, float] | None = None
+    # When the choice was close enough to hear the recording in both, how sure the
+    # recogniser was of each transcript; the surer one is the one returned.
+    language_confidences: dict[str, float] | None = None
     model: str
     decoder: DecoderSettings
     source: SourceMedia

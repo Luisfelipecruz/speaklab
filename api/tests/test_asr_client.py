@@ -14,6 +14,7 @@ tests rather than a comment.
 import httpx
 import pytest
 
+from config import ASR_URL
 from services.asr_client import (
     AsrProtocolError,
     AsrRejected,
@@ -96,6 +97,75 @@ async def test_the_upload_is_sent_as_multipart_under_the_field_the_service_reads
     assert b'name="file"' in seen["body"]
     assert b"turn.webm" in seen["body"]
     assert b"RIFFfake" in seen["body"]
+
+
+def _parts(request: httpx.Request) -> dict[str, bytes]:
+    """The multipart body's parts by name, each with its content."""
+    boundary = request.headers["content-type"].split("boundary=")[1].encode()
+    parts = {}
+    for chunk in request.content.split(b"--" + boundary)[1:-1]:
+        head, _, value = chunk.removeprefix(b"\r\n").partition(b"\r\n\r\n")
+        name = head.split(b'name="')[1].split(b'"')[0].decode()
+        parts[name] = value.removesuffix(b"\r\n")
+    return parts
+
+
+async def test_language_and_task_are_sent_as_the_form_fields_the_service_reads():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["parts"] = _parts(request)
+        return httpx.Response(200, json=GOOD_RESPONSE)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        await transcribe(
+            b"RIFFfake",
+            client=http,
+            language="es,en",
+            task="translate",
+            url="http://asr-multi:8101",
+        )
+
+    assert seen["url"] == "http://asr-multi:8101/transcribe"
+    assert seen["parts"]["language"] == b"es,en"
+    assert seen["parts"]["task"] == b"translate"
+    assert seen["parts"]["file"] == b"RIFFfake"
+
+
+async def test_without_them_the_request_is_the_one_the_english_pipeline_always_sent():
+    """One part, the file, to `asr`: no field the English recogniser would have to read."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["parts"] = _parts(request)
+        return httpx.Response(200, json=GOOD_RESPONSE)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        await transcribe(b"RIFFfake", filename="turn.webm", client=http)
+
+    assert seen["url"] == f"{ASR_URL}/transcribe"
+    assert list(seen["parts"]) == ["file"]
+    assert seen["parts"]["file"] == b"RIFFfake"
+
+
+async def test_a_translation_and_a_chosen_language_say_so_and_a_transcript_needs_neither():
+    chosen = {**GOOD_RESPONSE, "language": "es", "task": "transcribe"}
+    chosen["language_scores"] = {"es": 0.97, "en": 0.02}
+    async with client_returning(json=chosen) as http:
+        result = await transcribe(b"x", client=http, language="es,en")
+    assert result.language == "es"
+    assert result.language_scores == {"es": 0.97, "en": 0.02}
+
+    async with client_returning(json={**GOOD_RESPONSE, "task": "translate"}) as http:
+        assert (
+            await transcribe(b"x", client=http, task="translate")
+        ).task == "translate"
+
+    async with client_returning(json=GOOD_RESPONSE) as http:
+        result = await transcribe(b"x", client=http)
+    assert (result.task, result.language_scores) == ("transcribe", None)
 
 
 # ── The recording is bad ────────────────────────────────────────────────────

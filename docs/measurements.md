@@ -31,11 +31,11 @@ Two ways to read these numbers:
 | … in the database image, pulled not built | `postgres:16.15` 14 CRITICAL, 101 HIGH: Debian packages, and upstream's `gosu` built with an old Go | Trivy 0.74.0 |
 | The repository, as CI scans it | **0** HIGH or CRITICAL with a fix in the four requirements files and the lockfile; 0 Dockerfile misconfigurations; 0 secrets | the `security` job's command |
 | Frontend releases the trust check refuses | **2** — older-line releases by their own maintainers, each excepted by exact version; every other package in the lockfile passes | pnpm 12.4.1's install; each checked against the npm registry |
-| API test suite | **1 277** — 1 235 pass with Postgres alone; the other 42 need `asr`, `tts`, `pron` or Ollama. The same counts on the desktop app's Postgres | `make test`, and its suite pointed at the app's cluster |
-| Frontend test suite | **399** across 60 suites, no services needed | `make test-frontend` |
-| The desktop app's tests | **65**, `node:test`, no services needed | `make desktop-test` |
-| API operations | **41** | `app.openapi()` |
-| The project site | **43 pages**; 261 links, every one resolved — 218 to other pages, 8 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.4 s | `make site` |
+| API test suite | **1 405** — 1 347 pass with Postgres alone; the other 58 need `asr`, `asr-multi`, `tts`, `pron`, Ollama or the owner's recordings | `make test` |
+| Frontend test suite | **448** across 71 suites, no services needed | `make test-frontend` |
+| The desktop app's tests | **143**, `node:test`, no services needed | `make desktop-test` |
+| API operations | **50** | `app.openapi()` |
+| The project site | **44 pages**; 270 links, every one resolved — 226 to other pages, 9 to a heading on the same page, 9 to files in the repository, 26 elsewhere; no date outside the changelog; built in 0.2–1.4 s | `make site` |
 
 ### The first run, measured twice
 
@@ -57,12 +57,13 @@ code. Ranges are across the runs made; Ollama's model is the same build for both
 |---|---|---|
 | The build | `make desktop` from an empty `desktop/` in **228 s**, every download included; the app **2.1 GB**, 786 MB zipped; 54 963 files and links staged, the same inside the app; signed ad hoc, `codesign --verify --deep --strict` valid, `spctl` refuses it | `make desktop`, `du`, `ditto -c -k` |
 | Launch to the window, warm | **1.66–2.06 s** from the process starting; every model loaded at **3.66–4.88 s**, behind the window | five launches, `supervisor.log` |
-| The first launch | the 1.75 GB of weights fetched and checked in about two minutes on this connection; then every service ready in 4.8 s | one launch on an empty data folder |
+| The first launch | `small.en`'s and wav2vec2's 1.75 GB of weights fetched and checked in about two minutes on this connection; then every service ready in 4.8 s. Whisper `small`'s 0.49 GB, with the others already there, in 94 s, and every service ready 3.5 s after | one launch on an empty data folder; one with the others' folder cloned in |
 | Quit | **0.39–0.49 s** until no process of the app is left, Postgres last | five quits |
 | A hard kill | the next launch stops what the killed one left and shows the window at 1.9 s; with every process killed at once, Postgres replays its log in 155 ms. Nobody touches anything | `kill -9`, then a launch |
 | A whole turn, p95, against Docker | the app **1 908–2 598 ms**, Docker 1 944–2 631 ms — four runs of twenty turns each, alternated; every run of both inside the 3 000 ms budget | `make turn-latency`'s test, pointed at either set of services |
 | The golden suites on the app's services | WER **4/232 = 1.72 %**; a mistake heard as its correction 2 of 89; fillers heard 21 of 24; GOP threshold −3.119, mean drop **+8.138**, 9 of 10 detected, 10 of 10 named — each the same as on Docker | the suites from their container, pointed at the app |
 | Memory, every model loaded | about **3.6 GB** resident: asr 785 MB, tts 487 MB, pron 1 773 MB — 1.1 GB of it the weights, mapped from disk — the API 46 MB, Postgres 14 MB; the window, its server and Electron 0.46 GB. Ollama's runner holds 6.9 GB more with `gemma4:e4b` loaded | `ps`, `footprint` |
+| … while dictating, `asr-multi` and the panel included | **3.6–3.7 GB** resident, summed over every process of the app, the most of a sample every 10 s in each of three runs | `ps`, sampled through `desktop/e2e/say.sh` |
 | A backup and its restore | every table's row count and every recording's SHA-256 the same after a restore into a fresh install, and the restored app serves the recordings | File → Back Up…'s code, then the README's restore |
 | Moving the Compose history in | every table's row count and every recording's SHA-256 the same as on Compose, every recording found under the app's own folder by its account and digest, and the app opens on it; nothing in Compose changes | the README's commands, both sides counted |
 
@@ -147,6 +148,23 @@ learner's speech will be worse by an amount that set cannot estimate.
 | … and pinned, it does | both noise settings at zero: one identical rendering in three runs for all five words, and byte-identical over five consecutive requests to the live route. Pinning the duration noise alone fixes the length and still gives three different waveforms | the same |
 | **What the closed set refuses** | a correctly spelled word sitting in a script this system holds is **404** for an account that does not own that script and **200** for the one that does | `api/tests/test_speak.py` |
 | **Sounds that can be heard** | **39 of 39** — every phone in the inventory has an example word, and every one of them is spoken | `api/tests/test_speak.py` |
+
+## Say it in English
+
+| Measure | Figure | Source |
+|---|---|---|
+| An order inside a dictation | **10 of 10** translated, not done, in Direct and in Organized | `make say-eval` |
+| Spanish heard by Whisper `small` | **0.85, 1.05 and 1.61 s** for 4, 10 and 19 s of synthetic speech, natively, int8 on eight threads; **0.42–0.46 s** more to choose between Spanish and English, every clip taken for Spanish at 0.99 or above. `medium` 2.2–4.1 s and 1.3–1.4 s to choose; `large-v3-turbo` 2.4–2.9 s and 2.2 s | [decision 0032](decisions/0032-say-it-in-english.md) |
+| English said with a Spanish accent | heard as **English**, by the surer of two transcripts — 0.94 against 0.65 and 0.75 — where detection alone took it for Spanish, English given 0.07 and 0.24; English and Spanish read by native voices heard once. English read by two Spanish voices, synthesised | `asr-multi`'s `/transcribe`, offered Spanish and English |
+| A version written, warm | Organized **627 ms** at the median, 746 ms at p95; Direct 594 and 763 ms — thirty dictations; Polished 399 ms over ten | [decision 0032](decisions/0032-say-it-in-english.md) |
+| … with the model unloaded first | Organized **1.72 s** at the median, 2.11 s at p95, 1.09 s of it the load | [decision 0032](decisions/0032-say-it-in-english.md) |
+| The warm-up on fn down | the first request after an unload in **155–159 ms**, 1 ms of it loading, against 1.24–1.25 s without the warm-up; warmed at another context size, the model is loaded twice | three rounds of each, [decision 0032](decisions/0032-say-it-in-english.md) |
+| The API's part of release to clipboard | **2.43 s** at the median, **3.31 s** at p95 — 21 recordings of 4 to 19 s, warm, on the Compose stack at load averages of 4 to 12; recognition 1.75–2.29 s and writing 0.41–0.89 s at the median by clip | `POST /captures`, timed, [decision 0032](decisions/0032-say-it-in-english.md) |
+| **Release to English on the clipboard, on the app** | **2.03 s** at the median, **2.77 s** at p95, 2.79 s at most — 21 dictations of 4, 10 and 19 s of synthetic speech, warm, at load averages of 4 to 15 — against 3 s, met | `desktop/e2e/say.sh`, seven per clip |
+| … the first after Ollama unloaded the model | **1.69, 2.21 and 3.03 s** for the 4, 10 and 19 s clips: the warm-up on fn down loads the model while the person speaks | `desktop/e2e/say.sh` |
+| The app in front, after each dictation | **27 of 27** still TextEdit, and the English on the clipboard after each | `desktop/e2e/say.sh` |
+| chrF, the harness's own | sacrebleu 2.5.1's `CHRF()` figure to within 10⁻⁹, on every pair checked and on the corpus | `api/tests/test_eval_harness.py` |
+| Not measured yet | the Spanish error rate, what each version keeps, the planted misspellings and each text's language, on the owner's own lines; a full-screen app keeping its focus | `make say-eval` with the golden set; `FULL=1 desktop/e2e/say.sh` |
 
 ## Progress
 

@@ -13,6 +13,10 @@ files:
   - out/**
   - static/**
   - package.json
+# The fn helper, beside the app's own executable, where it is started from.
+extraFiles:
+  - from: .build/native/speaklab-keys
+    to: MacOS/speaklab-keys
 asar: true
 npmRebuild: false
 # Electron as the package's own install fetched and checked it, rather than a second copy.

@@ -7,6 +7,86 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.27.0] — 2026-10-26 · say it in English
+
+Hold fn in any app on this Mac, say it in Spanish, and paste it in English. SpeakLab writes
+what was said as Organized or Direct English — or, said or typed in English, checks it —
+puts it on the clipboard for ⌘V in the app that was in front, and keeps the moment in a new
+page, the Notebook, where the English can be written later without help. Everything runs on
+this Mac.
+
+### Added
+
+- **Say it in English, in the app for this Mac.** Hold fn to speak, or tap it twice to
+  speak hands-free; ⌃⌥Space to type, with *Speak instead*; ⌃⌥C for what is on the
+  clipboard. A panel low on the screen, which never takes focus while it listens or shows a
+  result, and stays as long as it takes to read and while the pointer is on it, gives the
+  English with the other version a click away, Edit, Copy again, Open in
+  Notebook, and a switch for when the language was taken for the other one. A menu bar icon
+  carries the feature's menu, and Settings…, which is also under File.
+  [Decision 0032](decisions/0032-say-it-in-english.md).
+- **`speaklab-keys`**, a Swift helper in the app with a listen-only tap on fn. It needs
+  Input Monitoring, and it reports fn and that another key was pressed with it, never which.
+- **`asr-multi`**, the recogniser with Whisper `small` for the account's own language: in
+  Compose under the `say` profile, `make say-up`, and in the app as a fifth model service,
+  its 0.49 GB of weights fetched with the rest. `/transcribe` takes a `language`, or several
+  to choose among, and a `task`; without them a request is the one it always was. A choice
+  the detection is unsure of is heard in both languages and the surer transcript kept, so
+  English said with a Spanish accent is checked as English, not translated from a Spanish
+  rewording of it.
+- **The captures API.** `POST /captures` from a recording, a text or what was copied, the
+  other version written behind the reply or at once on demand, the Notebook's list with its
+  counts and filters, one capture or all of them deleted, and `POST /captures/warm`, which
+  loads the model while the person speaks. Four tables, in migration `0009`.
+- **English checked rather than translated**: spelling by a dictionary, `symspellpy`, then
+  the grammar rules and the detector on the respelled text, as *Corrected*; the model's
+  rewrite as *Polished*. Each is shown beside the person's words, what it changed struck
+  and marked, and a check that found nothing says so. `SPELLING` is a category for written
+  text, and only written text.
+- **The keep check**: every number, link, address, handle and name of what was said looked
+  for in each version by plain code, and anything missing named on the panel.
+- **The Notebook**, at `/notebook`: the captures by day and what is due, each moment with
+  its versions, fixes and phrases, *Write it yourself* — the person's English checked,
+  compared word for word, and spaced over 1, 3, 7, 14 and 30 days — and *Say it yourself*.
+  *Write it in English* on the page works in a browser with no key at all.
+- **Writing on the progress page**, counted on read and apart from speech; and the
+  captures, their attempts and their mistakes in the export.
+- `make say-eval`, and the `say` suite in `make eval`: against the owner's golden set in
+  `eval/golden/say/`, the Spanish error rate, what each version kept, chrF against the
+  owner's English, ten dictations that give an order, a misspelling planted in each English
+  text, and each text's language. `desktop/e2e/say.sh` times release to clipboard on the
+  built app, with the app in front checked after each dictation. `make asr-languages`.
+
+### Changed
+
+- **While Say it in English is on, closing the last window does not quit**: SpeakLab stays
+  in the menu bar, and Quit stops everything as before. Off, the app is as it was.
+- `symspellpy` 6.10.0 in the API image.
+
+### Measured
+
+- **An order inside a dictation translated, not done: 10 of 10**, in Direct and in
+  Organized.
+- **Whisper `small` hears Spanish in 0.85–1.61 s** for 4–19 s of speech, and 0.42–0.46 s
+  more to choose between Spanish and English.
+- **A version in 627 ms** at the median, Organized, warm, and 594 ms Direct; 1.72 s with the
+  model unloaded first. Warmed on fn down at the requests' context size, the first request
+  after an unload takes 155–159 ms instead of 1.24 s.
+- **The API's part of release to clipboard**: 2.43 s at the median, 3.31 s at p95, over 21
+  recordings of 4–19 s on the Compose stack.
+- **On the app, release to English on the clipboard in 2.03 s** at the median and 2.77 s at
+  p95, over 21 dictations of 4–19 s, against 3 s; the first after Ollama unloaded the model
+  in 1.69–3.03 s; the app in front kept 27 of 27 times. About 3.6–3.7 GB resident while
+  dictating.
+- **chrF**, the harness's own, gives sacrebleu 2.5.1's figure to within 10⁻⁹.
+- API **1 405 — 1 347 pass, 58 skip**; frontend 71 suites / 448 tests; the app 143 tests;
+  site 46 tests, 44 pages; 50 operations, 22 tables, one migration. The English golden
+  figures unchanged: WER 4/232 = 1.72 %.
+- **Not measured yet**, each waiting on the owner: the Spanish error rate and the rest of
+  the golden set, and a full-screen app keeping its focus.
+
+---
+
 ## [0.26.0] — 2026-10-25 · the app for this Mac
 
 SpeakLab without Docker. `make desktop` builds an app for the Mac it runs on, which starts

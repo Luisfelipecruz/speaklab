@@ -44,6 +44,10 @@ const MODEL_SERVICES = [
     name: "pron",
     role: "Forced alignment and per-phoneme GOP",
   },
+  {
+    name: "asr-multi",
+    role: "What you say in your own language, for Say it in English",
+  },
   { name: "llm", role: "The persona's words, from Ollama on the host" },
 ] as const;
 

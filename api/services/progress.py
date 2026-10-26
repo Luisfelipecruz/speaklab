@@ -50,6 +50,7 @@ from models.progress import (
     Repertoire,
     Series,
 )
+from services import writing
 from services.rollup import PERIODS, is_stale, period_start
 
 
@@ -400,7 +401,8 @@ def _form_accuracy(by_form: dict) -> dict[str, FormAccuracy]:
 async def build(
     db: AsyncSession, user_id: int, period: str = "week", days: int | None = None
 ) -> ProgressOut:
-    """The whole progress page for one user, read from snapshots and nothing else."""
+    """The whole progress page for one user, read from snapshots, and the writing lines
+    counted from the Notebook's own tables."""
     if period not in PERIODS:
         raise ValueError(f"unknown period {period!r}")
 
@@ -483,5 +485,6 @@ async def build(
         phones=_phone_trends(snapshots, starts) if enough_readings else [],
         phone_gate=phone_gate,
         repertoire=_repertoire(snapshots, starts),
+        writing=await writing.build(db, user_id, period, starts),
         stale=await is_stale(db, user_id),
     )

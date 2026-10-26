@@ -1,0 +1,330 @@
+/* The Say it in English panel: a translucent card low on the screen. The window behind it
+   is macOS's own vibrancy, so the card follows light and dark as the system's panels do;
+   the English is at 18 px, lines under 64 characters, the person's own words beneath it. */
+
+:root {
+  --fg: #16201f;
+  --muted: #586866;
+  --line: rgb(22 32 31 / 14%);
+  --soft: rgb(22 32 31 / 6%);
+  --accent: #0e7c86;
+  --good: #1b7f4b;
+  --warn: #9a5b00;
+  --rec: #d23b2f;
+  --card: rgb(255 255 255 / 55%);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8efee;
+    --muted: #a3b2b0;
+    --line: rgb(232 239 238 / 16%);
+    --soft: rgb(232 239 238 / 8%);
+    --accent: #4fc0c9;
+    --good: #8fd3a8;
+    --warn: #f0c27a;
+    --card: rgb(24 30 30 / 45%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--fg);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.card {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem 1.25rem 1.05rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  /* The window's own rounding on macOS, so the vibrancy behind the card has no corners
+     of its own showing. */
+  border-radius: 16px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  justify-content: space-between;
+}
+
+.mode {
+  flex-basis: 100%;
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.listening {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.rec {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  background: var(--rec);
+  flex: none;
+  animation: pulse 1.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 70%, transparent); }
+  100% { box-shadow: 0 0 0 0.55rem transparent; }
+}
+
+.bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 1.5rem;
+  flex: none;
+}
+
+.bars i {
+  width: 3px;
+  height: 20%;
+  border-radius: 2px;
+  background: var(--fg);
+  transition: height 80ms linear;
+}
+
+.time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.26rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.seg button.on {
+  background: var(--fg);
+  color: var(--card);
+}
+
+.ok {
+  color: var(--good);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.en {
+  font-size: 18px;
+  line-height: 1.6;
+  letter-spacing: -0.003em;
+  max-width: 64ch;
+  max-height: 17rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.en[contenteditable="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.said {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-style: italic;
+  border-top: 1px solid var(--line);
+  padding-top: 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.fixes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.fixes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.5rem;
+  align-items: baseline;
+}
+
+.fixes s {
+  color: var(--warn);
+}
+
+.fixes b {
+  color: var(--good);
+  font-weight: 650;
+}
+
+.fixes b::before {
+  content: "→ ";
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.why,
+.foot {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.keep {
+  color: var(--good);
+}
+
+.warn,
+.unsaved {
+  color: var(--warn);
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acts button,
+.done {
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.acts button.pri {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+textarea {
+  width: 100%;
+  min-height: 4.6rem;
+  resize: none;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--fg);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  outline: none;
+}
+
+.prog {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--soft);
+  overflow: hidden;
+  position: relative;
+}
+
+.prog::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+@keyframes slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(260%); }
+}
+
+h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+p {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec,
+  .prog::after {
+    animation: none;
+  }
+}
+
+/* What a check's version changed from the person's words. */
+.en s {
+  color: var(--muted);
+  text-decoration-thickness: 1px;
+}
+
+.en mark {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+

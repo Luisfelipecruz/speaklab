@@ -11,10 +11,16 @@ Three things it does, in order:
    and AAC in MP4 on Safari; neither reaches the model. PyAV — the ffmpeg libraries,
    in-process — resamples everything to 16 kHz mono, which is the only input Whisper
    has ever seen.
-2. **Transcribes it**, forcing word timestamps.
+2. **Transcribes it**, forcing word timestamps, in the language the request names —
+   English unless it names another, or the likelier of several, heard in both when the
+   detection is unsure — or translates it into English when asked to.
 3. **Reports what it received**, because the API stores `format`, `sample_rate` and
    `duration_ms` on the `audio_assets` row and should not have to guess at any of them.
    The decoder is the authority on those, so the decoder answers.
+
+The same image runs twice: `asr` with the English-only `small.en`, which every English
+figure is measured on, and `asr-multi` with the multilingual `small`, which hears the
+speaker's own language.
 
 It holds no database connection, no user identity and no notion of a session. It is
 reachable only from inside the compose network (invariant: model services are never
@@ -35,7 +41,7 @@ from typing import Any
 
 import av
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 from faster_whisper import WhisperModel
 
 log = logging.getLogger("speaklab.asr")
@@ -60,11 +66,22 @@ CPU_THREADS = int(os.environ.get("WHISPER_CPU_THREADS", "0"))
 # measured trade on the golden set is in docs/decisions/0001.
 BEAM_SIZE = int(os.environ.get("WHISPER_BEAM_SIZE", "5"))
 
-# English-only, because the product is English practice. An `.en` model has no language
-# detection to skip, and forcing it on a multilingual model stops a heavily accented
-# turn from being transcribed as Spanish — a failure mode that looks like nonsense
-# output rather than like a language guess.
+# The language a request gets when it names none: English, because the product is English
+# practice. An `.en` model has no language detection to skip, and forcing it on a
+# multilingual model stops a heavily accented turn from being transcribed as Spanish — a
+# failure mode that looks like nonsense output rather than like a language guess.
 LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "en")
+
+# What a request may ask for instead: one language, several to choose among, or `auto`
+# for any; and `translate`, Whisper's own rough English, besides `transcribe`.
+TASKS = ("transcribe", "translate")
+
+# Choosing among several, detection alone can settle English said with a Spanish accent on
+# Spanish, and Whisper asked for Spanish then writes a Spanish rewording of what was said.
+# So once the runner-up is given at least this much, it is transcribed too, and the
+# transcript the model is surer of is kept. Speech in one language leaves the other a
+# sliver and costs nothing more; only a recording the detection is unsure of is heard twice.
+RIVAL = float(os.environ.get("WHISPER_RIVAL", "0.02"))
 
 # Silero VAD, on by default. Whisper hallucinates on silence — it emits "Thank you." or
 # "Bye." for an empty recording, and a learner who pressed record and hesitated would
@@ -205,20 +222,82 @@ def decode(data: bytes) -> tuple[np.ndarray, dict[str, Any]]:
 # ── Transcription ───────────────────────────────────────────────────────────
 
 
-def _transcribe(audio: np.ndarray, duration_ms: int) -> dict[str, Any]:
-    """Run the model. Blocking, and called in a worker thread.
+class RequestError(Exception):
+    """A language or task this model cannot do. A 422 that says why, never a 500."""
 
-    Returns the wire shape directly, including the `words` array in exactly the form
-    `turns.words` stores: `[{w, start_ms, end_ms, logprob}]`. The database column and
-    this function were written against each other; changing one without the other is
-    the kind of drift that shows up as a fluency metric of zero.
+
+def languages_of(
+    language: str | None, task: str | None
+) -> tuple[tuple[str, ...] | None, str]:
+    """What a request asked for: the languages to choose among (None for any) and the task.
+
+    Nothing named is today's request: the service's own language, transcribed. An
+    English-only model refuses everything else, because it would answer anyway — in
+    English, whatever was said.
     """
     model = state.model
     assert model is not None  # guarded by the caller
+    task = task or "transcribe"
+    if task not in TASKS:
+        raise RequestError(f"task must be one of {', '.join(TASKS)}, not {task!r}")
+    raw = (language or LANGUAGE).strip().lower()
+    codes = (
+        None
+        if raw == "auto"
+        else tuple(code.strip() for code in raw.split(",") if code.strip())
+    )
+    if codes == ():
+        raise RequestError("language names no language")
+    supported = model.supported_languages
+    if supported == ["en"]:
+        if codes != ("en",):
+            raise RequestError(
+                f"{MODEL_NAME} is English-only and hears nothing else: language must be "
+                f"en, not {raw!r}. Other languages are asr-multi's."
+            )
+        if task == "translate":
+            raise RequestError(f"{MODEL_NAME} is English-only and has nothing to translate")
+    for code in codes or []:
+        if code not in supported:
+            raise RequestError(f"{code!r} is not a language Whisper knows")
+    return codes, task
 
+
+def _choose(
+    model: WhisperModel, audio: np.ndarray, codes: tuple[str, ...]
+) -> tuple[str, dict]:
+    """The likeliest of several languages, and each one's probability.
+
+    Detection over every language Whisper knows can settle a short clip of Spanish on
+    Portuguese or Galician; the caller knows the two the speaker uses, so the choice is
+    between those. A recording with no speech in it is given the first.
+    """
+    try:
+        _, _, probabilities = model.detect_language(audio, vad_filter=VAD)
+    except (ValueError, RuntimeError):
+        return codes[0], {}
+    scores = {code: round(p, 4) for code, p in probabilities if code in codes}
+    return max(codes, key=lambda code: scores.get(code, 0.0)), scores
+
+
+def _decode(
+    model: WhisperModel,
+    audio: np.ndarray,
+    duration_ms: int,
+    language: str | None,
+    task: str,
+) -> dict[str, Any]:
+    """One pass of the model in one language: the text, the words and how sure it was.
+
+    The `words` array is exactly the form `turns.words` stores:
+    `[{w, start_ms, end_ms, logprob}]`. The database column and this function were written
+    against each other; changing one without the other is the kind of drift that shows up
+    as a fluency metric of zero.
+    """
     segments, info = model.transcribe(
         audio,
-        language=LANGUAGE,
+        language=language,
+        task=task,
         beam_size=BEAM_SIZE,
         word_timestamps=True,
         vad_filter=VAD,
@@ -279,6 +358,47 @@ def _transcribe(audio: np.ndarray, duration_ms: int) -> dict[str, Any]:
         "confidence": round(confidence, 4),
         "timestamp_fixups": fixups,
         "language": info.language,
+    }
+
+
+def _transcribe(
+    audio: np.ndarray,
+    duration_ms: int,
+    codes: tuple[str, ...] | None = (LANGUAGE,),
+    task: str = "transcribe",
+) -> dict[str, Any]:
+    """Run the model, in the language asked for or the likelier of several. Blocking, and
+    called in a worker thread. Returns the wire shape directly."""
+    model = state.model
+    assert model is not None  # guarded by the caller
+
+    scores = None
+    if codes is None:
+        language = None
+    elif len(codes) == 1:
+        language = codes[0]
+    else:
+        language, scores = _choose(model, audio, codes)
+
+    heard = _decode(model, audio, duration_ms, language, task)
+    confidences = None
+    if scores is not None and task == "transcribe":
+        rivals = [code for code in codes or () if code != language]
+        rival = max(rivals, key=lambda code: scores.get(code, 0.0), default=None)
+        if rival is not None and scores.get(rival, 0.0) >= RIVAL:
+            other = _decode(model, audio, duration_ms, rival, task)
+            confidences = {language: heard["confidence"], rival: other["confidence"]}
+            if other["confidence"] > heard["confidence"]:
+                heard = other
+
+    return {
+        **heard,
+        # What was asked for beside the model that did it: a translation is not a
+        # transcript, and a language chosen among two carries how sure the choice was —
+        # and, when both were heard, how sure the model was of each transcript.
+        "task": task,
+        "language_scores": scores,
+        "language_confidences": confidences,
         "model": MODEL_NAME,
         # What the decoder was actually configured to do, echoed so that a number
         # measured six months ago can be compared against a number measured today.
@@ -318,8 +438,17 @@ async def health(response: Response) -> dict[str, Any]:
 
 
 @app.post("/transcribe")
-async def transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Audio in, transcript with per-word timings and logprobs out."""
+async def transcribe(
+    file: UploadFile = File(...),
+    language: str | None = Form(None),
+    task: str | None = Form(None),
+) -> dict[str, Any]:
+    """Audio in, transcript with per-word timings and logprobs out.
+
+    `language` is a Whisper code, several separated by commas to choose among, or `auto`;
+    `task` is `transcribe` or `translate`. Without them, the service's own language,
+    transcribed.
+    """
     data = await file.read()
 
     if not data:
@@ -336,6 +465,11 @@ async def transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
             status_code=503, detail=f"{MODEL_NAME} is still loading; retry shortly"
         )
 
+    try:
+        codes, task = languages_of(language, task)
+    except RequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     started = time.perf_counter()
     try:
         audio, source = await asyncio.to_thread(decode, data)
@@ -348,7 +482,9 @@ async def transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="decoded to zero samples")
 
     async with _inference_slot:
-        result = await asyncio.to_thread(_transcribe, audio, source["duration_ms"])
+        result = await asyncio.to_thread(
+            _transcribe, audio, source["duration_ms"], codes, task
+        )
 
     result["source"] = source
     result["latency_ms"] = round((time.perf_counter() - started) * 1000)

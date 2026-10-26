@@ -61,6 +61,13 @@ Nothing leaves the machine, and every figure here is measured and names what pro
 
   ![The grammar page: a notice on what the corrections are worth, corrections by kind with the sentence they were in and a button to say it again, and the verb forms used with how often each was right](docs/screens/grammar.png)
 
+- **Say it in English, from any app — on the app for this Mac.** Hold fn wherever you are
+  writing, say it in Spanish, and paste the English with ⌘V: *Organized* for where it is
+  going, or *Direct*, your words in your order. Say or type English instead and it comes
+  back corrected, each fix listed. Every name, number and link of what you said is checked
+  for by code, and anything missing is named. The Notebook keeps each moment, and *Write it
+  yourself* has you write the English on your own, checked and spaced over the days after.
+
 - **Follow progress that refuses to overclaim.** One row per week, a hole with a reason
   where a week had too little speech, pronunciation as a distance from your own recent
   readings, and recommendations that print the measurement that chose them.
@@ -188,7 +195,7 @@ The long way, if you want each step separately: `cp .env.example .env`, `make up
 ## The app for this Mac
 
 `make desktop` builds **`SpeakLab.app`**: the same services without Docker — its own
-Postgres, the API, the three model services and the window — started when the app opens
+Postgres, the API, the model services and the window — started when the app opens
 and stopped when it quits. It is built on, and signed for, the Mac that builds it; a
 signature like that is refused anywhere else.
 
@@ -196,7 +203,7 @@ signature like that is refused anywhere else.
 above. The build fetches everything else it uses into `desktop/.build` and checks each
 download against its publisher's checksum — CPython, uv, Node, pnpm, Postgres — so nothing
 is installed on the Mac, and the Mac's own Python, Node and Homebrew take no part. The app
-is 2.1 GB, and its first launch downloads 1.75 GB of speech weights.
+is 2.1 GB, and its first launch downloads 2.24 GB of speech weights.
 
 ```bash
 make desktop
@@ -209,6 +216,19 @@ the Compose stack is not in it until you move your history across (below). After
 everything works offline but conversations, which need Ollama. When something needs you —
 Ollama not answering, a port another program holds, a part that keeps stopping — a small
 window says what, in words, with Try again and Show logs.
+
+**Say it in English** works in every app while SpeakLab runs: hold fn, say it, release, and
+⌘V pastes the English; ⌃⌥Space opens the panel to type in, and ⌃⌥C translates or checks
+what you copied. It needs two permissions, both asked for the first time they are used:
+the **Microphone**, and **Input Monitoring**, which is what lets SpeakLab see fn in other
+apps — it sees fn, and that another key was pressed with it, never which. An app built here
+is signed for this Mac only, so Input Monitoring is asked for again after each `make
+desktop`. Set *Press 🌐 key to* to *Do Nothing* in Keyboard settings, or macOS also acts
+when fn is released; Settings… in the menu bar checks it for you. What you said is kept as
+text in the Notebook, never as a recording; *Save to Notebook* in the menu bar pauses it,
+and the Notebook deletes one capture or all of them. The same settings, in the menu bar or
+under File › Say it in English Settings…, turn the feature off, and SpeakLab is then the app
+it was without it, until they turn it back on.
 
 **Your data** is in `~/Library/Application Support/SpeakLab`: the database, the
 recordings, the weights, and one log per process beside `supervisor.log`, which says what
@@ -245,7 +265,8 @@ Then run the restore with `compose.dump` in place of `$BACKUP/speaklab.dump` and
 `compose-audio/` in place of `$BACKUP/audio/`.
 
 **Removing it:** quit it, then delete the app, `~/Library/Application Support/SpeakLab` and
-`~/Library/Preferences/local.speaklab.plist`.
+`~/Library/Preferences/local.speaklab.plist`, and remove SpeakLab from Input Monitoring in
+System Settings › Privacy & Security.
 
 How it is put together is [Architecture §10](docs/architecture.md#10-the-app-for-this-mac);
 what it does not do yet is in [the limitations](docs/limitations.md#the-app-for-this-mac).
@@ -322,7 +343,7 @@ settles it. S4 to S7 are re-measured by every `make eval` into
 | S6 | ASR word error rate measured and published | **Met**: 1.72 % on ten LibriSpeech utterances | `make eval` |
 | S7 | 30-day trends for all four families from ≥ 20 real sessions | **Not met**: 7 sessions, on 2 days | `make eval` |
 | S8 | Recommendations state a measured reason traceable to a stored metric | **Met**: every recommendation prints the measurement that chose it; 15 tests | `api/tests/test_recommend.py`, in `make test` |
-| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 264 — 1 222 pass, 42 need a model service | `make test` |
+| S9 | The test suite is green in a container and its count matches the README | **Met**: 1 405 — 1 347 pass, 58 need a model service or the owner's recordings | `make test` |
 | S10 | Every claim in the README is counted against the live system | **A rule, kept by practice**: every figure here names what produced it. Nothing tests prose | — |
 
 S4, S5 and S7 wait on the same thing — speech only a person can produce, recorded on
@@ -385,9 +406,9 @@ Ollama for conversation.
 
 | | |
 |---|---|
-| API tests, in a container | `make test` — 1 277; 1 235 pass with Postgres alone, the other 42 need a model service |
-| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 399 across 60 suites |
-| The app for this Mac | `make desktop` builds it; `make desktop-test` runs its 65 tests (`node:test`) in a container; `desktop/e2e/smoke.sh` drives the built app once — registration, a turn heard back, a reading scored — and checks that nothing runs after it quits |
+| API tests, in a container | `make test` — 1 405; 1 347 pass with Postgres alone, the other 58 need a model service or the owner's recordings |
+| Frontend tests, in a container | `make test-frontend` — Jest and React Testing Library, 448 across 71 suites |
+| The app for this Mac | `make desktop` builds it; `make desktop-test` runs its 143 tests (`node:test`) in a container; `desktop/e2e/smoke.sh` drives the built app once — registration, a turn heard back, a reading scored — and checks that nothing runs after it quits |
 | Editing the frontend | `make dev` — the development server over the source, in place of the built frontend, on the same port; `make up` puts the built one back |
 | Lint | `make lint` — ruff and black, check only; `make fmt` fixes in place |
 | Dependencies and security | Pinned per service, and in `frontend/pnpm-lock.yaml`; Dependabot proposes updates weekly, for everything but the frontend, which CI audits every Monday; CI's Trivy job fails on a HIGH or CRITICAL vulnerability that has a fix — [CONTRIBUTING.md](CONTRIBUTING.md#dependencies) |

@@ -157,6 +157,29 @@ class OllamaProvider(LlmProvider):
             load_ms=_ms(record.get("load_duration")),
         )
 
+    async def warm(self) -> None:
+        """Load the model and keep it for `OLLAMA_KEEP_ALIVE`, generating nothing.
+
+        Sent with the context window every request asks for: loaded at another size, the
+        model is loaded again by the first request, and the wait comes back. Never raises:
+        a model that cannot be loaded now is reported by the request that needs it.
+        """
+        client, owned = self._client_or_new()
+        try:
+            await client.post(
+                f"{self._base_url}/api/generate",
+                json={
+                    "model": self._model,
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                    "options": {"num_ctx": LLM_NUM_CTX},
+                },
+            )
+        except httpx.RequestError:
+            pass
+        finally:
+            if owned:
+                await client.aclose()
+
     async def complete(
         self,
         messages: list[ChatMessage],

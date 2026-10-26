@@ -11,6 +11,7 @@ exist yet is in [limitations.md](limitations.md).
 - [Corrections and grammar](#corrections-and-grammar)
 - [Read aloud](#read-aloud)
 - [Make your point](#make-your-point)
+- [Say it in English](#say-it-in-english)
 - [Progress](#progress)
 - [The evaluation harness](#the-evaluation-harness)
 
@@ -281,6 +282,61 @@ browser already holds takes 1.9 ms and is not synthesised at all. Left unpinned,
 renderings of one word spread 18 % to 59 % in length. See
 [decision 0030](decisions/0030-hearing-the-sound.md).
 
+## Say it in English
+
+**Hold fn in any app, say it, and paste the English.** While the app runs, holding fn opens
+a panel low on the screen that listens; releasing it sends what was said, and the English
+is on the clipboard by the time the panel says so, for ⌘V in the app you were in. Two taps
+listen hands-free until the next one. ⌃⌥Space opens the panel to type in instead, and ⌃⌥C
+translates or checks whatever is on the clipboard. While it listens or shows a result the
+panel never takes focus, so ⌘V lands where you were; it takes focus only to be typed or
+edited in.
+
+**From your language, two versions; from English, a check.** What you say or type in your
+own language comes back as *Organized* — written English for where it is going, a chat, an
+e-mail or a document, with the false starts gone and every fact kept — or *Direct*, your
+words in your order with nothing added. English you say or type comes back *Corrected* —
+your own text with its misspellings and its grammar fixed, nothing reworded, each fix
+listed with its reason — or *Polished*, rewritten for clarity. Which language it was is the
+recogniser's call for speech and a count of common words for text, and the panel's switch
+overturns either. When the recogniser is unsure — English said with a Spanish accent can
+sound Spanish to it — it hears the recording both ways and keeps the transcript it is surer
+of, since Whisper asked for the wrong language writes a rewording rather than what was said.
+The result stays as long as it takes to read, and while the pointer is on it. A check shows
+each version beside your words — what it changed struck and marked, the fixes numbered
+with their reasons — and when nothing needed fixing it says so. The version you copy by default is written before the panel shows it; the
+other is written behind it, one click away.
+
+**Your words are translated, never obeyed.** They reach the model quoted, as something a
+person said, so a dictation that says "write a poem" comes back as *Write a poem*. Then
+plain code compares each version with what you said: every number, link, address, handle
+and name in it has to be there, and anything missing is named on the panel — the version is
+never swapped behind your back. With the model down, a recording still comes back in
+English, the recogniser's own and rougher, labelled as such.
+
+**Spelling is a dictionary, not a model.** `symspellpy`'s English frequency list and a
+short list of technical words, with each correction ranked as a typing mistake undone. It
+leaves alone what a dictionary cannot judge — names, links, addresses, code, quotes, and
+the names in your earlier captures — and the grammar rules and the conversation's detector
+then read the respelled text.
+
+**The Notebook keeps the moments you needed English.** Each capture with where and when,
+what you said, the English you used and the other version, and the phrases worth keeping.
+*Write it yourself* checks your own English as a conversation's turn is checked, compares
+it word for word with the closer version, and spaces the next try over 1, 3, 7, 14 and 30
+days, back to the first after any counted mistake. *Say it yourself* hears you say the
+English and compares it word for word. Written mistakes are counted apart from speech, so
+writing never moves a spoken figure. Saving can be paused from the menu bar, and then
+nothing is kept; a recording is never kept.
+
+**Measured.** An order inside a dictation is translated rather than done, 10 of 10 in each
+version. Whisper `small` hears ten seconds of Spanish in about a second, and a version is
+written in about six tenths of a second with the model warm. On the app, the English is on
+the clipboard 2.0 s after fn is released at the median and 2.8 s at p95, over dictations of
+4 to 19 s, and the app you were in keeps its focus — 27 times of 27. The Spanish error rate
+on the owner's own recordings is not measured yet. See
+[decision 0032](decisions/0032-say-it-in-english.md).
+
 ## Progress
 
 Everything analysed is collapsed into one row per week, and the progress page reads those
@@ -316,8 +372,9 @@ gates and the weights.
 
 ## The evaluation harness
 
-`make eval` runs five measurement suites — speech recognition, pronunciation, error
-detection, persona adherence and spoken answers — and a census of the stored practice, and
+`make eval` runs six measurement suites — speech recognition, pronunciation, error
+detection, persona adherence, spoken answers and Say it in English — and a census of the
+stored practice, and
 writes [evaluation.md](evaluation.md) with the date and the revision it was taken at.
 Nothing in that file is written by hand. It settles four of the ten success criteria, S4 to
 S7, and names where each of the other six is measured.

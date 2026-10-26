@@ -25,6 +25,7 @@ from routers.answers import router as answers_router
 from routers.attempts import router as attempts_router
 from routers.audio import router as audio_router
 from routers.auth import router as auth_router
+from routers.captures import router as captures_router
 from routers.drills import router as drills_router
 from routers.grammar import router as grammar_router
 from routers.health import router as health_router
@@ -94,6 +95,11 @@ TAGS = [
         "heard against what was written, how it was said, and the sounds.",
     },
     {
+        "name": "notebook",
+        "description": "Say it in English: what you asked to have in English or checked, "
+        "kept as text to write yourself later, and checked when you do.",
+    },
+    {
         "name": "progress",
         "description": "Trends from stored measurements, what to practise next, and "
         "the whole history as a file.",
@@ -124,7 +130,8 @@ app = FastAPI(
     description=(
         "Practise spoken English against local models: scenario role-play, read-aloud "
         "pronunciation scoring with per-phoneme GOP, your own corrections to say again, "
-        "spoken answers to work questions, and progress measured over time."
+        "spoken answers to work questions, English for whatever you are writing, kept to "
+        "write yourself later, and progress measured over time."
     ),
     version=VERSION,
     openapi_tags=TAGS,
@@ -177,6 +184,9 @@ ROUTERS = (
     # A script the learner wrote, rehearsed section by section. After answers because it
     # reuses their arithmetic, and last because it is the newest thing a reader meets.
     presentations_router,
+    # Say it in English and the Notebook: English for whatever the person is writing,
+    # kept so they can write it themselves later.
+    captures_router,
     # One word, spoken, so that a sound this system names can also be heard. Last of all
     # because it belongs to no feature in particular: the screens that name a sound are
     # spread across read-aloud and rehearsal, and this serves both.

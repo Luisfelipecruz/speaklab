@@ -201,6 +201,53 @@ class ExportRehearsal(ORMModel):
     created_at: datetime
 
 
+class ExportWrittenError(ORMModel):
+    category: str
+    subcategory: str | None
+    span_start: int | None
+    span_end: int | None
+    original: str
+    correction: str
+    explanation: str | None
+    detector: str
+    confidence: float
+
+
+class ExportCaptureAttempt(BaseModel):
+    """One time the account wrote a capture's English itself, and its mistakes."""
+
+    id: int
+    text: str
+    word_count: int
+    compared_with: str | None
+    forms: dict
+    box: int
+    detail: str | None
+    errors: list[ExportWrittenError] = Field(default_factory=list)
+    created_at: datetime
+
+
+class ExportCapture(BaseModel):
+    """One time the account asked for English, as it was kept: text, never a recording."""
+
+    id: int
+    mode: str
+    via: str
+    source_language: str
+    source_text: str
+    duration_ms: int | None
+    app_name: str | None
+    versions: dict[str, str | None]
+    chosen: str
+    fixes: list[dict]
+    dropped: dict
+    phrases: list[dict] = Field(default_factory=list)
+    attempts: list[ExportCaptureAttempt] = Field(default_factory=list)
+    box: int
+    due_at: datetime | None
+    created_at: datetime
+
+
 class ExportSnapshot(ORMModel):
     period: str
     period_start: date
@@ -225,4 +272,5 @@ class HistoryExport(BaseModel):
     answers: list[ExportAnswer] = Field(default_factory=list)
     presentations: list[ExportPresentation] = Field(default_factory=list)
     rehearsals: list[ExportRehearsal] = Field(default_factory=list)
+    captures: list[ExportCapture] = Field(default_factory=list)
     snapshots: list[ExportSnapshot] = Field(default_factory=list)
