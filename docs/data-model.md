@@ -1,14 +1,14 @@
 # Data model
 
-Eighteen tables, four enum types, eight Alembic revisions. This document explains the
+Twenty-two tables, four enum types, nine Alembic revisions. This document explains the
 shape; `api/alembic/versions/` is what actually builds it, starting from
 `0001_initial_schema.py`, and `api/db_models/` is what reads and writes it.
 
 The organising idea is in PRD principle **P1**: *deterministic metrics for trends, the
 LLM only for explanation*. Every table below either stores something measured from a
 waveform or a transcript by code that produces the same number twice, or stores content
-a human wrote. Exactly one table records anything an LLM proposed, and it records which
-layer proposed it.
+a human wrote. Two tables record what an LLM proposed — a mistake in speech, and one in
+what the person wrote — and each records which layer proposed it.
 
 ---
 
@@ -89,6 +89,40 @@ act on, and a trend line that moves for the wrong reason.
 faster-whisper, G2P, wav2vec2 and forced alignment is seconds of work. `error_message` is
 FR-16: a failure has to be able to say why, or it cannot be retried meaningfully.
 
+### Writing — Say it in English
+
+| Table | Holds |
+|---|---|
+| `captures` | One time English was asked for: what was said, typed or copied, where, the versions, a check's fixes, what each version dropped, the timings, the practice box |
+| `capture_attempts` | One time the person wrote it in English themselves |
+| `written_errors` | One mistake in what they wrote: span, category, original, fix, and who found it |
+| `capture_phrases` | One phrase worth keeping: the words said and the English for them |
+
+A capture keeps text only, whatever `retain_audio` says, as an answer does: the recording
+is heard, written in English and dropped. `mode` is `translate` or `check`, `via` is
+`voice`, `typed` or `copied`, and `chosen` names the version that went on the clipboard —
+`direct`, `organized`, `corrected` or `polished`, each a column of its own, or `rough`, the
+recogniser's own English, kept when the model did not answer. `app_name` is the app that
+was in front, as macOS names it. `dropped` is what the keep check found missing from each
+version, and it is recomputed whenever a capture is read, so a name the account's later
+captures teach is checked in an earlier one too. `fixes` is a check's list as the panel
+showed it, a spoken check's included. `box` and `due_at` are the spacing of practice: 1,
+3, 7, 14 and 30 days, back to the first after any counted mistake.
+
+`written_errors` has the columns of `language_errors`, with `attempt_id` in place of
+`turn_id` and no `asr_suspect`: no recogniser stood between the person and what they
+typed. It is a table of its own so that a written mistake can never move a spoken figure.
+Its `detector` is `llm`, `rule` or `dictionary`, and its category is one of the closed
+taxonomy's or `SPELLING`, the one category written text can have and speech never does. A
+typed or copied check stores the person's own text as the capture's first attempt, so its
+mistakes count as writing; a spoken check stores none.
+
+`capture_phrases` keeps only pairs found word for word in both texts. The model picks
+them, and a pair it rephrased rather than copied is dropped.
+
+While saving is paused none of these is written, and deleting a capture deletes its
+attempts, their mistakes and its phrases.
+
 ### Measurement
 
 | Table | Holds |
@@ -166,10 +200,11 @@ attempt_status   pending | scoring | scored | failed
 Native types rather than TEXT because a typo in a string literal writes a row nobody
 queries for again; as a type, `'compelted'` is rejected on the way in.
 
-Three CHECK constraints instead, where the vocabulary has two members or is expected to
-change: `turns.role`, `language_errors.detector`, `progress_snapshots.period`.
+CHECK constraints instead, where the vocabulary has two or three members or is expected
+to change: `turns.role`, `language_errors.detector`, `progress_snapshots.period`, a
+capture's `mode`, `via` and `chosen`, and `written_errors.detector`.
 
-`language_errors.category` has neither. The taxonomy *is* closed, but it is enforced in the
+`language_errors.category` and `written_errors.category` have neither. The taxonomy *is* closed, but it is enforced in the
 application layer, because it is revised as real transcripts are read, and a revision
 should be a code change with a test rather than an `ALTER TYPE` that cannot run inside a
 transaction.
@@ -184,7 +219,8 @@ transaction.
 `scenarios.target_grammar`, `scenarios.target_functions`, `scenarios.target_errors`,
 `scenarios.rubric`, `passages.phoneme_focus`, `turns.words`, `sessions.report`,
 `presentation_sections.unscorable_words`, `rehearsals.words`, `rehearsals.alignment`,
-`rehearsals.delivery`, `rehearsals.pron_summary`, and the five families on
+`rehearsals.delivery`, `rehearsals.pron_summary`, a capture's `fixes`, `dropped` and
+`timings`, an attempt's `forms` and `rejects`, and the five families on
 `progress_snapshots`.
 
 Two different reasons, worth keeping apart:
@@ -193,7 +229,8 @@ Two different reasons, worth keeping apart:
   `phoneme_focus`. The query is `@>`, one indexable predicate, and GIN indexes it when the
   seed set outgrows a sequential scan over a dozen rows.
 - **Documents read whole for one screen** — `rubric`, `words`, `report`, a take's
-  `alignment`, `delivery` and `pron_summary`, and the progress families. Nothing queries inside them across rows. The set of fluency measures is still
+  `alignment`, `delivery` and `pron_summary`, a capture's fixes and what it dropped, and
+  the progress families. Nothing queries inside them across rows. The set of fluency measures is still
   moving, and a schema migration per metric added is a tax on exactly the experimentation
   this project exists for — the progress rollup added three keys to `sample_counts` without
   touching the schema.
@@ -206,7 +243,7 @@ over time.
 
 ## 4. Indexes
 
-Four, each for a query that exists:
+Each for a query that exists:
 
 | Index | The question |
 |---|---|
@@ -214,6 +251,10 @@ Four, each for a query that exists:
 | `ix_language_errors_turn_id_category` | Errors on a turn; errors by category over a window |
 | `ix_phoneme_scores_attempt_id` | Everything about one reading — the result screen |
 | `ix_phoneme_scores_canonical_phone` | One phone's history — the trend under the result |
+| `ix_captures_user_id_created_at` | The Notebook, newest first, by day |
+| `ix_capture_attempts_capture_id_created_at` | Everything written for one capture, in order |
+| `ix_written_errors_attempt_id` | The mistakes in one attempt |
+| `ix_capture_phrases_capture_id` | One capture's phrases |
 
 Plan §5 writes the sessions index as `(user_id, started_at DESC)`. It is ascending here:
 Postgres scans a btree in either direction, so for a single sort column the `DESC` buys
@@ -289,5 +330,6 @@ that shows it, and nothing writes one: a band assigned from a handful of turns w
 confident answer to a question this data cannot settle.
 
 There is no way to delete an account, or an answer. A session can be deleted, and takes
-its turns, their measurements and any recording left with nothing pointing at it. What an
+its turns, their measurements and any recording left with nothing pointing at it; a
+capture can be deleted, or every one of them at once, and takes what was written for it. What an
 account holds can be taken away whole, as one JSON document: `GET /progress/export`.
