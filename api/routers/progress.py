@@ -1,8 +1,9 @@
 """Whether you are getting better, what to practise next, and the whole record to keep.
 
 Three operations serve the page, and the split between them is the design. `GET /progress` reads
-materialised snapshots and computes nothing; `POST /progress/refresh` is the only thing
-that recomputes them; `GET /progress/recommendations` ranks the same stored rows into
+materialised snapshots and computes nothing from speech — only the writing lines, four counts
+over the Notebook's own tables, are counted as it reads; `POST /progress/refresh` is the only
+thing that recomputes the snapshots; `GET /progress/recommendations` ranks the same stored rows into
 advice. A page load that aggregated raw turns would get slower every week the user
 practised, and it would get slower fastest for the people with the most to look at.
 
@@ -115,7 +116,8 @@ async def export_history(
     """Everything this account has recorded, as one JSON document to keep.
 
     Sessions with their turns and what was measured and corrected in each, readings with
-    their scored sounds, spoken answers, and the weekly snapshots. Recordings are listed
+    their scored sounds, spoken answers, rehearsals, the Notebook's captures with what was
+    written of them, and the weekly snapshots. Recordings are listed
     with the address that streams each one rather than embedded. Sent as an attachment,
     so a browser saves it instead of showing it.
     """

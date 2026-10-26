@@ -65,6 +65,13 @@ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0
 # in `Tokenizer._flush_specials`), so `spacy.load` fails before any text is seen.
 preshed==3.0.13
 
+# Spelling, for English the person typed: a symmetric-delete dictionary over English's
+# 82 765 commonest words, the list shipped inside the package and so pinned with it. Pure
+# Python, no model and nothing downloaded; loaded once, on the first check, in about a
+# second and 125 MB. Its optional C extension for edit distance is not installed: the
+# texts are a few sentences.
+symspellpy==6.10.0
+
 # ── Tests and lint ──────────────────────────────────────────────────────────
 #
 # In requirements-dev.txt, installed only into the image's `test` stage. The image the

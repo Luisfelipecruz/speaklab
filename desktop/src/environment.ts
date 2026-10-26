@@ -6,7 +6,7 @@
 import type { Paths, Service } from "./layout.ts";
 
 /** Fixed, and distinct from Compose's, so the app and the Compose stack can run at once. */
-export const PORTS = { web: 3013, api: 8012, asr: 8111, tts: 8112, pron: 8113, postgres: 5443 } as const;
+export const PORTS = { web: 3013, api: 8012, asr: 8111, tts: 8112, pron: 8113, "asr-multi": 8114, postgres: 5443 } as const;
 
 export const HOST = "127.0.0.1";
 export const DB_USER = "speaklab";
@@ -56,6 +56,7 @@ export function serviceEnv(service: Service, base: Env, p: Paths, secrets: Secre
         ASR_URL: `http://${HOST}:${PORTS.asr}`,
         TTS_URL: `http://${HOST}:${PORTS.tts}`,
         PRON_URL: `http://${HOST}:${PORTS.pron}`,
+        ASR_MULTI_URL: `http://${HOST}:${PORTS["asr-multi"]}`,
         HEALTH_PROBE_TIMEOUT_S: "1.5",
         AUDIO_ROOT: p.audio,
         MAX_UPLOAD_BYTES: "10485760",
@@ -76,9 +77,10 @@ export function serviceEnv(service: Service, base: Env, p: Paths, secrets: Secre
         COOKIE_SAMESITE: "lax",
       };
     case "asr":
+    case "asr-multi":
       return {
         ...env,
-        WHISPER_MODEL: "small.en",
+        WHISPER_MODEL: service === "asr" ? "small.en" : "small",
         WHISPER_COMPUTE_TYPE: "int8",
         WHISPER_BEAM_SIZE: "5",
         WHISPER_VAD: "1",

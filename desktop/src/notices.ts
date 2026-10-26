@@ -28,6 +28,7 @@ const NAMES: Record<string, string> = {
   asr: "speech recognition",
   tts: "the voice",
   pron: "pronunciation scoring",
+  "asr-multi": "recognition in your own language",
 };
 
 export function nameOf(unit: string): string {

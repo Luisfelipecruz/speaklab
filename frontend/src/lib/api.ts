@@ -803,8 +803,20 @@ export interface Progress {
   phones: PhoneTrend[];
   phone_gate: Gate;
   repertoire: Repertoire;
+  /** Say it in English over time, counted apart from speech. */
+  writing: Writing | null;
   /** Something was analysed or scored after the last rollup. The page offers a refresh. */
   stale: boolean;
+}
+
+/** How often English was asked for, and how it was written afterwards: four counted lines. */
+export interface Writing {
+  label: string;
+  description: string;
+  series: TrendSeries[];
+  totals: { captures: number; attempts: number; words: number; counted: number };
+  /** How each line is counted, in the words the page shows under "How this is counted". */
+  caveat: string;
 }
 
 export interface Recommendation {
@@ -1335,4 +1347,194 @@ export function getTake(takeId: number): Promise<Take> {
  */
 export function drawablePoints(series: TrendSeries): TrendPoint[] {
   return series.points.filter((point) => point.value !== null);
+}
+
+
+// ── Say it in English and the Notebook ──────────────────────────────────────
+
+export type CaptureVersion = "direct" | "organized" | "corrected" | "polished" | "rough";
+export type CaptureState = "to_practise" | "due" | "practised";
+
+/** One mistake found in what was written or said, and its correction. */
+export interface CaptureFix {
+  category: string;
+  label: string;
+  subcategory: string | null;
+  span_start: number | null;
+  span_end: number | null;
+  original: string;
+  correction: string;
+  explanation: string | null;
+  detector: "dictionary" | "rule" | "llm";
+  /** Counted as writing: English the person typed, at or above the confidence floor. */
+  counted: boolean;
+}
+
+/** A phrase the person said, its English, and how often that English is in their other captures. */
+export interface CapturePhrase {
+  source: string;
+  english: string;
+  elsewhere: number;
+}
+
+export interface CaptureAttemptSummary {
+  id: number;
+  created_at: string;
+  word_count: number;
+  counted: number;
+  box: number;
+}
+
+/** One capture, as the panel shows it and as the Notebook keeps it. */
+export interface Capture {
+  /** Null when saving was paused: nothing was kept. */
+  id: number | null;
+  saved: boolean;
+  created_at: string;
+  mode: "translate" | "check";
+  via: "voice" | "typed" | "copied";
+  source_language: string;
+  source_text: string;
+  duration_ms: number | null;
+  app: string | null;
+  chosen: CaptureVersion;
+  /** What went on the clipboard. */
+  text: string;
+  /** Every version written so far; null while one is still being written. */
+  versions: Partial<Record<CaptureVersion, string | null>>;
+  /** Per version, the names, numbers and links the keep check could not find in it. */
+  dropped: Partial<Record<CaptureVersion, string[]>>;
+  /** What every version had to keep, as written in what was said. */
+  kept: string[];
+  fixes: CaptureFix[];
+  phrases: CapturePhrase[];
+  notes: string[];
+  language: { language: string; by: "recogniser" | "words" | "switch"; scores: Record<string, number> } | null;
+  state: CaptureState;
+  practised: number;
+  box: number;
+  due_at: string | null;
+  attempts: CaptureAttemptSummary[];
+  asr_model: string | null;
+  llm_model: string | null;
+  timings: Record<string, number>;
+}
+
+export interface CaptureSummary {
+  id: number;
+  created_at: string;
+  mode: "translate" | "check";
+  via: "voice" | "typed" | "copied";
+  app: string | null;
+  source_text: string;
+  chosen: CaptureVersion;
+  text: string;
+  state: CaptureState;
+  practised: number;
+  box: number;
+  due_at: string | null;
+}
+
+export interface NotebookCounts {
+  total: number;
+  this_week: number;
+  practised_this_week: number;
+  clean_this_week: number;
+  due: number;
+  to_practise: number;
+}
+
+export interface CaptureList {
+  items: CaptureSummary[];
+  matching: number;
+  limit: number;
+  offset: number;
+  counts: NotebookCounts;
+  apps: string[];
+}
+
+/** One step of the comparison with the closer version: its word, yours, or both. */
+export interface WrittenWord {
+  expected: string | null;
+  written: string | null;
+}
+
+export interface CaptureAttempt {
+  id: number;
+  capture_id: number;
+  created_at: string;
+  text: string;
+  word_count: number;
+  errors: CaptureFix[];
+  counted: number;
+  per_100_words: number | null;
+  forms: Record<string, number>;
+  compared_with: CaptureVersion | null;
+  compared_text: string | null;
+  words: WrittenWord[];
+  box_before: number;
+  box: number;
+  due_at: string;
+  detail: string | null;
+}
+
+/** Saying the English aloud, against the version used. Nothing is stored. */
+export interface SaidResult {
+  heard: string;
+  compared_with: CaptureVersion;
+  expected: string;
+  words: { expected: string | null; heard: string | null }[];
+  expected_words: number;
+  matched: number;
+  substituted: number;
+  missed: number;
+  added: number;
+  caveat: string;
+}
+
+export interface CaptureRequest {
+  text?: string;
+  audio?: { blob: Blob; filename: string };
+  mode?: "auto" | "translate" | "check";
+  version?: Exclude<CaptureVersion, "rough">;
+  via?: "typed" | "copied";
+  save?: boolean;
+}
+
+/** Say it, type it or copy it, and get the English. `id` is null when saving is paused. */
+export function postCapture(payload: CaptureRequest): Promise<Capture> {
+  const form = new FormData();
+  if (payload.text !== undefined) form.append("text", payload.text);
+  if (payload.audio) form.append("audio", payload.audio.blob, payload.audio.filename);
+  if (payload.mode) form.append("mode", payload.mode);
+  if (payload.version) form.append("version", payload.version);
+  if (payload.via) form.append("via", payload.via);
+  if (payload.save === false) form.append("save", "false");
+  return request<Capture>("/captures", { method: "POST", body: form });
+}
+
+/** A version written now if it is not yet, without waiting on the work behind the reply. */
+export function writeCaptureVersion(id: number, version: CaptureVersion): Promise<Capture> {
+  return request<Capture>(`/captures/${id}/versions/${version}`, { method: "POST" });
+}
+
+export function deleteCapture(id: number): Promise<void> {
+  return request<void>(`/captures/${id}`, { method: "DELETE" });
+}
+
+export function deleteAllCaptures(): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>("/captures", { method: "DELETE" });
+}
+
+export function postCaptureAttempt(id: number, text: string): Promise<CaptureAttempt> {
+  return request<CaptureAttempt>(`/captures/${id}/attempts`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function postSaidCapture(id: number, audio: Blob, filename = "said.webm"): Promise<SaidResult> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  return request<SaidResult>(`/captures/${id}/say`, { method: "POST", body: form });
 }

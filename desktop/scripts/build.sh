@@ -7,6 +7,7 @@ S=$DESKTOP/scripts
 /bin/sh "$S/fetch.sh"
 /bin/sh "$S/build-envs.sh"
 /bin/sh "$S/build-web.sh"
+/bin/sh "$S/build-native.sh"
 
 log "the desktop package"
 cd "$DESKTOP"

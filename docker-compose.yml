@@ -1,10 +1,11 @@
 # SpeakLab — the whole service graph, declared once.
 #
-# Nine services. Six start by default — postgres, api, frontend, asr, tts, and
-# volume-owner, a job that runs before the others and exits — and three are behind
+# Ten services. Six start by default — postgres, api, frontend, asr, tts, and
+# volume-owner, a job that runs before the others and exits — and four are behind
 # profiles, because a profiled service is excluded from `up` AND from `build`:
 #
 #   pron     pron                     torch, ~2 GB. Profiled for that reason alone
+#   say      asr-multi                a second recogniser, for Say it in English
 #   llm      ollama                   NOT the default. See the api service's comment
 #   tools    test                     batch jobs with an exit code, not services
 #
@@ -95,6 +96,7 @@ services:
       ASR_URL: ${ASR_URL:-http://asr:8101}
       TTS_URL: ${TTS_URL:-http://tts:8102}
       PRON_URL: ${PRON_URL:-http://pron:8103}
+      ASR_MULTI_URL: ${ASR_MULTI_URL:-http://asr-multi:8101}
       HEALTH_PROBE_TIMEOUT_S: ${HEALTH_PROBE_TIMEOUT_S:-1.5}
       # Audio. AUDIO_ROOT is the mount point of the audio_data volume below, and
       # the API refuses to serve any path that does not resolve inside it.
@@ -195,8 +197,8 @@ services:
 
   # ── Model services ─────────────────────────────────────────────────────────
   #
-  # asr and tts are in the default stack; pron has a profile of its own. All three are
-  # the same shape: a small
+  # asr and tts are in the default stack; pron and asr-multi have profiles of their own.
+  # All four are the same shape: a small
   # FastAPI app wrapping one model, and a /health that answers 200 with a `*_loaded:
   # false` flag before the weights finish loading — a cold start is minutes and must not
   # read as a crash — reserving 503 for the one case that is not a cold start, a load
@@ -285,6 +287,30 @@ services:
     networks:
       - speaklab
 
+  asr-multi:
+    build: ./infra/asr
+    # The asr image and code with the multilingual `small`, for what is said in the
+    # speaker's own language. A service of its own, so asr keeps `small.en` and every
+    # English figure measured on it. Its own profile, because only Say it in English uses
+    # it: `make say-up`.
+    profiles: ["say"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MULTI_MODEL:-small}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
+      WHISPER_VAD: ${WHISPER_VAD:-1}
+      WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-0}
+      HF_HOME: /models
+    depends_on:
+      volume-owner:
+        condition: service_completed_successfully
+    volumes:
+      - model_cache:/models
+    ports:
+      - "127.0.0.1:8104:8101"
+    networks:
+      - speaklab
+
   # ── Generation ─────────────────────────────────────────────────────────────
   ollama:
     # Opt-in and NOT the default target on this machine — see the api service above for
@@ -333,6 +359,7 @@ services:
       ASR_URL: http://asr.invalid:8101
       TTS_URL: http://tts.invalid:8102
       PRON_URL: http://pron.invalid:8103
+      ASR_MULTI_URL: http://asr-multi.invalid:8101
       # And the LLM, for the same reason. `extra_hosts` below makes host.docker.internal
       # resolve so that `make turn-latency` can reach the host's Ollama, which would let
       # the hermetic suite reach it too: a test would pass here because a model happened
@@ -376,7 +403,7 @@ services:
 volumes:
   postgres_data:
   audio_data:       # user recordings — never in the working tree, never in git
-  model_cache:      # whisper + piper + wav2vec2 weights, shared across the three services
+  model_cache:      # whisper + piper + wav2vec2 weights, shared across the model services
   ollama_models:    # profile: llm only
 
 networks:

@@ -1,4 +1,4 @@
-"""The write path: SQLAlchemy ORM models, eighteen tables.
+"""The write path: SQLAlchemy ORM models, twenty-two tables.
 
 This module is the barrel, and importing it is what registers every table on
 `Base.metadata`. That matters more than convenience: `alembic/env.py` imports this and
@@ -14,6 +14,13 @@ example — a column that exists, is loaded, and is never serialised to a client
 from db_models.answer import Answer, AnswerPrompt
 from db_models.attempt import ATTEMPT_STATUS, Attempt
 from db_models.base import Base
+from db_models.capture import (
+    VERSIONS,
+    Capture,
+    CaptureAttempt,
+    CapturePhrase,
+    WrittenError,
+)
 from db_models.metrics import (
     FluencyMetrics,
     GrammarUsage,
@@ -38,11 +45,15 @@ __all__ = [
     "ATTEMPT_STATUS",
     "SESSION_MODE",
     "SESSION_STATUS",
+    "VERSIONS",
     "Answer",
     "AnswerPrompt",
     "Attempt",
     "AudioAsset",
     "Base",
+    "Capture",
+    "CaptureAttempt",
+    "CapturePhrase",
     "FluencyMetrics",
     "GrammarUsage",
     "LanguageError",
@@ -57,4 +68,5 @@ __all__ = [
     "Scenario",
     "Turn",
     "User",
+    "WrittenError",
 ]

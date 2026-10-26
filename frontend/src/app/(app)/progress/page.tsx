@@ -36,6 +36,7 @@ import { PhonemeTrend } from "@/components/PhonemeTrend";
 import { RepertoireChart } from "@/components/RepertoireChart";
 import { familyStatus } from "@/app/(app)/progress/summary";
 import { SectionTabs } from "@/components/SectionTabs";
+import { asFamily, WritingPanel } from "@/components/WritingPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,14 +79,18 @@ export default async function ProgressPage({
   const { totals } = progress;
   const practised = totals.turns > 0 || totals.attempts > 0;
 
+  // Say it in English's lines sit beside the spoken families, apart from them.
+  const writing = progress.writing ? asFamily(progress.writing) : null;
+  const listed = writing ? [...progress.families, writing] : progress.families;
+
   // An unknown `?view=` falls back to the overview rather than rendering an empty page.
-  const known = new Set([OVERVIEW, ...progress.families.map((family) => family.name)]);
+  const known = new Set([OVERVIEW, ...listed.map((family) => family.name)]);
   const view = params.view && known.has(params.view) ? params.view : OVERVIEW;
   const family = progress.families.find((candidate) => candidate.name === view);
 
   const sections = [
     { key: OVERVIEW, label: "Overview", href: "/progress" },
-    ...progress.families.map((candidate) => ({
+    ...listed.map((candidate) => ({
       key: candidate.name,
       label: candidate.label,
       href: `/progress?view=${candidate.name}`,
@@ -153,7 +158,7 @@ export default async function ProgressPage({
 
             <Card>
               <CardContent className="flex flex-col divide-y divide-border py-0">
-                {progress.families.map((candidate) => (
+                {listed.map((candidate) => (
                   <Link
                     key={candidate.name}
                     href={`/progress?view=${candidate.name}`}
@@ -175,6 +180,8 @@ export default async function ProgressPage({
             </Card>
           </div>
         </div>
+      ) : view === "writing" && progress.writing ? (
+        <WritingPanel writing={progress.writing} />
       ) : (
         family && (
           <div className="flex flex-col gap-6">

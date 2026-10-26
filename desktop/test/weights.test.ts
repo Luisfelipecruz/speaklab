@@ -127,7 +127,7 @@ describe("the first launch's weights", () => {
     const shipped = JSON.parse(readFileSync(join(import.meta.dirname, "..", "static", "weights.json"), "utf8")) as Manifest;
     assert.deepEqual(
       shipped.models.map((m) => m.repo),
-      ["Systran/faster-whisper-small.en", "facebook/wav2vec2-lv-60-espeak-cv-ft"],
+      ["Systran/faster-whisper-small.en", "Systran/faster-whisper-small", "facebook/wav2vec2-lv-60-espeak-cv-ft"],
     );
     for (const model of shipped.models) {
       assert.match(model.revision, /^[0-9a-f]{40}$/);
@@ -136,6 +136,6 @@ describe("the first launch's weights", () => {
         assert.ok(Number.isInteger(file.size) && file.size > 0);
       }
     }
-    assert.equal(totalBytes(shipped), 1_749_635_781);
+    assert.equal(totalBytes(shipped), 2_235_848_153);
   });
 });

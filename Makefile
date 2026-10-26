@@ -2,11 +2,12 @@
 #
 # The default stack is five services — postgres, api, frontend, asr and tts — and a job
 # that hands the named volumes to the account the services run as. pron is behind a
-# profile because it is the only image with torch in it. The conversation model is Ollama
-# on the host, not a service here.
+# profile because it is the only image with torch in it, and asr-multi because only Say it
+# in English uses it. The conversation model is Ollama on the host, not a service here.
 
 .PHONY: help setup up down restart dev logs ps health test test-frontend lint fmt fmt-eval clean \
-        pron-up llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
+        pron-up say-up say-eval llm-up llm-check migrate migrate-down migrate-status seed eval eval-local asr-wer \
+        asr-languages \
         tts-latency tts-sample turn-latency turn-latency-noflow pron-golden pron-fetch \
         persona-adherence answer-feedback corpus analyze analyze-dry reparse error-precision rollup \
         rollup-dry rollup-force fmt-website site site-serve release-notes desktop desktop-test
@@ -80,11 +81,11 @@ up:                                ## Start the default stack (5 services)
 	docker compose --profile dev stop frontend-dev
 	docker compose up -d
 
-# Every profile, so pron, ollama and the development frontend are removed too; otherwise a
-# stopped pron container outlives the network and the next `make pron-up` fails. Naming a
-# profile starts nothing.
+# Every profile, so pron, asr-multi, ollama and the development frontend are removed too;
+# otherwise a stopped pron container outlives the network and the next `make pron-up`
+# fails. Naming a profile starts nothing.
 down:                              ## Stop everything, pron and ollama included. Volumes survive.
-	docker compose --profile pron --profile llm --profile dev down
+	docker compose --profile pron --profile say --profile llm --profile dev down
 
 restart:                           ## Recreate the api container (after a dependency change)
 	docker compose up -d --build api
@@ -185,6 +186,11 @@ pron-up:                           ## Start the pronunciation service (1.87 GB i
 	@echo "start also downloads 1.2 GB of wav2vec2 weights into the model_cache volume."
 	docker compose --profile pron up -d
 
+say-up:                            ## Start the recogniser for your own language (Say it in English)
+	@echo "The asr image with Whisper small, which hears other languages. The first start"
+	@echo "downloads 0.49 GB of weights into the model_cache volume."
+	docker compose --profile say up -d asr-multi
+
 pron-fetch:                        ## Download the pronunciation probe recording
 	@echo "Audio is not stored in git, so the probe recording is downloaded."
 	python3 eval/golden/pron/fetch.py
@@ -219,6 +225,21 @@ asr-wer:                           ## Measure WER, and mistakes said aloud, agai
 	docker compose --profile tools run --rm \
 		-e ASR_URL=http://asr:8101 -e TTS_URL=http://tts:8102 test \
 		python -m pytest /app/tests/test_asr_golden.py -v -s
+
+asr-languages:                     ## The recognisers' languages and tasks, against the live asr and asr-multi
+	@echo "Needs \`make up\` and \`make say-up\`."
+	docker compose --profile tools run --rm \
+		-e ASR_URL=http://asr:8101 -e ASR_MULTI_URL=http://asr-multi:8101 test \
+		python -m pytest /app/tests/test_asr_languages.py -v -s
+
+say-eval:                          ## Measure Say it in English against the owner's golden set
+	@echo "The language and spelling parts need only the golden set; the versions and the"
+	@echo "probe need Ollama on the host; the Spanish error rate needs \`make say-up\` and"
+	@echo "the recordings in eval/golden/say/audio/. A part that cannot run skips."
+	docker compose --profile tools run --rm \
+		-e ASR_MULTI_URL=http://asr-multi:8101 \
+		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+		test python -m pytest /app/tests/test_say_golden.py -v -s
 
 tts-latency:                       ## Measure synthesis latency against the live tts
 	@echo "Needs \`make up\`."

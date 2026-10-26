@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>SpeakLab Settings</title>
+    <link rel="stylesheet" href="status.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <main class="settings">
+      <h1>Say it in English</h1>
+      <label class="check"><input id="enabled" type="checkbox" /> On: hold fn in any app, and SpeakLab stays in the menu bar</label>
+
+      <section aria-labelledby="keys">
+        <h2 id="keys">Keys</h2>
+        <label class="check"><input type="radio" name="key" value="fn" /> Hold fn to speak — double-tap for hands-free</label>
+        <label class="check"><input type="radio" name="key" value="shortcuts" /> No fn: ⌃⌥Space only</label>
+        <p class="small">⌃⌥Space opens the panel to type, or to speak with a click. ⌃⌥C translates or checks what you copied.</p>
+        <div class="line">
+          <span>Input Monitoring: <strong id="access">checking…</strong></span>
+          <button id="open-access" type="button" class="secondary">Open System Settings</button>
+        </div>
+        <p class="small">Needed so SpeakLab can see fn. The helper reports fn going down and up, and that another key was pressed — never which one.</p>
+      </section>
+
+      <section aria-labelledby="globe">
+        <h2 id="globe">The 🌐 key</h2>
+        <p>macOS also acts when you release fn. Set <em>Press 🌐 key to</em> to <em>Do Nothing</em>.</p>
+        <div class="line">
+          <span id="globe-state" class="small"></span>
+          <button id="open-keyboard" type="button" class="secondary">Open Keyboard Settings</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="english">
+        <h2 id="english">English</h2>
+        <fieldset>
+          <legend>From your language, copy</legend>
+          <label class="check"><input type="radio" name="fromOwn" value="organized" /> Organized</label>
+          <label class="check"><input type="radio" name="fromOwn" value="direct" /> Direct</label>
+        </fieldset>
+        <fieldset>
+          <legend>From English, copy</legend>
+          <label class="check"><input type="radio" name="fromEnglish" value="corrected" /> Corrected</label>
+          <label class="check"><input type="radio" name="fromEnglish" value="polished" /> Polished</label>
+        </fieldset>
+      </section>
+
+      <section aria-labelledby="notebook">
+        <h2 id="notebook">Notebook</h2>
+        <label class="check"><input id="save" type="checkbox" /> Save what I say and write, to practise later</label>
+        <p class="small">Only the text is kept, never the recording. Pause it from the menu bar at any time.</p>
+      </section>
+
+      <section aria-labelledby="login">
+        <h2 id="login">Starting</h2>
+        <label class="check"><input id="openAtLogin" type="checkbox" /> Open SpeakLab when you log in</label>
+      </section>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

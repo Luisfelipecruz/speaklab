@@ -1,0 +1,10 @@
+{"granted":false,"t":"access"}
+{"granted":true,"t":"access"}
+{"app":"Mail","ms":1792989259430,"t":"down"}
+{"ms":1792989260110,"t":"up"}
+{"app":null,"t":"down"}
+{"t":"chord"}
+{"t":"up"}
+{"t":"key","code":12}
+not json at all
+{"t":"down","app":7}

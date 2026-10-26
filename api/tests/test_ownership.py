@@ -173,6 +173,19 @@ def test_the_user_scoped_routes_are_the_ones_expected():
         ("POST", "/presentations/{presentation_id}/sections/{idx}/takes"),
         ("GET", "/presentations/{presentation_id}/sections/{idx}/takes"),
         ("GET", "/presentations/takes/{take_id}"),
+        # Say it in English and the Notebook. Scoped by a column on the capture, with the
+        # user in the same WHERE as the id; attempts, mistakes and phrases are reached only
+        # through a capture. The warm-up touches no row and is scoped so that nobody
+        # without an account can make the model load.
+        ("POST", "/captures"),
+        ("GET", "/captures"),
+        ("DELETE", "/captures"),
+        ("POST", "/captures/warm"),
+        ("GET", "/captures/{capture_id}"),
+        ("DELETE", "/captures/{capture_id}"),
+        ("POST", "/captures/{capture_id}/versions/{version}"),
+        ("POST", "/captures/{capture_id}/attempts"),
+        ("POST", "/captures/{capture_id}/say"),
     }
 
 

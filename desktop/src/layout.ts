@@ -3,7 +3,12 @@
 
 import { join } from "node:path";
 
-export type Service = "api" | "asr" | "tts" | "pron";
+export type Service = "api" | "asr" | "tts" | "pron" | "asr-multi";
+
+/** asr-multi is asr's code and environment, given another model. */
+function codeOf(service: Service): Exclude<Service, "asr-multi"> {
+  return service === "asr-multi" ? "asr" : service;
+}
 
 export interface Layout {
   /** Contents/Resources in the packaged app; desktop/.build/stage in a development run. */
@@ -31,9 +36,9 @@ export interface Paths {
 export function paths({ resources, data }: Layout): Paths {
   return {
     python: join(resources, "python", "bin", "python3.12"),
-    env: (service) => join(resources, "envs", service),
+    env: (service) => join(resources, "envs", codeOf(service)),
     source: (service) =>
-      service === "api" ? join(resources, "src", "api") : join(resources, "src", "infra", service),
+      service === "api" ? join(resources, "src", "api") : join(resources, "src", "infra", codeOf(service)),
     pg: (tool) => join(resources, "pg", "bin", tool),
     voices: join(resources, "voices"),
     nltk: join(resources, "nltk_data"),

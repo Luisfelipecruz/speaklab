@@ -1,0 +1,73 @@
+/* The settings window, on the status page's colours and type. */
+
+.settings {
+  display: grid;
+  gap: 1.1rem;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1.6rem 1.6rem 2rem;
+}
+
+.settings h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.settings h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings section {
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.settings fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  align-items: center;
+}
+
+.settings legend {
+  float: left;
+  margin-right: 0.6rem;
+  color: var(--muted);
+}
+
+.check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.small {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.granted {
+  color: var(--good);
+}
+
+.denied {
+  color: var(--bad);
+}

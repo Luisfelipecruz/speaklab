@@ -186,6 +186,10 @@ class LlmProvider(ABC):
         utterance on a second run cannot be re-derived from the stored turns.
         """
 
+    async def warm(self) -> None:
+        """Load the model, so a request that follows finds it loaded. Nothing by default:
+        a provider with nothing to load has nothing to do."""
+
     @abstractmethod
     def stream(
         self,

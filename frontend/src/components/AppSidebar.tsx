@@ -30,6 +30,7 @@ import {
   HomeIcon,
   MessagesSquareIcon,
   MicIcon,
+  NotebookPenIcon,
   PresentationIcon,
   ScrollTextIcon,
   SpellCheckIcon,
@@ -126,6 +127,12 @@ const SECTIONS: readonly Section[] = [
     label: "Rehearse",
     icon: ScrollTextIcon,
     hint: "Your own script, section by section",
+  },
+  {
+    href: "/notebook",
+    label: "Notebook",
+    icon: NotebookPenIcon,
+    hint: "What you asked to have in English, to write yourself",
   },
   {
     href: "/progress",

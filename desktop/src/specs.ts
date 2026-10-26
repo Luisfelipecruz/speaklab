@@ -1,6 +1,6 @@
 // The units the supervisor runs, which is docker-compose.yml's graph with the containers
 // replaced by processes: the database first, then the schema and the seeded material, then
-// the API; the three model services at once, waiting for nothing.
+// the API; the four model services at once, waiting for nothing.
 
 import { rmSync } from "node:fs";
 
@@ -44,6 +44,7 @@ const READY: Record<Service, (body: Record<string, unknown>) => boolean> = {
   asr: (body) => body.model_loaded === true,
   tts: (body) => body.voice_loaded === true,
   pron: (body) => body.model_loaded === true,
+  "asr-multi": (body) => body.model_loaded === true,
 };
 
 export function buildSpecs(ctx: Context, launch?: Launch): Spec[] {
@@ -140,7 +141,7 @@ export function buildSpecs(ctx: Context, launch?: Launch): Spec[] {
       ready: () => healthy(PORTS.api, READY.api),
     },
   );
-  for (const service of ["asr", "tts", "pron"] as const) {
+  for (const service of ["asr", "tts", "pron", "asr-multi"] as const) {
     specs.push({
       name: service,
       kind: "service",

@@ -1,11 +1,13 @@
 // SpeakLab for this Mac. A status window while the system comes up; the services as
 // processes under the supervisor; the standalone Next server in a utility process; one
-// window on it. Quitting stops everything, Postgres last.
+// window on it; and, while Say it in English is on, the fn key, its panel and the menu bar,
+// which keep the app running when the window closes. Quitting stops everything, Postgres
+// last.
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync, createWriteStream, readFileSync } from "node:fs";
 import { cpus, homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell, utilityProcess, type UtilityProcess } from "electron";
 
@@ -16,6 +18,8 @@ import { type Layout, paths } from "./layout.ts";
 import { isFree, leftovers, owner, stopLeftovers } from "./ports.ts";
 import { rotateLog } from "./processes.ts";
 import { describeFailures, labelOf, llmNotice as noticeOf } from "./notices.ts";
+import { quitsWhenWindowsClose } from "./panel.ts";
+import { SayFeature } from "./say.ts";
 import { buildSpecs } from "./specs.ts";
 import { type Change, Supervisor } from "./supervisor.ts";
 import { fetchMissing, type Manifest, missing, type Progress, totalBytes } from "./weights.ts";
@@ -51,6 +55,9 @@ let main: BrowserWindow | undefined;
 let supervisor: Supervisor | undefined;
 let web: UtilityProcess | undefined;
 let secrets: Secrets | undefined;
+let say: SayFeature | undefined;
+/** The window's server answers: until then there is nothing to open a window on. */
+let webReady = false;
 let quitting = false;
 let stopped = false;
 let retrying = false;
@@ -195,17 +202,37 @@ async function bringUp(): Promise<void> {
   startWeb();
   if (!(await waitForHttp(origin, 60_000))) return problem("The window's server did not answer", "Show logs opens web.log, which says why.");
   note("web ready");
+  webReady = true;
   // A cluster made by this launch has no account in it yet.
-  main = mainWindow(firstLaunch ? `${origin}/register` : `${origin}/`);
-  main.once("ready-to-show", () => note("window shown"));
-  main.on("closed", () => (main = undefined));
+  openMain(firstLaunch ? "/register" : "/");
+  main?.once("ready-to-show", () => note("window shown"));
+  say?.learnLanguage();
   const notice = await llmNotice();
   publish({ phase: "running", notice });
   if (!notice) status?.close();
 }
 
+/** The window, on one of the web app's paths: the one open, or a new one. */
+function openMain(path: string): void {
+  if (!webReady) {
+    status?.focus();
+    return;
+  }
+  const url = `${origin}${path}`;
+  if (main && !main.isDestroyed()) {
+    void main.loadURL(url);
+    main.show();
+    main.focus();
+  } else {
+    main = mainWindow(url);
+    main.on("closed", () => (main = undefined));
+  }
+  app.focus({ steal: true });
+}
+
 async function shutdown(): Promise<void> {
   note("stopping");
+  webReady = false;
   web?.kill();
   web = undefined;
   await supervisor?.stop();
@@ -258,6 +285,9 @@ function menu(): void {
           { label: "Back Up…", click: () => void backUp() },
           { label: "Show Logs", click: () => void shell.openPath(p.logs) },
           { type: "separator" },
+          // Here as well as in the menu bar, which is gone while the feature is off.
+          { label: "Say it in English Settings…", click: () => say?.openSettings() },
+          { type: "separator" },
           { role: "close" },
         ],
       },
@@ -289,16 +319,36 @@ if (!app.requestSingleInstanceLock()) {
     else if (action === "close") status?.close();
   });
   app.whenReady().then(() => {
-    installPermissions(session.defaultSession, origin);
+    say = new SayFeature({
+      staticDir,
+      userData: layout.data,
+      apiBase: `http://${HOST}:${PORTS.api}`,
+      webOrigin: origin,
+      helper: app.isPackaged
+        ? join(dirname(process.execPath), "speaklab-keys")
+        : join(here, "..", ".build", "native", "speaklab-keys"),
+      openMain,
+      note,
+    });
+    installPermissions(session.defaultSession, origin, (contents) => say?.isPanel(contents) ?? false);
     menu();
+    say.start();
     void bringUp().catch((error: Error) => problem("SpeakLab could not start", error.message));
   });
-  app.on("window-all-closed", () => app.quit());
+  // While Say it in English is on its panel and the menu bar keep the app running; the
+  // Dock icon brings the window back.
+  app.on("window-all-closed", () => {
+    if (!say || quitsWhenWindowsClose(say.settings)) app.quit();
+  });
+  app.on("activate", () => {
+    if (!main && view.phase === "running") openMain("/");
+  });
   app.on("before-quit", (event) => {
     if (stopped) return;
     event.preventDefault();
     if (quitting) return;
     quitting = true;
+    say?.stop();
     void shutdown().finally(() => {
       stopped = true;
       app.quit();

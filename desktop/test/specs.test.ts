@@ -45,6 +45,7 @@ describe("the units", () => {
       asr: [],
       tts: [],
       pron: [],
+      "asr-multi": [],
     });
   });
 
@@ -52,7 +53,7 @@ describe("the units", () => {
     const specs = buildSpecs(context(false), recorder().launch);
     assert.deepEqual(
       specs.map((s) => s.name),
-      ["postgres", "migrate", "seed", "api", "asr", "tts", "pron"],
+      ["postgres", "migrate", "seed", "api", "asr", "tts", "pron", "asr-multi"],
     );
     assert.deepEqual(specs.find((s) => s.name === "migrate")!.needs, ["postgres"]);
   });
@@ -85,17 +86,17 @@ describe("the units", () => {
     assert.ok(!existsSync(pwfile));
   });
 
-  it("run the migration, the seed and the four services from the bundle's interpreter", () => {
+  it("run the migration, the seed and the five services from the bundle's interpreter", () => {
     const { commands, launch } = recorder();
     for (const spec of buildSpecs(context(false), launch)) spec.launch();
     assert.deepEqual(commands.get("migrate")!.args, ["-m", "alembic", "upgrade", "head"]);
     assert.deepEqual(commands.get("seed")!.args, ["-m", "scripts.seed"]);
     assert.deepEqual(commands.get("api")!.args, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8012"]);
-    for (const [service, port] of [["asr", "8111"], ["tts", "8112"], ["pron", "8113"]] as const) {
+    for (const [service, port, code] of [["asr", "8111", "asr"], ["tts", "8112", "tts"], ["pron", "8113", "pron"], ["asr-multi", "8114", "asr"]] as const) {
       const command = commands.get(service)!;
       assert.deepEqual(command.args, ["-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", port]);
-      assert.equal(command.cwd, `/R/src/infra/${service}`);
-      assert.equal(command.env.PYTHONPATH, `/R/envs/${service}`);
+      assert.equal(command.cwd, `/R/src/infra/${code}`);
+      assert.equal(command.env.PYTHONPATH, `/R/envs/${code}`);
     }
     for (const name of ["migrate", "seed", "api"]) {
       const command = commands.get(name)!;

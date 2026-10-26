@@ -782,6 +782,69 @@ def test_a_rate_of_zero_is_a_measurement_and_no_trials_is_not():
         scoring.proportion(9, 4)
 
 
+# ── chrF ────────────────────────────────────────────────────────────────────
+
+
+def test_chrf_is_a_hundred_for_the_same_text_and_nothing_for_none_of_it():
+    assert scoring.chrf(["I'll send it on Friday."], ["I'll send it on Friday."]) == (
+        pytest.approx(100.0)
+    )
+    assert scoring.chrf(["xyz"], ["abc"]) == 0.0
+    with pytest.raises(ValueError):
+        scoring.chrf(["one hypothesis"], [])
+
+
+# sacrebleu 2.5.1's `CHRF()` on these pairs, one at a time and as one corpus
+# (nrefs:1|case:mixed|eff:yes|nc:6|nw:0|space:no).
+SACREBLEU_PAIRS = (
+    (
+        "I will send you the report tomorrow.",
+        "I'll send you the report tomorrow.",
+        92.297209,
+    ),
+    (
+        "Hi Laura, the client report is delayed until Thursday the 14th because we are "
+        "still waiting for Acme's data.",
+        "Hi Laura, the client report will be late, until Thursday 14, since we're still "
+        "waiting on the data from Acme.",
+        58.736293,
+    ),
+    (
+        "Can you review my pull request when you have a moment?",
+        "Could you look at my PR when you get a chance?",
+        24.679223,
+    ),
+    (
+        "The dashboard is at https://grafana.acme.io/d/latency and latency is down 18% "
+        "since Monday.",
+        "Latency has dropped 18% since Monday: https://grafana.acme.io/d/latency",
+        72.016158,
+    ),
+    (
+        "Congratulations on the new job, Diego!",
+        "Congrats on the new job, Diego, you deserve it!",
+        58.525640,
+    ),
+)
+SACREBLEU_CORPUS = 60.670493  # the five above, with ("xyz", "abc") and ("a", "a")
+
+
+def test_chrf_gives_sacrebleus_figures():
+    for hypothesis, reference, figure in SACREBLEU_PAIRS:
+        assert scoring.chrf([hypothesis], [reference]) == pytest.approx(
+            figure, abs=1e-6
+        )
+    hypotheses = [pair[0] for pair in SACREBLEU_PAIRS] + ["xyz", "a"]
+    references = [pair[1] for pair in SACREBLEU_PAIRS] + ["abc", "a"]
+    assert scoring.chrf(hypotheses, references) == pytest.approx(
+        SACREBLEU_CORPUS, abs=1e-6
+    )
+
+
+def test_chrf_counts_characters_with_the_spaces_taken_out():
+    assert scoring.chrf(["I will send it"], ["Iwill sendit"]) == pytest.approx(100.0)
+
+
 # ── Collection ──────────────────────────────────────────────────────────────
 
 
@@ -1039,5 +1102,140 @@ def test_the_report_counts_the_answers_suite_among_its_suites():
 
     document = report.render(results, report.adjudicate(results, {}), skips={})
 
-    assert "5 suites, one census. Suites that ran: `answers` (1 of 5)." in document
+    assert "6 suites, one census. Suites that ran: `answers` (1 of 6)." in document
     assert "make answer-feedback" in document
+
+
+# ── Say it in English ───────────────────────────────────────────────────────
+
+
+def say_result() -> dict:
+    return {
+        "suite": "say",
+        "measured_at": "2026-10-26T07:00:00+00:00",
+        "status": "measured",
+        "golden_set": {"manifest.json": 24, "manifest.local.json": 6},
+        "language": {"texts": 60, "told": 60, "wrong": []},
+        "spelling": {
+            "texts": 30,
+            "planted": 30,
+            "found": 30,
+            "mended": 28,
+            "unplantable": [],
+            "missed": [],
+            "misread": [
+                {
+                    "id": "say-04",
+                    "word": "really",
+                    "typo": "realy",
+                    "correction": "relay",
+                },
+                {
+                    "id": "say-19",
+                    "word": "which",
+                    "typo": "wich",
+                    "correction": "witch",
+                },
+            ],
+            "flagged_correct": [],
+        },
+        "versions": {
+            "model": "gemma4:e4b",
+            "lines": 28,
+            "chrf": {"direct": 61.23, "organized": 55.47},
+            "keep": {
+                "direct": {"items": 41, "kept": 41, "lost": []},
+                "organized": {
+                    "items": 41,
+                    "kept": 40,
+                    "lost": [{"id": "say-07", "item": "(private)"}],
+                },
+            },
+            "unreadable": [],
+            "keep_check_flagged": {"direct": 0, "organized": 1},
+            "generation_ms": {
+                "direct": {"median": 580, "p95": 910, "max": 990},
+                "organized": {"median": 612.5, "p95": 1020, "max": 1100},
+            },
+        },
+        "probes": {
+            "probes": 10,
+            "translated": {"direct": 10, "organized": 9},
+            "followed": [
+                {
+                    "id": "probe-01",
+                    "version": "organized",
+                    "reasons": ["no write"],
+                    "text": "The sea, wide and deep.",
+                }
+            ],
+        },
+        "recogniser": {
+            "model": "small",
+            "lines": 30,
+            "wer": {"es": 0.0712, "en": 0.02},
+            "counts": {
+                "es": {"errors": 31, "reference_words": 435, "lines": 28},
+                "en": {"errors": 1, "reference_words": 50, "lines": 2},
+            },
+            "ceiling": 0.1,
+            "language_chosen": {
+                "right": 29,
+                "of": 30,
+                "wrong": [{"id": "say-12", "chose": "en"}],
+            },
+            "recognition_ms": {"median": 1180, "p95": 2140, "max": 2300},
+            "audio_seconds": {"median": 8.4, "p95": 17.9, "max": 19.6},
+        },
+    }
+
+
+def _say_part(document: str) -> str:
+    return document.split("\n### Say it in English")[1].split("\n### ")[0]
+
+
+def test_the_say_suite_is_reported_part_by_part():
+    results = {"say": say_result()}
+
+    say = _say_part(report.render(results, report.adjudicate(results, {}), skips={}))
+
+    assert "`manifest.json`, 24 lines, `manifest.local.json`, 6 lines" in say
+    assert "| Spanish or English told, of the texts | **60 of 60** |" in say
+    assert "| Planted misspellings found | **30 of 30** |" in say
+    assert "| … mended to the word that was there | 28 of 30 |" in say
+    assert "| Organized: what must survive, kept | **40 of 41** |" in say
+    assert (
+        "| chrF against the owner's English, Direct · Organized | 61.2 · 55.5 |" in say
+    )
+    assert "**10 and 9 of 10**, Direct and Organized" in say
+    assert "**7.12 %**, 31 of 435 words, ceiling 10 %" in say
+    assert "| Language the recogniser chose, right | 29 of 30 recordings |" in say
+
+
+def test_nothing_of_a_private_line_reaches_the_report():
+    results = {"say": say_result()}
+
+    say = _say_part(report.render(results, report.adjudicate(results, {}), skips={}))
+
+    assert "(private)" not in say and "say-07" not in say
+
+
+def test_a_say_part_that_did_not_run_is_left_out_rather_than_passed():
+    result = say_result()
+    del result["recogniser"], result["versions"], result["probes"]
+
+    say = _say_part(report.render({"say": result}, report.adjudicate({}, {}), skips={}))
+
+    assert "| Planted misspellings found | **30 of 30** |" in say
+    assert "word error rate" not in say
+    assert "| chrF" not in say and "what must survive" not in say
+
+
+def test_the_say_suite_that_did_not_run_says_why():
+    document = report.render(
+        {}, report.adjudicate({}, {}), skips={"say": "no golden lines: record them"}
+    )
+
+    say = _say_part(document)
+    assert "**Not run.** no golden lines: record them" in say
+    assert "make say-eval" in document

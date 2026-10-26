@@ -80,6 +80,12 @@ CLAUDE.md
 eval/golden/errors/labels.local.json
 eval/golden/errors/manifest.local.json
 
+# Say it in English's golden set: the owner's recordings, and the lines they marked
+# private. Their voice and their real messages stay on the machine that recorded them;
+# the texts of the other lines ship in manifest.json.
+eval/golden/say/audio/
+eval/golden/say/manifest.local.json
+
 # What a `make eval` run produced, before eval/report.py turns it into
 # docs/evaluation.md. Raw per-suite JSON, rewritten from scratch on every run and
 # meaningless without the date it was taken on. The report is the artefact; this is the

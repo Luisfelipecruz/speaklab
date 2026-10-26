@@ -40,16 +40,26 @@ SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "+psycopg2")
 
 # ── Model services ──────────────────────────────────────────────────────────
 #
-# Three URLs, no client objects. The API holds no weights; it holds addresses.
+# Four URLs, no client objects. The API holds no weights; it holds addresses.
 
 ASR_URL = os.environ.get("ASR_URL", "http://asr:8101")
 TTS_URL = os.environ.get("TTS_URL", "http://tts:8102")
 PRON_URL = os.environ.get("PRON_URL", "http://pron:8103")
 
-MODEL_SERVICES = {"asr": ASR_URL, "tts": TTS_URL, "pron": PRON_URL}
+# The same recogniser with a multilingual model, for what is said in the speaker's own
+# language. A second service rather than a second model in `asr`, so the English pipeline
+# and every figure measured on it keep `small.en` untouched.
+ASR_MULTI_URL = os.environ.get("ASR_MULTI_URL", "http://asr-multi:8101")
 
-# Ceiling for the /health probe of the three services above. They are probed
-# concurrently, so this bounds all three, not each. Short on purpose: /health is what
+MODEL_SERVICES = {
+    "asr": ASR_URL,
+    "tts": TTS_URL,
+    "pron": PRON_URL,
+    "asr-multi": ASR_MULTI_URL,
+}
+
+# Ceiling for the /health probe of the services above. They are probed
+# concurrently, so this bounds all of them, not each. Short on purpose: /health is what
 # the container healthcheck curls, and a liveness probe that can hang is worse than no
 # probe at all.
 HEALTH_PROBE_TIMEOUT_S = float(os.environ.get("HEALTH_PROBE_TIMEOUT_S", "1.5"))
@@ -491,6 +501,35 @@ ANSWER_HISTORY_LIMIT = int(os.environ.get("ANSWER_HISTORY_LIMIT", "60"))
 
 # Earlier answers listed under one prompt, newest first.
 ANSWERS_PER_PROMPT = int(os.environ.get("ANSWERS_PER_PROMPT", "10"))
+
+
+# ── Say it in English ───────────────────────────────────────────────────────
+
+# Zero, as for labelling: the same words give the same English, so a version written
+# again is the same version, and the measurement of the two versions repeats.
+SAY_TEMPERATURE = float(os.environ.get("SAY_TEMPERATURE", "0"))
+
+# The longest text taken to translate or check: about what the panel's longest recording,
+# two minutes of speech, comes to.
+SAY_MAX_TEXT_CHARS = int(os.environ.get("SAY_MAX_TEXT_CHARS", "4000"))
+
+# Phrases worth keeping, per capture. A short list is one somebody reads.
+SAY_MAX_PHRASES = int(os.environ.get("SAY_MAX_PHRASES", "4"))
+
+# How long a click on the other version waits for the one already being written behind
+# the reply, before writing it itself.
+SAY_VERSION_WAIT_S = float(os.environ.get("SAY_VERSION_WAIT_S", "30"))
+
+# Days until a capture comes back to be written again, by box. Written with no counted
+# mistake it moves up a box; with any, back to the first. The last interval repeats.
+PRACTICE_INTERVALS_DAYS: tuple[int, ...] = tuple(
+    int(days)
+    for days in os.environ.get("PRACTICE_INTERVALS_DAYS", "1,3,7,14,30").split(",")
+)
+
+# The Notebook is paginated, like the history of conversations, for the same reason.
+CAPTURE_PAGE_SIZE = int(os.environ.get("CAPTURE_PAGE_SIZE", "20"))
+CAPTURE_PAGE_MAX = int(os.environ.get("CAPTURE_PAGE_MAX", "100"))
 
 
 # ── Rehearsing a presentation ───────────────────────────────────────────────

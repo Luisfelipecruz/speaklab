@@ -109,6 +109,16 @@ SUITES = (
         {"OLLAMA_BASE_URL": "http://host.docker.internal:11434"},
         "make answer-feedback",
     ),
+    Suite(
+        "say",
+        "tests/test_say_golden.py",
+        "Say it in English",
+        {
+            "ASR_MULTI_URL": "http://asr-multi:8101",
+            "OLLAMA_BASE_URL": "http://host.docker.internal:11434",
+        },
+        "make say-eval",
+    ),
 )
 
 

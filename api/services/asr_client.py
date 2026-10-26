@@ -63,8 +63,16 @@ async def transcribe(
     filename: str = "recording",
     content_type: str | None = None,
     client: httpx.AsyncClient | None = None,
+    language: str | None = None,
+    task: str | None = None,
+    url: str | None = None,
 ) -> Transcription:
     """Send bytes, get a transcript with word timings back.
+
+    `language` is a Whisper code, several separated by commas for the service to choose
+    among, or `auto`; `task` is `transcribe` or `translate`. Neither is sent unless set, so
+    a call without them is the request the English pipeline has always made. `url` is the
+    service to ask: `asr` by default, `asr-multi` for any language but English.
 
     `client` is injectable so the tests can drive this against `httpx.MockTransport`
     rather than a running container. That is not only convenience: the interesting cases
@@ -75,13 +83,19 @@ async def transcribe(
     if client is None:
         client = httpx.AsyncClient(timeout=ASR_TIMEOUT_S)
 
+    fields = {
+        name: value
+        for name, value in (("language", language), ("task", task))
+        if value is not None
+    }
     try:
         try:
             response = await client.post(
-                f"{ASR_URL}/transcribe",
+                f"{url or ASR_URL}/transcribe",
                 files={
                     "file": (filename, data, content_type or "application/octet-stream")
                 },
+                **({"data": fields} if fields else {}),
             )
         except httpx.RequestError as exc:
             # Connection refused, DNS failure, timeout — from here they are the same

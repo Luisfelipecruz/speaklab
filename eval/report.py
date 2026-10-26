@@ -46,7 +46,7 @@ NOT_RUN = "not run"
 MARK = {MET: "✅", NOT_MET: "❌", UNDECIDABLE: "◐", NOT_RUN: "—"}
 
 # The suites, in the order the report reads them. `run.py` runs the same names.
-SUITE_NAMES = ("asr", "pron", "errors", "personas", "answers")
+SUITE_NAMES = ("asr", "pron", "errors", "personas", "answers", "say")
 
 # The precision bar S5 states. Here rather than in the comparison so that a reader of the
 # report and a reader of this file are looking at the same number.
@@ -1084,6 +1084,100 @@ def _questions_section(personas: dict) -> list[str]:
     ]
 
 
+def _say_section(results: dict, skips: dict) -> list[str]:
+    lines = _suite_heading(
+        "say", "Say it in English — against the owner's golden set", results, skips
+    )
+    say = results.get("say")
+    if say is None:
+        return lines
+    read = say.get("golden_set") or {}
+    lines += [
+        "Read from "
+        + (
+            ", ".join(f"`{name}`, {count} lines" for name, count in read.items())
+            or "no manifest: the probes alone"
+        )
+        + ". A part whose service or recordings were not there is left out, not "
+        "counted as passing.",
+        "",
+        "| | |",
+        "|---|---|",
+    ]
+    language = say.get("language")
+    if language:
+        lines.append(
+            f"| Spanish or English told, of the texts | "
+            f"**{language['told']} of {language['texts']}** |"
+        )
+    spelling = say.get("spelling")
+    if spelling:
+        lines += [
+            f"| Planted misspellings found | "
+            f"**{spelling['found']} of {spelling['planted']}** |",
+            f"| … mended to the word that was there | "
+            f"{spelling['mended']} of {spelling['found']} |",
+            f"| Correct words flagged, in {spelling['texts']} texts | "
+            f"**{len(spelling['flagged_correct'])}** |",
+        ]
+    versions = say.get("versions")
+    if versions:
+        for version in ("direct", "organized"):
+            kept = versions["keep"][version]
+            lines.append(
+                f"| {version.capitalize()}: what must survive, kept | "
+                f"**{kept['kept']} of {kept['items']}** |"
+            )
+        chrf = versions.get("chrf")
+        if chrf:
+            lines.append(
+                "| chrF against the owner's English, Direct · Organized | "
+                f"{chrf['direct']:.1f} · {chrf['organized']:.1f} |"
+            )
+        times = versions["generation_ms"]
+        lines.append(
+            f"| Writing a version, median · p95, {versions['model']} | "
+            f"{_fmt(times['direct']['median'], 0)} · {_fmt(times['direct']['p95'], 0)} "
+            f"ms Direct, {_fmt(times['organized']['median'], 0)} · "
+            f"{_fmt(times['organized']['p95'], 0)} ms Organized |"
+        )
+    probes = say.get("probes")
+    if probes:
+        translated = probes["translated"]
+        lines.append(
+            f"| Orders inside a dictation translated, not done | "
+            f"**{translated['direct']} and {translated['organized']} of "
+            f"{probes['probes']}**, Direct and Organized |"
+        )
+    recogniser = say.get("recogniser")
+    if recogniser:
+        spanish = recogniser["counts"]["es"]
+        if recogniser["wer"].get("es") is not None:
+            lines.append(
+                f"| Spanish word error rate, {recogniser['model']} | "
+                f"**{recogniser['wer']['es'] * 100:.2f} %**, {spanish['errors']} of "
+                f"{spanish['reference_words']} words, ceiling "
+                f"{recogniser['ceiling'] * 100:.0f} % |"
+            )
+        chosen = recogniser["language_chosen"]
+        times = recogniser["recognition_ms"]
+        lines += [
+            f"| Language the recogniser chose, right | {chosen['right']} of "
+            f"{chosen['of']} recordings |",
+            f"| Recognition, median · p95 | {_fmt(times['median'], 0)} · "
+            f"{_fmt(times['p95'], 0)} ms |",
+        ]
+    lines += [
+        "",
+        "The versions are written from what was said, not from what the recogniser "
+        "heard, so a name the model dropped and one the recogniser misheard are counted "
+        "apart. chrF is a closeness, not a verdict: two good translations of one "
+        "sentence share far from all their characters.",
+        "",
+    ]
+    return lines
+
+
 def _corpus_section(results: dict, skips: dict) -> list[str]:
     lines = ["### The corpus these figures rest on", ""]
     corpus = results.get("corpus")
@@ -1218,6 +1312,7 @@ def render(
     lines += _errors_section(results, skips)
     lines += _personas_section(results, skips)
     lines += _answers_section(results, skips)
+    lines += _say_section(results, skips)
     if failures:
         lines += [
             "### Suites that did not finish clean",
@@ -1254,13 +1349,14 @@ def render(
         "```bash",
         "make up                  # postgres, api, asr, tts",
         "make pron-up             # the pronunciation service, 1.87 GB",
+        "make say-up              # the recogniser for the owner's own language",
         "ollama serve             # on the host, with the configured model pulled",
         "make eval                # every suite that can run, then this document",
         "```",
         "",
         "Each suite is also runnable on its own — `make asr-wer`, `make pron-golden`, "
-        "`make error-precision`, `make persona-adherence`, `make answer-feedback` — and "
-        "each prints more detail "
+        "`make error-precision`, `make persona-adherence`, `make answer-feedback`, "
+        "`make say-eval` — and each prints more detail "
         "than lands here. A suite whose service is not up **skips**; it does not fail. "
         "That is what lets CI run the deterministic subset with no model layer at all.",
         "",
