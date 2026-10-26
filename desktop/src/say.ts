@@ -91,7 +91,8 @@ export class SayFeature {
   private helper: KeyHelper | null = null;
   private settingsWin: BrowserWindow | null = null;
   private access: boolean | null = null;
-  private language = "your language";
+  private language: string | null = null;
+  private learning = false;
   private escape = false;
   private readonly dictation: Dictation;
   private readonly intentions: Intentions;
@@ -159,13 +160,19 @@ export class SayFeature {
     this.panel = null;
   }
 
-  /** The account's language by name, for the menu, once the API answers. */
+  /**
+   * The account's language by name, for the menu: asked at launch, and as the window moves
+   * between pages until it is known, since signing in is a move between pages.
+   */
   learnLanguage(): void {
+    if (this.language !== null || this.learning) return;
+    this.learning = true;
     const request = net.request({ url: `${this.ctx.apiBase}/auth/me`, origin: this.ctx.webOrigin, useSessionCookies: true });
     request.on("response", (response) => {
       const chunks: Buffer[] = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
+        this.learning = false;
         try {
           const code = (JSON.parse(Buffer.concat(chunks).toString("utf8")) as { native_language?: string }).native_language;
           if (code && LANGUAGES[code]) {
@@ -177,7 +184,7 @@ export class SayFeature {
         }
       });
     });
-    request.on("error", () => {});
+    request.on("error", () => (this.learning = false));
     request.end();
   }
 
@@ -213,7 +220,7 @@ export class SayFeature {
   private menu(): void {
     if (!this.tray) return;
     const template = trayMenu(
-      { settings: this.settings, access: this.access, language: this.language },
+      { settings: this.settings, access: this.access, language: this.language ?? "your language" },
       {
         type: () => void frontApp().then((front) => this.dictation.typing(front)),
         copied: () => this.copied(),

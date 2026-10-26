@@ -226,6 +226,8 @@ function openMain(path: string): void {
   } else {
     main = mainWindow(url);
     main.on("closed", () => (main = undefined));
+    main.webContents.on("did-navigate", () => say?.learnLanguage());
+    main.webContents.on("did-navigate-in-page", () => say?.learnLanguage());
   }
   app.focus({ steal: true });
 }
