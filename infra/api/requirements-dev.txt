@@ -3,7 +3,7 @@
 # Installed on top of requirements.txt into the `test` stage of infra/api/Dockerfile and
 # into CI's API job. Never into the stage the API runs from.
 
-pytest==9.1.1
-pytest-asyncio==1.4.0
-ruff==0.17.2
+pytest==9.2.0
+pytest-asyncio==1.4.1
+ruff==0.17.3
 black==26.10.1
