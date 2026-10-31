@@ -70,7 +70,7 @@ preshed==3.0.13
 # Python, no model and nothing downloaded; loaded once, on the first check, in about a
 # second and 125 MB. Its optional C extension for edit distance is not installed: the
 # texts are a few sentences.
-symspellpy==6.10.0
+symspellpy==6.10.1
 
 # ── Tests and lint ──────────────────────────────────────────────────────────
 #
