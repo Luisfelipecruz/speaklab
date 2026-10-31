@@ -5,7 +5,7 @@
 # Build context is the REPOSITORY ROOT, not this directory — see docker-compose.yml.
 # That is what lets the image carry api/ and run without a bind mount. .dockerignore at
 # the root keeps the context to a few hundred kilobytes.
-FROM python:3.12.15-slim-trixie AS deps
+FROM python:3.12.16-slim-trixie AS deps
 
 # The security fixes Debian has published since the base image was built, and no package
 # added: the health check below is a line of Python, not curl.
