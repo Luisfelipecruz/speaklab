@@ -5,7 +5,7 @@
 #   dev     the development server over the bind-mounted source (the `dev` profile in
 #           docker-compose.yml); the frontend's tests, types and lint run in it too
 
-FROM node:24.22.0-alpine3.24 AS base
+FROM node:24.22.1-alpine3.24 AS base
 
 # The security fixes Alpine has published since the base image was built.
 RUN apk upgrade --no-cache
@@ -70,7 +70,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
 RUN pnpm run build
 
 
-FROM node:24.22.0-alpine3.24 AS runner
+FROM node:24.22.1-alpine3.24 AS runner
 
 # Alpine's fixes, and no package manager at all: the standalone server needs none.
 RUN apk upgrade --no-cache \
