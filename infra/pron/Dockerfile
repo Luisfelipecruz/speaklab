@@ -7,7 +7,7 @@
 # The layer order is deliberate and is the difference between a 20-second rebuild and a
 # 12-minute one: torch, then the NLTK corpora, then the vocabulary, then the code. The
 # code is what changes; it is last.
-FROM python:3.12.15-slim-trixie
+FROM python:3.12.16-slim-trixie
 
 # The security fixes Debian has published since the base image was built, and no package
 # added: the health check is a line of Python, and there is no ffmpeg — PyAV carries the
