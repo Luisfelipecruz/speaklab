@@ -3,7 +3,7 @@
 # Build context is this directory, not the repository root, for the same reason as
 # infra/asr: nothing here needs anything from the rest of the tree, and editing a router
 # in api/ should not invalidate this image's cache.
-FROM python:3.12.15-slim-trixie
+FROM python:3.12.16-slim-trixie
 
 # The security fixes Debian has published since the base image was built, and no package
 # added: the health check is a line of Python, and there is deliberately no espeak-ng —
