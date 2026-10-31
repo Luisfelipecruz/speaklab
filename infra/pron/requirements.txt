@@ -27,7 +27,7 @@ setuptools==84.2.1
 # drags in `phonemizer` *and* the espeak-ng binary. We do our own G2P, so the tokenizer
 # is dead weight, which is why vocab.json is read as JSON rather than through a
 # tokenizer class.
-transformers==5.20.2
+transformers==5.22.1
 
 # Pulls the weights down at run time onto the shared model_cache volume, the same
 # arrangement asr and tts use. It arrives transitively through transformers regardless;
